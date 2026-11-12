@@ -1,4 +1,13 @@
-import type { AdmissibilityAnalysisResult, Provedor, UploadedFileItem } from '../types/admissibility';
+import type { AdmissibilityAnalysisResult, EntradasPrazo, Provedor, UploadedFileItem } from '../types/admissibility';
+
+function arquivoParaBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
 export interface ConfigServidor {
   authRequired: boolean;
@@ -47,12 +56,21 @@ export interface ParametrosAnalise {
   files: UploadedFileItem[];
   appealType: string;
   notes: string;
+  prazo: EntradasPrazo;
   signal: AbortSignal;
   onStage: (mensagem: string) => void;
 }
 
 /** Lê a resposta NDJSON do servidor: etapas reais de progresso e o resultado final. */
 export async function analisar(p: ParametrosAnalise): Promise<{ data: AdmissibilityAnalysisResult; securityWarnings: string[] }> {
+  // PDFs só são lidos e codificados agora, e apenas os enviados no modo "PDF original".
+  const arquivos = await Promise.all(
+    p.files.map(async (f) =>
+      f.modo === 'pdf' && f.arquivo
+        ? { name: f.name, role: f.role, mimeType: 'application/pdf' as const, dataBase64: await arquivoParaBase64(f.arquivo), paginas: f.paginas }
+        : { name: f.name, role: f.role, mimeType: 'text/plain' as const, textPreview: f.textPreview ?? '', paginas: f.paginas },
+    ),
+  );
   const res = await fetch('/api/analyze', {
     method: 'POST',
     headers: {
@@ -66,13 +84,8 @@ export async function analisar(p: ParametrosAnalise): Promise<{ data: Admissibil
       appealType: p.appealType,
       notes: p.notes,
       confirmaUsoAutorizado: true,
-      files: p.files.map((f) => ({
-        name: f.name,
-        role: f.role,
-        mimeType: f.dataBase64 ? 'application/pdf' : 'text/plain',
-        dataBase64: f.dataBase64 || undefined,
-        textPreview: f.textPreview || undefined,
-      })),
+      prazo: p.prazo,
+      files: arquivos,
     }),
     signal: p.signal,
   });

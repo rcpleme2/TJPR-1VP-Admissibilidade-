@@ -43,11 +43,30 @@ cadastra a súmula/tema na **própria base** (exportável/importável em JSON) e
 (`shared/precedentesBase.ts`) é pequena e curada; ela não substitui o portal oficial, cujo link aparece em cada item.
 Temas repetitivos/de repercussão geral e acórdãos nunca são "confirmados" automaticamente.
 
+## Consulta de súmulas e precedentes vinculantes
+
+O botão **Consultar Súmulas** (cabeçalho) abre um campo de consulta exclusivo à base local, sem IA e sem enviar dados a terceiros. Aceita
+número (`7`), citação (`súmula 7 stj`, `SV 10`, `tema 466 stf`) ou palavras do enunciado (`reexame de prova`), com filtros por tribunal e tipo.
+Para números fora da base indica se são plausíveis ou inexistentes e leva ao portal oficial; o usuário cadastra/corrige na própria base
+(exportável/importável).
+
 ## Prazos e relevância
 
-`shared/prazos.ts` calcula, a partir das datas extraídas, o prazo de 15 dias úteis (CPC 219/224/1.003 §5º), com feriados nacionais,
-Curitiba, recesso de 20/12 a 20/01, prazo em dobro e interrupção por embargos, além do marco de 03/09/2026 da relevância.
-Suspensões locais específicas não são conhecidas: confira.
+`shared/prazos.ts` calcula o prazo de 15 dias úteis (CPC 219/224/1.003 §5º) com feriados nacionais, de Curitiba, Carnaval, Semana Santa,
+Corpus Christi, recesso de 20/12 a 20/01, prazo em dobro e interrupção por embargos, além do marco de 03/09/2026 da relevância. Entradas:
+
+- **Data da intimação/publicação** do acórdão (e dos embargos, se houver): informada pelo usuário e obrigatória; prevalece sobre a extraída pela IA.
+- **Feriados e suspensões**: o sistema pergunta se há feriado local, suspensão ou indisponibilidade; cada data informada deixa de contar como dia útil.
+- **Data de interposição**: lida do carimbo de protocolo do PDF do recurso (detecção por regex no texto extraído, com página e trecho; a IA também a extrai e o sistema alerta se divergirem).
+  Pode ser corrigida no painel de prazos, que recalcula na hora. Ordem de precedência: usuário, carimbo do PDF, IA.
+
+## Conversão de PDF em texto (menos tokens)
+
+Ao anexar, cada PDF é convertido no navegador (pdf.js) para Markdown enxuto com marcadores `[p. N]`: sem cabeçalhos/rodapés repetidos, linhas
+reunidas e hifenização desfeita. O card mostra páginas, tokens estimados e a economia sobre o PDF (estimativa grosseira; o consumo real varia por provedor).
+O texto pode ser revisado/editado antes do envio (corrigir extração, tarjar dados pessoais). Só o texto vai ao servidor; no modo texto o limite de 22 MB
+de PDFs não se aplica. PDFs escaneados (sem camada de texto) são enviados como PDF original, com aviso; o usuário também pode forçar o envio do PDF por arquivo.
+No modo texto a varredura de prompt injection alcança o conteúdo dos autos.
 
 ## Hospedagem no Google Cloud Run (camada gratuita)
 
@@ -73,8 +92,8 @@ Pontos de atenção:
 - Log estruturado sem conteúdo dos autos, chaves ou tokens (apenas provedor, modelo, nº de arquivos, duração, status).
 - O usuário declara, antes de enviar, estar autorizado e que os autos não estão em segredo de justiça. **Os autos vão ao provedor de IA escolhido**:
   valide a política do órgão (LGPD, Res. CNJ 615/2025) antes de usar em produção.
-- Prompt injection: mitigação parcial (delimitadores, sanitização das notas, instruções de sistema, validação do schema de saída).
-  O texto dentro dos PDFs não é varrido; por isso a revisão humana é obrigatória.
+- Prompt injection: mitigação parcial (delimitadores, varredura das notas e do texto extraído, instruções de sistema, validação do schema de saída).
+  PDFs enviados como arquivo original não são varridos; por isso a revisão humana é obrigatória.
 - Dados da análise ficam apenas no navegador (histórico dos últimos 10 casos, com opção de desligar e de apagar tudo).
 
 ## Estrutura

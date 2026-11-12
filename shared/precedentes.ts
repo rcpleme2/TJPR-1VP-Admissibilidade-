@@ -174,7 +174,7 @@ export function linkOficial(tipo: Tipo, tribunal: Tribunal | null, numero: strin
     : 'https://scon.stj.jus.br/SCON/sumanot/';
 }
 
-function verificarUma(
+export function verificarUma(
   c: { tipo: Tipo; tribunal: Tribunal | null; numero: string; contexto: string },
   base: Map<string, EntradaBase>,
 ): CitacaoPrecedente['verificacao'] {

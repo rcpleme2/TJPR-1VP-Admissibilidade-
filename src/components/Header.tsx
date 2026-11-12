@@ -1,8 +1,9 @@
 import React from 'react';
-import { Scale, BookOpen, Sparkles, RefreshCw, FileText, ShieldCheck } from 'lucide-react';
+import { Scale, BookOpen, Search, Sparkles, RefreshCw, FileText, ShieldCheck } from 'lucide-react';
 
 interface HeaderProps {
   onOpenGuide: () => void;
+  onOpenConsulta: () => void;
   onLoadSample: () => void;
   onReset: () => void;
   hasResult: boolean;
@@ -11,6 +12,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenGuide,
+  onOpenConsulta,
   onLoadSample,
   onReset,
   hasResult,
@@ -54,6 +56,15 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <BookOpen className="w-3.5 h-3.5 text-slate-500" />
               <span>Orientações Técnicas</span>
+            </button>
+
+            <button
+              onClick={onOpenConsulta}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition shadow-xs"
+              title="Consultar súmulas e precedentes vinculantes (sem IA)"
+            >
+              <Search className="w-3.5 h-3.5 text-slate-500" />
+              <span>Consultar Súmulas</span>
             </button>
 
             <button

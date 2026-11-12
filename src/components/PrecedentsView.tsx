@@ -17,6 +17,7 @@ import {
 import { criarCitacaoManual, resumoPrecedentes } from '../../shared/precedentes';
 import type { EntradaBase } from '../../shared/precedentesBase';
 import type { CitacaoPrecedente } from '../types/admissibility';
+import { exportarBase, importarBase } from '../lib/baseIO';
 
 interface Props {
   citacoes: CitacaoPrecedente[];
@@ -80,20 +81,13 @@ export const PrecedentsView: React.FC<Props> = ({ citacoes, baseCustom, onChange
     setMsg(`${c.rotulo} cadastrado na sua base. Clique em "Reverificar" para aplicar.`);
   };
 
-  const exportar = () => {
-    const blob = new Blob([JSON.stringify(baseCustom, null, 2)], { type: 'application/json' });
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'base-precedentes-tjpr1vp.json' });
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  };
+  const exportar = () => exportarBase(baseCustom);
 
   const importar = async (f: File | undefined) => {
     if (!f) return;
     try {
-      const j = JSON.parse(await f.text()) as EntradaBase[];
-      const ok = Array.isArray(j) && j.every((e) => e && ['sumula', 'sumula_vinculante', 'tema'].includes(e.tipo) && ['STJ', 'STF'].includes(e.tribunal) && typeof e.numero === 'string' && typeof e.enunciado === 'string');
-      if (!ok) throw new Error();
-      onBaseChange(j.map((e) => ({ ...e, palavrasChave: Array.isArray(e.palavrasChave) ? e.palavrasChave : [], situacao: e.situacao ?? 'vigente', fonte: 'usuario' as const })));
+      const j = await importarBase(f);
+      onBaseChange(j);
       setMsg(`${j.length} registro(s) importado(s).`);
     } catch {
       setMsg('Arquivo inválido. Use um JSON exportado por este sistema.');

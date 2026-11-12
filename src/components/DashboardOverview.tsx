@@ -11,12 +11,13 @@ import {
   ChevronRight,
   Info,
 } from 'lucide-react';
-import { AdmissibilityAnalysisResult } from '../types/admissibility';
+import { AdmissibilityAnalysisResult, EntradasPrazo } from '../types/admissibility';
 import { DeadlinesPanel } from './DeadlinesPanel';
 import { MARCO_RELEVANCIA_BR } from '../../shared/regras';
 
 interface DashboardOverviewProps {
   data: AdmissibilityAnalysisResult;
+  onChangePrazo: (e: EntradasPrazo) => void;
   onNavigateToChecklist: () => void;
   onNavigateToMinuta: () => void;
   onDownloadPDF: () => void;
@@ -24,6 +25,7 @@ interface DashboardOverviewProps {
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   data,
+  onChangePrazo,
   onNavigateToChecklist,
   onNavigateToMinuta,
   onDownloadPDF,
@@ -200,7 +202,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
       </div>
 
-      {data.verificacoes && <DeadlinesPanel v={data.verificacoes} />}
+      {data.verificacoes && (
+        <DeadlinesPanel v={data.verificacoes} entradas={data.entradasPrazo} onChange={onChangePrazo} />
+      )}
 
       {/* Main Content: Resumo & Óbices */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

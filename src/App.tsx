@@ -5,18 +5,23 @@ import { DashboardOverview } from './components/DashboardOverview';
 import { ChecklistView } from './components/ChecklistView';
 import { DecisionDraftView } from './components/DecisionDraftView';
 import { PrecedentsView } from './components/PrecedentsView';
+import { ConsultaPrecedentes } from './components/ConsultaPrecedentes';
 import { EngineSettings } from './components/EngineSettings';
+import { ENTRADAS_VAZIAS, PrazoForm } from './components/PrazoForm';
 import { TechnicalGuideModal } from './components/TechnicalGuideModal';
 import { PDFExportModal } from './components/PDFExportModal';
 import {
   AdmissibilityAnalysisResult,
   ChecklistStatus,
   CitacaoPrecedente,
+  EntradasPrazo,
   MinutaDecisao1VP,
   Provedor,
   UploadedFileItem,
 } from './types/admissibility';
 import { verificarResultado } from '../shared/precedentes';
+import { verificarPrazos } from '../shared/prazos';
+import { LIMITES } from '../shared/schema';
 import type { EntradaBase } from '../shared/precedentesBase';
 import { analisar, buscarConfig, carregarExemplo, type ConfigServidor } from './lib/api';
 import { baixarMinutaWord } from './lib/exportWord';
@@ -54,6 +59,7 @@ export default function App() {
   const [securityWarnings, setSecurityWarnings] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<Aba>('dashboard');
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [consultaAberta, setConsultaAberta] = useState(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -62,6 +68,7 @@ export default function App() {
   const [chaves, setChaves] = useState<Partial<Record<Provedor, string>>>(lerChaves);
   const [token, setToken] = useState(lerToken);
   const [consent, setConsent] = useState(false);
+  const [prazo, setPrazo] = useState<EntradasPrazo>(ENTRADAS_VAZIAS);
   const [baseCustom, setBaseCustom] = useState<EntradaBase[]>(lerBaseCustom);
   const [historico, setHistorico] = useState<RegistroHistorico[]>(lerHistorico);
   const [saveLocal, setSaveLocalState] = useState(salvarLocalAtivo);
@@ -105,6 +112,11 @@ export default function App() {
   const provider = config.provider;
   const usaChaveServidor = Boolean(servidor?.serverKeys.includes(provider) && config.usarChaveDoServidor);
   const temChave = usaChaveServidor || Boolean(chaves[provider]);
+  const protocolosDetectados = files
+    .filter((f) => (f.role === 'recurso_especial' || f.role === 'recurso_extraordinario') && f.protocolo)
+    .map((f) => ({ arquivo: f.name, papel: f.role as 'recurso_especial' | 'recurso_extraordinario', ...f.protocolo! }));
+  const bytesPdf = files.filter((f) => f.modo === 'pdf').reduce((t, f) => t + f.size, 0);
+  const extraindo = files.some((f) => f.extraindo);
   const temAcordao = files.some((f) => f.role === 'acordao' || f.role === 'acordao_embargos');
   const temRecurso = files.some((f) => f.role === 'recurso_especial' || f.role === 'recurso_extraordinario');
   const faltando = !temAcordao
@@ -113,7 +125,15 @@ export default function App() {
       ? 'Anexe ao menos um recurso (REsp ou RE).'
       : !temChave
         ? `Informe a chave de API do motor ${provider.toUpperCase()}.`
-        : servidor?.authRequired && !token
+        : extraindo
+          ? 'Aguarde a extração do texto dos PDFs.'
+          : bytesPdf > LIMITES.maxBytesTotal
+            ? `Os PDFs enviados como arquivo somam ${(bytesPdf / 1048576).toFixed(0)} MB (limite ${(LIMITES.maxBytesTotal / 1048576).toFixed(0)} MB). Desmarque "Enviar o PDF original" nos que têm texto.`
+            : !prazo.dataIntimacaoAcordao
+              ? 'Informe a data da intimação do acórdão.'
+              : !prazo.feriadosRespondido
+                ? 'Responda se há feriado ou suspensão de expediente no período.'
+                : servidor?.authRequired && !token
           ? 'Informe o token de acesso da instalação.'
           : !consent
             ? 'Confirme a declaração de uso autorizado.'
@@ -124,10 +144,13 @@ export default function App() {
     setErrorMessage(null);
   };
   const handleRemoveFile = (id: string) => setFiles((prev) => prev.filter((f) => f.id !== id));
+  const handleUpdateFile = (id: string, patch: Partial<UploadedFileItem>) =>
+    setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   const handleUpdateRole = (id: string, role: UploadedFileItem['role']) =>
     setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, role } : f)));
 
   const abrirResultado = (data: AdmissibilityAnalysisResult, id: string = crypto.randomUUID()) => {
+    setConsultaAberta(false);
     setAnalysisId(id);
     setAnalysisResult(data);
     setActiveTab('dashboard');
@@ -164,6 +187,7 @@ export default function App() {
         files,
         appealType,
         notes,
+        prazo: { ...prazo, protocolos: protocolosDetectados },
         signal: controller.signal,
         onStage: setStage,
       });
@@ -186,6 +210,9 @@ export default function App() {
   const updateResult = (fn: (r: AdmissibilityAnalysisResult) => AdmissibilityAnalysisResult) =>
     setAnalysisResult((prev) => (prev ? fn(prev) : prev));
 
+  const atualizarPrazo = (e: EntradasPrazo) =>
+    updateResult((r) => ({ ...r, entradasPrazo: e, verificacoes: verificarPrazos(r, e) }));
+
   const mapItem = (sectionCode: string, itemId: string, patch: Partial<{ status: ChecklistStatus; observacaoAssessor: string }>) =>
     updateResult((r) => ({
       ...r,
@@ -201,6 +228,7 @@ export default function App() {
     setErrorMessage(null);
     setSecurityWarnings([]);
     setConsent(false);
+    setPrazo(ENTRADAS_VAZIAS);
     setAnalysisId(crypto.randomUUID());
   };
 
@@ -223,6 +251,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-slate-200">
       <Header
         onOpenGuide={() => setIsGuideOpen(true)}
+        onOpenConsulta={() => setConsultaAberta(true)}
         onLoadSample={handleLoadSample}
         onReset={handleReset}
         hasResult={Boolean(analysisResult)}
@@ -257,12 +286,15 @@ export default function App() {
           </div>
         )}
 
-        {!analysisResult ? (
+        {consultaAberta ? (
+          <ConsultaPrecedentes baseCustom={baseCustom} onBaseChange={setBaseCustom} onClose={() => setConsultaAberta(false)} />
+        ) : !analysisResult ? (
           <DocumentUploadSection
             files={files}
             onAddFile={handleAddFile}
             onRemoveFile={handleRemoveFile}
             onUpdateRole={handleUpdateRole}
+            onUpdateFile={handleUpdateFile}
             notes={notes}
             setNotes={setNotes}
             appealType={appealType}
@@ -298,6 +330,7 @@ export default function App() {
               setBaseCustom([]);
               setConfig(lerConfig());
             }}
+            prazoForm={<PrazoForm value={prazo} onChange={setPrazo} idPrefix="pre" />}
             engineSettings={
               <EngineSettings
                 config={config}
@@ -363,6 +396,7 @@ export default function App() {
             {activeTab === 'dashboard' && (
               <DashboardOverview
                 data={analysisResult}
+                onChangePrazo={atualizarPrazo}
                 onNavigateToChecklist={() => setActiveTab('checklist')}
                 onNavigateToMinuta={() => setActiveTab('minuta')}
                 onDownloadPDF={() => setIsPdfModalOpen(true)}

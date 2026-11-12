@@ -4,8 +4,10 @@ import {
   LIMITES,
   ModelOutputSchema,
   modelOutputJsonSchema,
+  EntradasPrazoSchema,
   type AdmissibilityAnalysisResult,
   type AnalyzeRequest,
+  type EntradasPrazo,
   type ModelOutput,
 } from '../shared/schema';
 import { MODELOS_PADRAO } from './config';
@@ -25,6 +27,7 @@ export function bytesDeBase64(b64: string): number {
 /** Valida arquivos além do schema: assinatura %PDF, tamanho total, conteúdo presente. */
 export function validarArquivos(files: AnalyzeRequest['files']): number {
   let total = 0;
+  let chars = 0;
   for (const f of files) {
     if (f.mimeType === 'application/pdf') {
       if (!f.dataBase64) throw new RequisicaoInvalida(`O arquivo "${f.name}" não possui conteúdo.`);
@@ -34,7 +37,12 @@ export function validarArquivos(files: AnalyzeRequest['files']): number {
       total += bytesDeBase64(f.dataBase64);
     } else if (!f.textPreview) {
       throw new RequisicaoInvalida(`O arquivo "${f.name}" não possui texto.`);
+    } else {
+      chars += f.textPreview.length;
     }
+  }
+  if (chars > LIMITES.maxTextoTotal) {
+    throw new RequisicaoInvalida(`O texto enviado soma ${(chars / 1000).toFixed(0)} mil caracteres; o limite é ${(LIMITES.maxTextoTotal / 1000).toFixed(0)} mil por análise.`);
   }
   if (total > LIMITES.maxBytesTotal) {
     throw new RequisicaoInvalida(
@@ -60,13 +68,20 @@ export function montarPartes(req: AnalyzeRequest): { partes: ParteEntrada[]; avi
   const partes: ParteEntrada[] = [];
   let intro = 'Analise os autos e peças recursais anexadas para o Juízo de Admissibilidade da 1ª Vice-Presidência do TJPR.\n';
   intro += `Tipo recursal pretendido: ${{ auto: 'Análise conjunta (REsp e/ou RE)', resp: 'Recurso Especial', re: 'Recurso Extraordinário', ambos: 'REsp e RE concomitantes' }[req.appealType]}\n`;
+  const prazo = req.prazo;
+  if (prazo?.dataIntimacaoAcordao || prazo?.dataIntimacaoEmbargos) {
+    intro += 'Datas de intimação informadas pelo usuário (use-as como referência; não as recalcule):\n';
+    if (prazo.dataIntimacaoAcordao) intro += `- Intimação/publicação do acórdão: ${prazo.dataIntimacaoAcordao}\n`;
+    if (prazo.dataIntimacaoEmbargos) intro += `- Intimação/publicação do acórdão dos embargos de declaração: ${prazo.dataIntimacaoEmbargos}\n`;
+  }
   if (notas) intro += `<UNTRUSTED_USER_NOTES>\n${notas}\n</UNTRUSTED_USER_NOTES>\n`;
   intro += '\nDocumentos processuais submetidos a análise:\n';
   partes.push({ kind: 'text', text: intro });
 
   for (const f of req.files) {
     const nome = f.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
-    partes.push({ kind: 'text', text: `<UNTRUSTED_DOCUMENT_CONTENT filename="${nome}" role="${ROTULO_PAPEL[f.role]}">` });
+    const formato = f.mimeType === 'application/pdf' ? 'pdf' : 'texto extraído do PDF, com marcadores de página [p. N]';
+    partes.push({ kind: 'text', text: `<UNTRUSTED_DOCUMENT_CONTENT filename="${nome}" role="${ROTULO_PAPEL[f.role]}" format="${formato}">` });
     if (f.mimeType === 'application/pdf' && f.dataBase64) {
       partes.push({ kind: 'pdf', name: nome.endsWith('.pdf') ? nome : `${nome}.pdf`, base64: f.dataBase64.replace(/\s/g, '') });
     } else if (f.textPreview) {
@@ -104,8 +119,9 @@ export function interpretarSaida(texto: string): { ok: true; data: ModelOutput }
 }
 
 /** Acrescenta cálculos determinísticos e a verificação automática de precedentes. */
-export function enriquecer(out: ModelOutput, meta: AdmissibilityAnalysisResult['meta']): AdmissibilityAnalysisResult {
-  return { ...out, verificacoes: verificarPrazos(out), precedentes: verificarResultado(out), meta };
+export function enriquecer(out: ModelOutput, meta: AdmissibilityAnalysisResult['meta'], entradas?: Partial<EntradasPrazo>): AdmissibilityAnalysisResult {
+  const entradasPrazo = EntradasPrazoSchema.parse(entradas ?? {});
+  return { ...out, entradasPrazo, verificacoes: verificarPrazos(out, entradasPrazo), precedentes: verificarResultado(out), meta };
 }
 
 export interface ResultadoAnalise {
@@ -136,7 +152,7 @@ export async function executarAnalise(
     const r = interpretarSaida(texto);
     if (r.ok) {
       etapa('Recalculando prazos e verificando precedentes…');
-      const data = enriquecer(r.data, { provedor: req.provider, modelo: model, geradoEm: new Date().toISOString() });
+      const data = enriquecer(r.data, { provedor: req.provider, modelo: model, geradoEm: new Date().toISOString() }, req.prazo);
       return { data, avisosSeguranca: avisos };
     }
     ultimoErro = r.erro;

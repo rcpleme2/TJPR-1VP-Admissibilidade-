@@ -17,6 +17,8 @@ import {
 import { UploadedFileItem } from '../types/admissibility';
 import { LIMITES } from '../../shared/schema';
 import type { RegistroHistorico } from '../lib/storage';
+import { ArquivoCard } from './ArquivoCard';
+import { extrairPdf } from '../lib/pdfText';
 import { MARCO_RELEVANCIA_BR } from '../../shared/regras';
 
 /** Papel do arquivo a partir de palavras inteiras do nome (evita falsos positivos como "resposta" → REsp). */
@@ -41,6 +43,7 @@ interface DocumentUploadSectionProps {
   onAddFile: (fileItem: UploadedFileItem) => void;
   onRemoveFile: (id: string) => void;
   onUpdateRole: (id: string, role: UploadedFileItem['role']) => void;
+  onUpdateFile: (id: string, patch: Partial<UploadedFileItem>) => void;
   notes: string;
   setNotes: (val: string) => void;
   appealType: string;
@@ -51,6 +54,7 @@ interface DocumentUploadSectionProps {
   onError: (msg: string) => void;
   stageMessage: string;
   engineSettings: React.ReactNode;
+  prazoForm: React.ReactNode;
   consent: boolean;
   setConsent: (v: boolean) => void;
   canAnalyze: boolean;
@@ -69,6 +73,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   onAddFile,
   onRemoveFile,
   onUpdateRole,
+  onUpdateFile,
   notes,
   setNotes,
   appealType,
@@ -79,6 +84,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   onError,
   stageMessage,
   engineSettings,
+  prazoForm,
   consent,
   setConsent,
   canAnalyze,
@@ -94,21 +100,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   const [dragActive, setDragActive] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UploadedFileItem['role']>('recurso_especial');
 
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(',')[1] || '';
-        resolve(base64);
-      };
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
   const handleFileSelection = async (fileList: FileList, roleOverride?: UploadedFileItem['role']) => {
-    let acumulado = files.reduce((t, f) => t + f.size, 0);
     let quantidade = files.length;
     for (const file of Array.from(fileList)) {
       const ehPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
@@ -120,27 +112,48 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         onError(`Limite de ${LIMITES.maxArquivos} arquivos por análise atingido.`);
         break;
       }
-      if (acumulado + file.size > LIMITES.maxBytesTotal) {
-        onError(
-          `"${file.name}" excede o limite total de ${(LIMITES.maxBytesTotal / 1048576).toFixed(0)} MB por análise. Envie somente as peças necessárias (acórdão e recursos).`,
-        );
+      if (file.size > 60 * 1048576) {
+        onError(`"${file.name}" tem mais de 60 MB e não pode ser processado no navegador.`);
         continue;
       }
-      const role = detectarPapel(file.name, roleOverride || selectedRole);
+      quantidade++;
+      const id = crypto.randomUUID();
+      onAddFile({
+        id,
+        name: file.name,
+        size: file.size,
+        role: detectarPapel(file.name, roleOverride || selectedRole),
+        label: file.name.replace(/\.[^/.]+$/, ''),
+        arquivo: file,
+        modo: 'texto',
+        extraindo: true,
+      });
       try {
-        const base64 = await fileToBase64(file);
-        acumulado += file.size;
-        quantidade++;
-        onAddFile({
-          id: crypto.randomUUID(),
-          name: file.name,
-          size: file.size,
-          role,
-          label: file.name.replace(/\.[^/.]+$/, ''),
-          dataBase64: base64,
-        });
+        const r = await extrairPdf(file);
+        if (r.escaneado || r.caracteres === 0) {
+          onUpdateFile(id, {
+            extraindo: false,
+            modo: 'pdf',
+            paginas: r.paginas,
+            avisoExtracao: 'Este PDF parece escaneado (sem camada de texto): será enviado como PDF, com mais tokens. Se possível, use uma versão pesquisável (OCR).',
+          });
+        } else {
+          onUpdateFile(id, {
+            extraindo: false,
+            modo: 'texto',
+            paginas: r.paginas,
+            textPreview: r.texto,
+            caracteres: r.caracteres,
+            linhasRemovidas: r.linhasRemovidas,
+            protocolo: r.protocolo ?? undefined,
+          });
+        }
       } catch {
-        onError(`Não foi possível ler "${file.name}".`);
+        onUpdateFile(id, {
+          extraindo: false,
+          modo: 'pdf',
+          avisoExtracao: 'Não foi possível extrair o texto deste PDF: será enviado como PDF original.',
+        });
       }
     }
   };
@@ -295,38 +308,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
               ) : (
                 <div className="space-y-2">
                   {acordaoFiles.map((file) => (
-                    <div
-                      key={file.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition shadow-xs"
-                    >
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 truncate">{file.name}</p>
-                          <p className="text-[11px] text-slate-400">{formatFileSize(file.size)}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <select
-                          value={file.role}
-                          onChange={(e) => onUpdateRole(file.id, e.target.value as any)}
-                          className="bg-slate-50 text-[11px] text-slate-700 border border-slate-300 rounded-lg px-2 py-1 outline-none focus:border-slate-500"
-                        >
-                          <option value="acordao">Acórdão Principal</option>
-                          <option value="acordao_embargos">Acórdão Embargos Declaração</option>
-                        </select>
-                        <button
-                          onClick={() => onRemoveFile(file.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition"
-                          title="Remover arquivo"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
+                    <ArquivoCard key={file.id} file={file} papeis={[{ v: 'acordao', r: 'Acórdão Principal' }, { v: 'acordao_embargos', r: 'Acórdão Embargos Declaração' }]} onUpdateRole={onUpdateRole} onRemove={onRemoveFile} onUpdate={onUpdateFile} />
                   ))}
                 </div>
               )}
@@ -353,39 +335,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
               ) : (
                 <div className="space-y-2">
                   {recursoFiles.map((file) => (
-                    <div
-                      key={file.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition shadow-xs"
-                    >
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 truncate">{file.name}</p>
-                          <p className="text-[11px] text-slate-400">{formatFileSize(file.size)}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <select
-                          value={file.role}
-                          onChange={(e) => onUpdateRole(file.id, e.target.value as any)}
-                          className="bg-slate-50 text-[11px] text-slate-700 border border-slate-300 rounded-lg px-2 py-1 outline-none focus:border-slate-500"
-                        >
-                          <option value="recurso_especial">Recurso Especial (STJ)</option>
-                          <option value="recurso_extraordinario">Recurso Extraordinário (STF)</option>
-                          <option value="outro">Recurso Adesivo / Outro</option>
-                        </select>
-                        <button
-                          onClick={() => onRemoveFile(file.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition"
-                          title="Remover arquivo"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
+                    <ArquivoCard key={file.id} file={file} papeis={[{ v: 'recurso_especial', r: 'Recurso Especial' }, { v: 'recurso_extraordinario', r: 'Recurso Extraordinário' }, { v: 'outro', r: 'Outra peça' }]} onUpdateRole={onUpdateRole} onRemove={onRemoveFile} onUpdate={onUpdateFile} />
                   ))}
                 </div>
               )}
@@ -431,13 +381,15 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
               ></textarea>
             </div>
 
+            <div className="pt-3 border-t border-slate-100">{prazoForm}</div>
+
             <div className="pt-3 border-t border-slate-100">{engineSettings}</div>
 
             <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2 text-[11px] text-slate-600">
               <Lock className="w-3.5 h-3.5 text-slate-500 mt-0.5 shrink-0" />
               <span>
-                <strong>Mitigação parcial de prompt injection:</strong> as notas são sanitizadas e os autos são tratados como
-                dados não confiáveis; o conteúdo interno dos PDFs não é varrido. Revise sempre o resultado.
+                <strong>Mitigação parcial de prompt injection:</strong> as notas e o texto extraído dos PDFs são varridos e tratados
+                como dados não confiáveis; PDFs enviados como arquivo original não são varridos. Revise sempre o resultado.
               </span>
             </div>
 

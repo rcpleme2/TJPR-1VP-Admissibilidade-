@@ -33,7 +33,11 @@ export const RecursoAnalisadoSchema = z.object({
   id: z.string(),
   tipo: z.string().describe('REsp, RE ou Ambos'),
   recorrente: z.string(),
-  dataInterposicao: z.string().optional().describe('Data de interposição/protocolo do recurso, dd/mm/aaaa'),
+  dataInterposicao: z
+    .string()
+    .optional()
+    .describe('Data de interposição extraída do carimbo/certidão de PROTOCOLO da petição recursal, dd/mm/aaaa'),
+  fonteDataInterposicao: z.string().optional().describe('Onde a data foi lida (ex.: "carimbo de protocolo, p. 3")'),
   alineasConstitucionais: z.array(z.string()).optional(),
   dispositivosInvocados: z.array(z.string()).optional(),
   tesesPrincipais: z.array(z.string()).optional(),
@@ -91,11 +95,37 @@ export const ModelOutputSchema = z.object({
 
 // --- Campos calculados pelo sistema (nunca pelo modelo) -------------------
 
+export const EntradasPrazoSchema = z.object({
+  /** Data da intimação/publicação do acórdão informada pelo usuário (aaaa-mm-dd). */
+  dataIntimacaoAcordao: z.string().optional(),
+  /** Data da intimação/publicação do acórdão dos embargos informada pelo usuário. */
+  dataIntimacaoEmbargos: z.string().optional(),
+  /** O usuário respondeu à pergunta sobre feriados/suspensões? */
+  feriadosRespondido: z.boolean().default(false),
+  feriados: z.array(z.object({ data: z.string(), descricao: z.string().optional() })).default([]),
+  /** Datas de interposição corrigidas pelo usuário, por id de recurso. */
+  interposicaoManual: z.record(z.string(), z.string()).default({}),
+  /** Datas de protocolo detectadas no texto dos PDFs dos recursos. */
+  protocolos: z
+    .array(
+      z.object({
+        arquivo: z.string(),
+        papel: z.enum(['recurso_especial', 'recurso_extraordinario']),
+        data: z.string(),
+        pagina: z.number(),
+        trecho: z.string(),
+      }),
+    )
+    .default([]),
+});
+
 export const VerificacaoPrazoSchema = z.object({
   recursoId: z.string(),
   recursoTipo: z.string(),
   dataBase: z.string().nullable(),
   baseDescricao: z.string(),
+  fonteBase: z.string().default(''),
+  fonteInterposicao: z.string().default(''),
   inicioContagem: z.string().nullable(),
   dataLimite: z.string().nullable(),
   dataLimiteDobro: z.string().nullable(),
@@ -159,6 +189,7 @@ export const MetaAnaliseSchema = z.object({
 
 /** Resultado completo trafegado entre servidor, UI, armazenamento local e PDF. */
 export const AdmissibilityAnalysisResultSchema = ModelOutputSchema.extend({
+  entradasPrazo: EntradasPrazoSchema.optional(),
   verificacoes: VerificacoesSchema.optional(),
   precedentes: z.array(CitacaoPrecedenteSchema).optional(),
   meta: MetaAnaliseSchema.optional(),
@@ -174,6 +205,7 @@ export type CapituloFundamentacao = z.infer<typeof CapituloFundamentacaoSchema>;
 export type MinutaDecisao1VP = z.infer<typeof MinutaDecisao1VPSchema>;
 export type ModelOutput = z.infer<typeof ModelOutputSchema>;
 export type VerificacaoPrazo = z.infer<typeof VerificacaoPrazoSchema>;
+export type EntradasPrazo = z.infer<typeof EntradasPrazoSchema>;
 export type Verificacoes = z.infer<typeof VerificacoesSchema>;
 export type CitacaoPrecedente = z.infer<typeof CitacaoPrecedenteSchema>;
 export type AdmissibilityAnalysisResult = z.infer<typeof AdmissibilityAnalysisResultSchema>;
@@ -197,7 +229,8 @@ export const LIMITES = {
   maxArquivos: 8,
   /** Soma dos PDFs (bytes reais). O Cloud Run recusa requisições acima de 32 MiB; base64 infla ~33%. */
   maxBytesTotal: 22 * 1024 * 1024,
-  maxTextoPorArquivo: 400_000,
+  maxTextoPorArquivo: 1_500_000,
+  maxTextoTotal: 3_000_000,
   maxNotas: 8_000,
 } as const;
 
@@ -210,12 +243,14 @@ export const AnalyzeRequestSchema = z.object({
   appealType: z.enum(['auto', 'resp', 're', 'ambos']).default('auto'),
   notes: z.string().max(LIMITES.maxNotas).optional().default(''),
   confirmaUsoAutorizado: z.literal(true, { error: 'É necessário confirmar o uso autorizado dos autos.' }),
+  prazo: EntradasPrazoSchema.optional(),
   files: z
     .array(
       z.object({
         name: z.string().min(1).max(200),
         role: z.enum(FILE_ROLES),
         mimeType: z.enum(['application/pdf', 'text/plain']).default('application/pdf'),
+        paginas: z.number().int().min(0).max(5000).optional(),
         dataBase64: z.string().optional(),
         textPreview: z.string().max(LIMITES.maxTextoPorArquivo).optional(),
       }),

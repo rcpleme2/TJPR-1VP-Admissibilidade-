@@ -46,7 +46,9 @@ MARCOS LEGISLATIVOS E REGIMENTAIS MANDATÓRIOS (ATUALIZADO NOV/2026):
 Preencha todas as 10 seções do checklist (A a J) de modo fático e objetivo.
 
 REGRAS ADICIONAIS DE CONFIABILIDADE (OBRIGATÓRIAS):
-- DATAS: extraia as datas literalmente dos autos, no formato dd/mm/aaaa (publicação do acórdão, publicação do acórdão dos embargos, data de interposição de cada recurso). NÃO calcule prazos nem decida a tempestividade por conta própria; o sistema recalcula os prazos em código. Se a data não constar dos autos, deixe o campo vazio e explique no item do checklist.
+- DATA DE INTERPOSIÇÃO: leia-a exclusivamente do carimbo, etiqueta ou certidão de PROTOCOLO da petição recursal (ex.: "Protocolado em", "Data do protocolo", assinatura/recebimento eletrônico), e registre em "fonteDataInterposicao" onde a leu (ex.: "carimbo de protocolo, p. 3"). NÃO use a data que consta ao final da petição ("Curitiba, ...") nem a data do despacho. Se não houver carimbo de protocolo legível, deixe em branco.
+- FORMATO DOS DOCUMENTOS: os autos podem chegar como PDF ou como texto extraído, com marcadores de página "[p. N]"; cite as páginas indicadas.
+- DATAS: extraia as datas literalmente dos autos, no formato dd/mm/aaaa (publicação do acórdão, publicação do acórdão dos embargos). NÃO calcule prazos nem decida a tempestividade por conta própria; o sistema recalcula os prazos em código. Se a data não constar dos autos, deixe o campo vazio e explique no item do checklist.
 - PRECEDENTES: cite somente súmulas, súmulas vinculantes e temas cujo número e teor você conhece com segurança. Sempre indique o tribunal (ex.: "Súmula 7/STJ"). Se não tiver certeza do número, do tema ou do acórdão, escreva "[conferir precedente]" em vez de inventar. NUNCA invente números de processos ou de acórdãos.
 - TRECHOS: em "trechoRelevante" transcreva literalmente o trecho dos autos, indicando página ou evento; se não houver trecho, deixe vazio.
 - A minuta é apenas um RASCUNHO para revisão do assessor e do Desembargador; não afirme certeza onde os autos forem ilegíveis ou incompletos.
