@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   FileCheck,
@@ -19,6 +19,13 @@ export const PDFExportModal: React.FC<PDFExportModalProps> = ({ isOpen, onClose,
   const [assessorName, setAssessorName] = useState('Assessor Jurídico - 1ª VP/TJPR');
   const [isGenerating, setIsGenerating] = useState(false);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleDownload = () => {
@@ -38,7 +45,7 @@ export const PDFExportModal: React.FC<PDFExportModalProps> = ({ isOpen, onClose,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+    <div role="dialog" aria-modal="true" aria-labelledby="pdf-titulo" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
       <div className="bg-white border border-slate-300 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
@@ -47,12 +54,13 @@ export const PDFExportModal: React.FC<PDFExportModalProps> = ({ isOpen, onClose,
               <FileCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Exportação do Relatório Oficial em PDF</h3>
+              <h3 id="pdf-titulo" className="text-sm font-bold text-slate-900">Exportação do Relatório Oficial em PDF</h3>
               <p className="text-xs text-slate-500">Checklist da 1ª Vice-Presidência • TJPR</p>
             </div>
           </div>
           <button
             onClick={onClose}
+            aria-label="Fechar"
             className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition"
           >
             <X className="w-5 h-5" />

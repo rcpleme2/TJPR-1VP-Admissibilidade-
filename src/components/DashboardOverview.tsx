@@ -12,6 +12,8 @@ import {
   Info,
 } from 'lucide-react';
 import { AdmissibilityAnalysisResult } from '../types/admissibility';
+import { DeadlinesPanel } from './DeadlinesPanel';
+import { MARCO_RELEVANCIA_BR } from '../../shared/regras';
 
 interface DashboardOverviewProps {
   data: AdmissibilityAnalysisResult;
@@ -28,6 +30,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 }) => {
   const { processo, diagnosticoGeral, recursosAnalisados } = data;
   const isMista = diagnosticoGeral.isDecisaoMista;
+  const exigeTopico = data.verificacoes?.relevancia.exigeTopicoCalculado ?? processo.exigeTopicoRelevancia;
 
   return (
     <div className="space-y-6">
@@ -110,7 +113,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 {diagnosticoGeral.recursoCabivelAdvertencia}
               </p>
               <p className="text-xs text-rose-900/90 mt-1.5 leading-relaxed">
-                Segundo a jurisprudência pacífica do STJ (AgInt no AREsp 1.890.112) e do STF (ARE 1.576.450), a
+                Segundo a jurisprudência do STJ e do STF (confira os precedentes na aba "Precedentes"), a
                 interposição de um único recurso contra decisão mista configura erro grosseiro e{' '}
                 <strong>não admite fungibilidade</strong>. A decisão da 1ª Vice-Presidência deve conter capítulos
                 estanques com expressa advertência ao recorrente.
@@ -172,10 +175,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
           <p
             className={`text-sm font-bold leading-snug ${
-              processo.exigeTopicoRelevancia ? 'text-amber-900' : 'text-slate-600'
+              exigeTopico ? 'text-amber-900' : 'text-slate-600'
             }`}
           >
-            {processo.exigeTopicoRelevancia ? 'Obrigatório (Lei 15.484)' : 'Facultativo (Pré-03/09/2026)'}
+            {exigeTopico ? 'Obrigatório (Lei 15.484)' : `Facultativo (antes de ${MARCO_RELEVANCIA_BR})`}
           </p>
           <div className="mt-2 text-[11px] text-slate-500 truncate" title={processo.marcoTemporalRelevancia2026}>
             {processo.marcoTemporalRelevancia2026}
@@ -189,13 +192,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <AlertTriangle className="w-4 h-4 text-rose-500" />
           </div>
           <p className="text-sm font-bold text-rose-800">
-            {diagnosticoGeral.principaisObicesIdentificados.length} barreiras identificadas
+            {(diagnosticoGeral.principaisObicesIdentificados ?? []).length} barreiras identificadas
           </p>
           <div className="mt-2 text-[11px] text-slate-500">
             Súmulas e teses vinculantes impeditivas
           </div>
         </div>
       </div>
+
+      {data.verificacoes && <DeadlinesPanel v={data.verificacoes} />}
 
       {/* Main Content: Resumo & Óbices */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -237,11 +242,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               Óbices e Precedentes Identificados
             </h4>
 
-            {diagnosticoGeral.principaisObicesIdentificados.length === 0 ? (
+            {(diagnosticoGeral.principaisObicesIdentificados ?? []).length === 0 ? (
               <p className="text-xs text-slate-500">Nenhum óbice intransponível detectado.</p>
             ) : (
               <div className="space-y-2">
-                {diagnosticoGeral.principaisObicesIdentificados.map((obice, idx) => (
+                {(diagnosticoGeral.principaisObicesIdentificados ?? []).map((obice, idx) => (
                   <div
                     key={idx}
                     className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700"
@@ -269,13 +274,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-slate-900">{rec.tipo}</span>
-                    <span className="text-[10px] text-slate-600 font-mono">
+                    <span className="text-[11px] text-slate-600 font-mono">
                       {(rec.alineasConstitucionais || []).join(', ') || 'Alíneas'}
                     </span>
                   </div>
                   <p className="text-slate-600 text-[11px]">Recorrente: {rec.recorrente}</p>
                   {rec.dispositivosInvocados && rec.dispositivosInvocados.length > 0 && (
-                    <p className="text-slate-500 text-[10px] truncate" title={rec.dispositivosInvocados.join('; ')}>
+                    <p className="text-slate-500 text-[11px] truncate" title={rec.dispositivosInvocados.join('; ')}>
                       Artigos: {rec.dispositivosInvocados.join('; ')}
                     </p>
                   )}

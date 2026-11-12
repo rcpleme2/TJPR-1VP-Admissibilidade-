@@ -34,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
                 <span className="text-[11px] font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                  <span>Proteção Anti-Injection</span>
+                  <span>Rascunho assistido por IA</span>
                 </span>
               </div>
               <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 mt-0.5">

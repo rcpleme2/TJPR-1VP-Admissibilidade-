@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AdmissibilityAnalysisResult, ChecklistItem } from '../types/admissibility';
+import { MARCO_RELEVANCIA_BR } from '../../shared/regras';
 
 export interface PDFExportOptions {
   includeMinuta?: boolean;
@@ -31,6 +32,19 @@ export function generateAdmissibilityPDF(
   const bgLight: [number, number, number] = [248, 250, 252];
 
   let currentY = 16;
+
+  /** Escreve texto quebrando linhas e páginas (evita estouro de página em textos longos). */
+  const escrever = (texto: string, lineH: number) => {
+    const linhas: string[] = doc.splitTextToSize(texto || '', contentWidth);
+    for (const l of linhas) {
+      if (currentY > pageHeight - 18) {
+        doc.addPage();
+        currentY = 18;
+      }
+      doc.text(l, margin, currentY);
+      currentY += lineH;
+    }
+  };
 
   // --- HEADER BAR ---
   doc.setFillColor(...tjNavy);
@@ -87,7 +101,7 @@ export function generateAdmissibilityPDF(
     doc.text('Marco 2026: Exige Tópico de Relevância (art. 1.035-A CPC)', col2X, currentY + 23);
   } else {
     doc.setTextColor(71, 85, 105);
-    doc.text('Marco 2026: Anterior a 03/09/2026 (Tópico facultativo)', col2X, currentY + 23);
+    doc.text(`Marco 2026: anterior a ${MARCO_RELEVANCIA_BR} (tópico facultativo)`, col2X, currentY + 23);
   }
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...textDark);
@@ -230,6 +244,70 @@ export function generateAdmissibilityPDF(
 
   currentY = (doc as any).lastAutoTable.finalY + 10;
 
+  // --- PRAZOS CALCULADOS ---
+  if (data.verificacoes && data.verificacoes.prazos.length > 0) {
+    if (currentY > pageHeight - 60) {
+      doc.addPage();
+      currentY = 18;
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...tjNavy);
+    doc.text('TEMPESTIVIDADE E MARCO DA RELEVÂNCIA (CALCULADOS PELO SISTEMA)', margin, currentY);
+    currentY += 3;
+    autoTable(doc, {
+      startY: currentY,
+      margin: { left: margin, right: margin },
+      head: [['Recurso', 'Base', 'Último dia (15 d.u.)', 'Em dobro', 'Interposição', 'Resultado']],
+      body: data.verificacoes.prazos.map((p) => [
+        p.recursoTipo,
+        p.dataBase ?? '—',
+        p.dataLimite ?? '—',
+        p.dataLimiteDobro ?? '—',
+        p.dataInterposicao ?? '—',
+        `${p.status.replace(/_/g, ' ')}\n${p.observacao}`,
+      ]),
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 2, valign: 'top' },
+      headStyles: { fillColor: tjNavy, textColor: [255, 255, 255] },
+    });
+    currentY = (doc as any).lastAutoTable.finalY + 4;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...textDark);
+    escrever(`Relevância (REsp): ${data.verificacoes.relevancia.observacao}`, 3.8);
+    data.verificacoes.avisos.forEach((a) => escrever(`Aviso: ${a}`, 3.8));
+    currentY += 6;
+  }
+
+  // --- VERIFICAÇÃO DE PRECEDENTES ---
+  if (data.precedentes && data.precedentes.length > 0) {
+    if (currentY > pageHeight - 60) {
+      doc.addPage();
+      currentY = 18;
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...tjNavy);
+    doc.text('VERIFICAÇÃO DE SÚMULAS, TEMAS E PRECEDENTES CITADOS', margin, currentY);
+    currentY += 3;
+    const situacao: Record<string, string> = { pendente: 'pendente', conferido: 'conferido', divergente: 'DIVERGENTE', descartado: 'descartado' };
+    autoTable(doc, {
+      startY: currentY,
+      margin: { left: margin, right: margin },
+      head: [['Precedente', 'Verificação automática', 'Conferência do assessor']],
+      body: data.precedentes.map((c) => [
+        c.rotulo,
+        `${c.verificacao.status.replace(/_/g, ' ')}${c.verificacao.coerencia === 'verificar' ? ' (pertinência a verificar)' : ''}`,
+        `${situacao[c.conferencia.situacao]}${c.conferencia.observacao ? ' — ' + c.conferencia.observacao : ''}`,
+      ]),
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 2, valign: 'top' },
+      headStyles: { fillColor: tjNavy, textColor: [255, 255, 255] },
+    });
+    currentY = (doc as any).lastAutoTable.finalY + 10;
+  }
+
   // --- MINUTA DA DECISÃO SUGERIDA (SE HABILITADA) ---
   if (options.includeMinuta && data.minutaDecisao1VP) {
     doc.addPage();
@@ -253,9 +331,8 @@ export function generateAdmissibilityPDF(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...textDark);
-    const wrapRelatorio = doc.splitTextToSize(data.minutaDecisao1VP.relatorio, contentWidth);
-    doc.text(wrapRelatorio, margin, currentY);
-    currentY += wrapRelatorio.length * 4 + 6;
+    escrever(data.minutaDecisao1VP.relatorio, 4);
+    currentY += 6;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
@@ -278,9 +355,8 @@ export function generateAdmissibilityPDF(
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(...textDark);
-      const wrapConteudo = doc.splitTextToSize(cap.conteudo, contentWidth);
-      doc.text(wrapConteudo, margin, currentY);
-      currentY += wrapConteudo.length * 3.8 + 2;
+      escrever(cap.conteudo, 3.8);
+      currentY += 2;
 
       if (cap.recursoCabivel) {
         doc.setFont('helvetica', 'bold');
@@ -305,14 +381,12 @@ export function generateAdmissibilityPDF(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...textDark);
-    const wrapDispositivo = doc.splitTextToSize(data.minutaDecisao1VP.dispositivoFinal, contentWidth);
-    doc.text(wrapDispositivo, margin, currentY);
-    currentY += wrapDispositivo.length * 3.8 + 4;
+    escrever(data.minutaDecisao1VP.dispositivoFinal, 3.8);
+    currentY += 4;
 
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(190, 18, 60);
-    const wrapAdv = doc.splitTextToSize(data.minutaDecisao1VP.advertenciaRecursual, contentWidth);
-    doc.text(wrapAdv, margin, currentY);
+    escrever(data.minutaDecisao1VP.advertenciaRecursual ?? '', 3.8);
   }
 
   // --- FOOTER ON ALL PAGES ---
@@ -326,7 +400,7 @@ export function generateAdmissibilityPDF(
     doc.setFontSize(7);
     doc.setTextColor(...textMuted);
     doc.text(
-      `TJPR — 1ª Vice-Presidência • Relatório de Admissibilidade Recursal • Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`,
+      `RASCUNHO COM AUXÍLIO DE IA • TJPR 1ª VP • Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`,
       margin,
       pageHeight - 8
     );

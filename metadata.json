@@ -1,6 +1,0 @@
-{
-  "name": "Admissibilidade Recursal - TJPR (REsp e RE)",
-  "description": "Sistema de triagem e admissibilidade de Recursos Especiais e Extraordinários para a 1ª Vice-Presidência do TJPR com checklist técnico, relevância e geração de relatório em PDF.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

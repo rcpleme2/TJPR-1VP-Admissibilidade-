@@ -1,0 +1,192 @@
+import crypto from 'node:crypto';
+import path from 'node:path';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
+import express, { type NextFunction, type Request, type Response } from 'express';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import { AnalyzeRequestSchema, LIMITES, PROVEDORES, type ModelOutput } from '../shared/schema';
+import { enriquecer, executarAnalise, RequisicaoInvalida } from './analyze';
+import {
+  ACCESS_TOKEN,
+  chaveDoServidor,
+  IS_PROD,
+  MODELOS_PADRAO,
+  PORT,
+  provedoresComChaveNoServidor,
+  RATE_LIMIT_MAX,
+  RATE_LIMIT_WINDOW_MIN,
+  tokenConfere,
+} from './config';
+import { ProviderError } from './providers/types';
+import { redigirSegredos } from './sanitize';
+
+dotenv.config();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/** Log estruturado (Cloud Logging). NUNCA registra conteúdo dos autos, chaves ou tokens. */
+export function auditar(evento: Record<string, unknown>) {
+  console.log(JSON.stringify({ severity: evento.ok === false ? 'WARNING' : 'INFO', ts: new Date().toISOString(), ...evento }));
+}
+
+const hashIp = (ip: string | undefined) => crypto.createHash('sha256').update(ip ?? '').digest('hex').slice(0, 12);
+
+export function createApp() {
+  const app = express();
+  app.disable('x-powered-by');
+  app.set('trust proxy', 1); // Cloud Run encaminha o IP real via X-Forwarded-For
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: IS_PROD
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'"],
+              styleSrc: ["'self'", "'unsafe-inline'"],
+              imgSrc: ["'self'", 'data:'],
+              connectSrc: ["'self'"],
+              objectSrc: ["'none'"],
+              frameAncestors: ["'none'"],
+            },
+          }
+        : false,
+    }),
+  );
+
+  // Cloud Run limita a requisição a 32 MiB; 30 MB cobre os 22 MB de PDF em base64.
+  app.use('/api', express.json({ limit: '30mb' }));
+
+  app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+  app.get('/api/config', (_req, res) => {
+    res.json({
+      authRequired: Boolean(ACCESS_TOKEN),
+      serverKeys: provedoresComChaveNoServidor(),
+      provedores: PROVEDORES,
+      modelosPadrao: MODELOS_PADRAO,
+      limites: LIMITES,
+    });
+  });
+
+  const exigirAcesso = (req: Request, res: Response, next: NextFunction) => {
+    if (!tokenConfere(req.header('x-access-token'))) {
+      return res.status(401).json({ error: 'Token de acesso ausente ou inválido.' });
+    }
+    next();
+  };
+
+  app.get('/api/sample-case', exigirAcesso, (_req, res) => {
+    const fixture = JSON.parse(readFileSync(path.resolve(__dirname, IS_PROD ? '../server/fixtures/sample-case.json' : 'fixtures/sample-case.json'), 'utf8')) as ModelOutput;
+    res.json({ success: true, data: enriquecer(fixture, { provedor: 'exemplo', modelo: 'caso-simulado', geradoEm: new Date().toISOString() }) });
+  });
+
+  const limiter = rateLimit({
+    windowMs: RATE_LIMIT_WINDOW_MIN * 60_000,
+    limit: RATE_LIMIT_MAX,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: `Muitas análises em pouco tempo. Tente novamente em alguns minutos.` },
+  });
+
+  app.post('/api/analyze', exigirAcesso, limiter, async (req: Request, res: Response) => {
+    const inicio = Date.now();
+    const parsed = AnalyzeRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message ?? 'Requisição inválida.';
+      return res.status(400).json({ error: msg });
+    }
+    const dados = parsed.data;
+
+    const chaveUsuario = req.header('x-llm-api-key')?.trim();
+    const apiKey = chaveUsuario || chaveDoServidor(dados.provider);
+    if (!apiKey) {
+      return res.status(400).json({ error: `Informe a chave de API do motor ${dados.provider.toUpperCase()} nas configurações.` });
+    }
+    if (apiKey.length < 8 || apiKey.length > 400 || /\s/.test(apiKey)) {
+      return res.status(400).json({ error: 'Chave de API em formato inválido.' });
+    }
+
+    // Resposta em NDJSON: etapas reais de progresso + resultado final (mantém a conexão ativa).
+    res.status(200);
+    res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Accel-Buffering', 'no');
+    const enviar = (obj: unknown) => {
+      if (!res.writableEnded) res.write(JSON.stringify(obj) + '\n');
+    };
+
+    const abort = new AbortController();
+    res.on('close', () => {
+      if (!res.writableFinished) abort.abort();
+    });
+
+    const meta = {
+      evento: 'analise',
+      provedor: dados.provider,
+      modelo: dados.model ?? MODELOS_PADRAO[dados.provider],
+      arquivos: dados.files.length,
+      chaveDoUsuario: Boolean(chaveUsuario),
+      ip: hashIp(req.ip),
+    };
+    try {
+      const r = await executarAnalise(dados, apiKey, (mensagem) => enviar({ type: 'stage', mensagem }), abort.signal);
+      enviar({ type: 'result', data: r.data, securityWarnings: r.avisosSeguranca });
+      auditar({ ...meta, ok: true, ms: Date.now() - inicio });
+    } catch (err) {
+      const msg =
+        err instanceof RequisicaoInvalida || err instanceof ProviderError
+          ? err.message
+          : 'Erro interno ao processar a análise.';
+      enviar({ type: 'error', error: redigirSegredos(msg) });
+      auditar({ ...meta, ok: false, ms: Date.now() - inicio, erro: err instanceof ProviderError ? `provider_${err.status}` : (err as Error)?.name });
+    } finally {
+      res.end();
+    }
+  });
+
+  // JSON malformado / corpo grande demais
+  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+    if (err?.type === 'entity.too.large') {
+      return res.status(413).json({ error: 'Arquivos grandes demais. O limite é de cerca de 22 MB de PDFs por análise.' });
+    }
+    if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'Requisição malformada.' });
+    next(err);
+  });
+
+  app.use('/api', (_req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));
+
+  return app;
+}
+
+async function iniciar() {
+  const app = createApp();
+
+  if (!IS_PROD) {
+    const { createServer } = await import('vite');
+    const vite = await createServer({ server: { middlewareMode: true }, appType: 'spa' });
+    app.use(vite.middlewares);
+  } else {
+    const dist = path.resolve(process.cwd(), 'dist');
+    app.use(express.static(dist, { maxAge: '1h', index: false }));
+    app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+  }
+
+  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    console.error(JSON.stringify({ severity: 'ERROR', evento: 'erro_nao_tratado', erro: (err as Error)?.name }));
+    res.status(500).json({ error: 'Erro interno.' });
+  });
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(JSON.stringify({ severity: 'INFO', evento: 'inicio', porta: PORT, producao: IS_PROD, autenticacao: Boolean(ACCESS_TOKEN) }));
+  });
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  iniciar().catch((err) => {
+    console.error('Falha ao iniciar:', err);
+    process.exit(1);
+  });
+}

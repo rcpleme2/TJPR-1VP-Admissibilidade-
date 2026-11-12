@@ -252,7 +252,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                               <span className="text-xs font-mono font-bold text-slate-500">{item.id}</span>
                               <h4 className="text-xs sm:text-sm font-semibold text-slate-800">{item.titulo}</h4>
                               {item.novidade2026 && (
-                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1">
+                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1">
                                   <Sparkles className="w-3 h-3 text-amber-700" />
                                   Lei 15.484/2026
                                 </span>
@@ -325,7 +325,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                           {onUpdateItemNote && (
                             <div className="pt-1">
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] font-semibold text-slate-500 flex items-center gap-1">
+                                <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
                                   <Edit3 className="w-3 h-3 text-slate-500" />
                                   Anotação / Ressalva do Assessor para este Item:
                                 </span>
