@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Upload,
   FileCheck,
@@ -15,12 +15,38 @@ import {
   Lock,
 } from 'lucide-react';
 import { UploadedFileItem } from '../types/admissibility';
+import { LIMITES } from '../../shared/schema';
+import type { CasoResumo } from '../../shared/registro';
+import { ArquivoCard } from './ArquivoCard';
+import { extrairPdf } from '../lib/pdfText';
+import { MARCO_RELEVANCIA_BR } from '../../shared/regras';
+
+/** Papel do arquivo a partir de palavras inteiras do nome (evita falsos positivos como "resposta" → REsp). */
+export function detectarPapel(nome: string, padrao: UploadedFileItem['role']): UploadedFileItem['role'] {
+  const tokens = nome
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\.[^.]+$/, '')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  const tem = (...ps: string[]) => ps.some((p) => tokens.includes(p));
+  const colado = tokens.join('');
+  if (/recursoextraordinario/.test(colado)) return 'recurso_extraordinario';
+  if (/recursoespecial/.test(colado)) return 'recurso_especial';
+  if (tem('acordao', 'sentenca')) return tem('embargos', 'edcl', 'ed') ? 'acordao_embargos' : 'acordao';
+  if (tem('embargos', 'edcl')) return 'acordao_embargos';
+  if (tem('extraordinario', 're')) return 'recurso_extraordinario';
+  if (tem('especial', 'resp')) return 'recurso_especial';
+  return padrao;
+}
 
 interface DocumentUploadSectionProps {
   files: UploadedFileItem[];
   onAddFile: (fileItem: UploadedFileItem) => void;
   onRemoveFile: (id: string) => void;
   onUpdateRole: (id: string, role: UploadedFileItem['role']) => void;
+  onUpdateFile: (id: string, patch: Partial<UploadedFileItem>) => void;
   notes: string;
   setNotes: (val: string) => void;
   appealType: string;
@@ -28,6 +54,22 @@ interface DocumentUploadSectionProps {
   onAnalyze: () => void;
   isAnalyzing: boolean;
   onLoadSample: () => void;
+  onError: (msg: string) => void;
+  stageMessage: string;
+  engineSettings: React.ReactNode;
+  prazoForm: React.ReactNode;
+  consent: boolean;
+  setConsent: (v: boolean) => void;
+  canAnalyze: boolean;
+  missingReason: string;
+  casos: CasoResumo[];
+  buscaCasos: string;
+  onBuscaCasos: (q: string) => void;
+  onOpenCaso: (id: string) => void;
+  onDeleteCaso: (c: CasoResumo) => void;
+  podeExcluir: (c: CasoResumo) => boolean;
+  onClearLocal: () => void;
+  onCancel: () => void;
 }
 
 export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
@@ -35,6 +77,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   onAddFile,
   onRemoveFile,
   onUpdateRole,
+  onUpdateFile,
   notes,
   setNotes,
   appealType,
@@ -42,70 +85,81 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   onAnalyze,
   isAnalyzing,
   onLoadSample,
+  onError,
+  stageMessage,
+  engineSettings,
+  prazoForm,
+  consent,
+  setConsent,
+  canAnalyze,
+  missingReason,
+  casos,
+  buscaCasos,
+  onBuscaCasos,
+  onOpenCaso,
+  onDeleteCaso,
+  podeExcluir,
+  onClearLocal,
+  onCancel,
 }) => {
   const [dragActive, setDragActive] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UploadedFileItem['role']>('recurso_especial');
-  const [progressStep, setProgressStep] = useState(0);
-
-  // Progressive feedback timer during analysis
-  useEffect(() => {
-    let interval: any;
-    if (isAnalyzing) {
-      setProgressStep(0);
-      interval = setInterval(() => {
-        setProgressStep((prev) => (prev < 3 ? prev + 1 : prev));
-      }, 3000);
-    } else {
-      setProgressStep(0);
-    }
-    return () => clearInterval(interval);
-  }, [isAnalyzing]);
-
-  const progressSteps = [
-    'Sanitizando dados e verificando integridade contra prompt injection...',
-    'Auditando datas, publicações e marco temporal da Lei 15.484/2026...',
-    'Confrontando teses com Súmulas do STJ/STF e precedentes repetitivos...',
-    'Consolidando checklist de A a J e redigindo capítulos da minuta (CPC art. 1.030)...',
-  ];
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(',')[1] || '';
-        resolve(base64);
-      };
-      reader.onerror = (error) => reject(error);
-    });
-  };
 
   const handleFileSelection = async (fileList: FileList, roleOverride?: UploadedFileItem['role']) => {
-    for (let i = 0; i < fileList.length; i++) {
-      const file = fileList[i];
-      let role = roleOverride || selectedRole;
-
-      const lower = file.name.toLowerCase();
-      if (lower.includes('acordao') || lower.includes('acórdão') || lower.includes('sentenca')) {
-        role = lower.includes('embarg') || lower.includes('edcl') ? 'acordao_embargos' : 'acordao';
-      } else if (lower.includes('extraordinario') || lower.includes('extraordinário') || lower.includes('re_')) {
-        role = 'recurso_extraordinario';
-      } else if (lower.includes('especial') || lower.includes('resp')) {
-        role = 'recurso_especial';
+    let quantidade = files.length;
+    for (const file of Array.from(fileList)) {
+      const ehPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      if (!ehPdf) {
+        onError(`"${file.name}" não é um PDF e foi ignorado.`);
+        continue;
       }
-
-      const base64 = await fileToBase64(file);
-
+      if (quantidade >= LIMITES.maxArquivos) {
+        onError(`Limite de ${LIMITES.maxArquivos} arquivos por análise atingido.`);
+        break;
+      }
+      if (file.size > 60 * 1048576) {
+        onError(`"${file.name}" tem mais de 60 MB e não pode ser processado no navegador.`);
+        continue;
+      }
+      quantidade++;
+      const id = crypto.randomUUID();
       onAddFile({
-        id: 'file_' + Math.random().toString(36).substring(2, 9),
-        file,
+        id,
         name: file.name,
         size: file.size,
-        role,
+        role: detectarPapel(file.name, roleOverride || selectedRole),
         label: file.name.replace(/\.[^/.]+$/, ''),
-        dataBase64: base64,
+        arquivo: file,
+        modo: 'texto',
+        extraindo: true,
       });
+      try {
+        const r = await extrairPdf(file);
+        if (r.escaneado || r.caracteres === 0) {
+          onUpdateFile(id, {
+            extraindo: false,
+            modo: 'pdf',
+            paginas: r.paginas,
+            avisoExtracao: 'Este PDF parece escaneado (sem camada de texto): será enviado como PDF, com mais tokens. Se possível, use uma versão pesquisável (OCR).',
+          });
+        } else {
+          onUpdateFile(id, {
+            extraindo: false,
+            modo: 'texto',
+            paginas: r.paginas,
+            textPreview: r.texto,
+            caracteres: r.caracteres,
+            linhasRemovidas: r.linhasRemovidas,
+            protocolo: r.protocolo ?? undefined,
+          });
+        }
+      } catch {
+        onUpdateFile(id, {
+          extraindo: false,
+          modo: 'pdf',
+          avisoExtracao: 'Não foi possível extrair o texto deste PDF: será enviado como PDF original.',
+        });
+      }
     }
   };
 
@@ -140,12 +194,12 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
             <div className="text-xs">
               <h3 className="font-semibold text-slate-900 flex items-center gap-2">
                 <span>Marco Temporal da Relevância: Lei 15.484/2026 e Emenda Regimental STJ 55/2026</span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 uppercase">
-                  Vigência 03/09/2026
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 uppercase">
+                  Vigência {MARCO_RELEVANCIA_BR}
                 </span>
               </h3>
               <p className="text-slate-600 mt-1 leading-relaxed">
-                Recursos Especiais interpostos contra acórdãos publicados a partir de <strong>03/09/2026</strong> exigem
+                Recursos Especiais interpostos contra acórdãos publicados a partir de <strong>{MARCO_RELEVANCIA_BR}</strong> exigem
                 obrigatoriamente tópico específico e fundamentado de <strong>Relevância da Questão Federal</strong> (CPC,
                 art. 1.035-A). O sistema verifica a regularidade formal, precedentes qualificados e as saídas do{' '}
                 <strong>art. 1.030 do CPC</strong>.
@@ -155,7 +209,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
 
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-medium shrink-0 self-start">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Camada Anti-Prompt Injection</span>
+            <span>Rascunho assistido por IA – revisão humana obrigatória</span>
           </div>
         </div>
       </div>
@@ -259,38 +313,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
               ) : (
                 <div className="space-y-2">
                   {acordaoFiles.map((file) => (
-                    <div
-                      key={file.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition shadow-xs"
-                    >
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 truncate">{file.name}</p>
-                          <p className="text-[10px] text-slate-400">{formatFileSize(file.size)}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <select
-                          value={file.role}
-                          onChange={(e) => onUpdateRole(file.id, e.target.value as any)}
-                          className="bg-slate-50 text-[11px] text-slate-700 border border-slate-300 rounded-lg px-2 py-1 outline-none focus:border-slate-500"
-                        >
-                          <option value="acordao">Acórdão Principal</option>
-                          <option value="acordao_embargos">Acórdão Embargos Declaração</option>
-                        </select>
-                        <button
-                          onClick={() => onRemoveFile(file.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition"
-                          title="Remover arquivo"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
+                    <ArquivoCard key={file.id} file={file} papeis={[{ v: 'acordao', r: 'Acórdão Principal' }, { v: 'acordao_embargos', r: 'Acórdão Embargos Declaração' }]} onUpdateRole={onUpdateRole} onRemove={onRemoveFile} onUpdate={onUpdateFile} />
                   ))}
                 </div>
               )}
@@ -317,39 +340,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
               ) : (
                 <div className="space-y-2">
                   {recursoFiles.map((file) => (
-                    <div
-                      key={file.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition shadow-xs"
-                    >
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 truncate">{file.name}</p>
-                          <p className="text-[10px] text-slate-400">{formatFileSize(file.size)}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <select
-                          value={file.role}
-                          onChange={(e) => onUpdateRole(file.id, e.target.value as any)}
-                          className="bg-slate-50 text-[11px] text-slate-700 border border-slate-300 rounded-lg px-2 py-1 outline-none focus:border-slate-500"
-                        >
-                          <option value="recurso_especial">Recurso Especial (STJ)</option>
-                          <option value="recurso_extraordinario">Recurso Extraordinário (STF)</option>
-                          <option value="outro">Recurso Adesivo / Outro</option>
-                        </select>
-                        <button
-                          onClick={() => onRemoveFile(file.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition"
-                          title="Remover arquivo"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
+                    <ArquivoCard key={file.id} file={file} papeis={[{ v: 'recurso_especial', r: 'Recurso Especial' }, { v: 'recurso_extraordinario', r: 'Recurso Extraordinário' }, { v: 'outro', r: 'Outra peça' }]} onUpdateRole={onUpdateRole} onRemove={onRemoveFile} onUpdate={onUpdateFile} />
                   ))}
                 </div>
               )}
@@ -384,7 +375,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center justify-between">
                 <span>Informações Adicionais (Projudi / Prazos)</span>
-                <span className="text-[10px] text-slate-400">Opcional</span>
+                <span className="text-[11px] text-slate-400">Opcional</span>
               </label>
               <textarea
                 value={notes}
@@ -395,22 +386,33 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
               ></textarea>
             </div>
 
-            {/* Prompt Injection Shield Note */}
+            <div className="pt-3 border-t border-slate-100">{prazoForm}</div>
+
+            <div className="pt-3 border-t border-slate-100">{engineSettings}</div>
+
             <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2 text-[11px] text-slate-600">
               <Lock className="w-3.5 h-3.5 text-slate-500 mt-0.5 shrink-0" />
               <span>
-                <strong>Blindagem ativa:</strong> As notas e arquivos passam por sanitização prévia contra injeção de
-                instruções adversárias.
+                <strong>Mitigação parcial de prompt injection:</strong> as notas e o texto extraído dos PDFs são varridos e tratados
+                como dados não confiáveis; PDFs enviados como arquivo original não são varridos. Revise sempre o resultado.
               </span>
             </div>
+
+            <label className="flex items-start gap-2 text-[11px] text-slate-700 cursor-pointer">
+              <input type="checkbox" className="mt-0.5" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              <span>
+                Declaro que estou autorizado a enviar estes autos a um provedor externo de IA e que eles <strong>não estão em
+                segredo de justiça</strong> nem contêm dados que a política do órgão proíba (LGPD, Res. CNJ 615/2025).
+              </span>
+            </label>
 
             {/* Action Buttons */}
             <div className="pt-2 border-t border-slate-100 space-y-2">
               <button
-                disabled={isAnalyzing || files.length === 0}
+                disabled={isAnalyzing || !canAnalyze}
                 onClick={onAnalyze}
                 className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition ${
-                  isAnalyzing || files.length === 0
+                  isAnalyzing || !canAnalyze
                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
                     : 'bg-slate-900 hover:bg-slate-800 text-white shadow-xs'
                 }`}
@@ -438,24 +440,56 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
               </button>
             </div>
 
-            {/* Step-by-step progress feedback while analyzing */}
+            {!isAnalyzing && !canAnalyze && missingReason && (
+              <p className="text-[11px] text-slate-500">{missingReason}</p>
+            )}
+
             {isAnalyzing && (
-              <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-                <div className="flex items-center justify-between text-slate-600 font-medium text-[11px]">
-                  <span>Progresso do Checklist:</span>
-                  <span>Passo {progressStep + 1} de 4</span>
-                </div>
+              <div role="status" aria-live="polite" className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
                 <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className="bg-slate-800 h-full transition-all duration-500 rounded-full"
-                    style={{ width: `${((progressStep + 1) / 4) * 100}%` }}
-                  ></div>
+                  <div className="bg-slate-800 h-full w-1/3 rounded-full animate-pulse"></div>
                 </div>
-                <p className="text-[11px] text-slate-600 italic">
-                  {progressSteps[progressStep]}
-                </p>
+                <p className="text-[11px] text-slate-600 italic">{stageMessage || 'Iniciando…'}</p>
+                <button onClick={onCancel} className="text-[11px] underline text-slate-600 hover:text-slate-900">Cancelar análise</button>
               </div>
             )}
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 space-y-2 shadow-xs">
+            <div className="font-semibold text-slate-800">Registros na nuvem (equipe)</div>
+            <input
+              type="search"
+              aria-label="Buscar registros por número, matéria ou autor"
+              value={buscaCasos}
+              onChange={(e) => onBuscaCasos(e.target.value)}
+              placeholder="Buscar por nº, matéria ou autor"
+              className="w-full bg-slate-50 text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 outline-none focus:border-slate-500"
+            />
+            {casos.length === 0 ? (
+              <p className="text-[11px] text-slate-400">Nenhum registro encontrado.</p>
+            ) : (
+              <ul className="space-y-1.5 max-h-80 overflow-y-auto">
+                {casos.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+                    <button onClick={() => onOpenCaso(c.id)} className="text-left min-w-0">
+                      <span className="block font-mono text-[11px] text-slate-800 truncate">{c.numeroProcesso}</span>
+                      <span className="block text-[11px] text-slate-500 truncate">
+                        v{c.versao} · {c.atualizadoPor.nome} · {new Date(c.atualizadoEm).toLocaleString('pt-BR')} · {c.status.replace('_', ' ')}
+                      </span>
+                    </button>
+                    {podeExcluir(c) && (
+                      <button onClick={() => onDeleteCaso(c)} aria-label={`Excluir registro ${c.numeroProcesso}`} className="text-slate-400 hover:text-rose-700 shrink-0">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="text-[11px] text-slate-400">
+              Só os dados extraídos e cadastrados são gravados; os arquivos anexados nunca são guardados.{' '}
+              <button onClick={onClearLocal} className="underline hover:text-slate-700">Esquecer chaves de API deste navegador</button>
+            </p>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 space-y-2 shadow-xs">
@@ -465,7 +499,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
             </div>
             <ul className="list-disc pl-4 space-y-1 text-[11px] text-slate-500">
               <li>Extração estruturada de partes, órgãos e datas dos autos.</li>
-              <li>Aferição do marco de 03/09/2026 (Lei 15.484/2026).</li>
+              <li>Aferição do marco de {MARCO_RELEVANCIA_BR} (Lei 15.484/2026).</li>
               <li>Conferência dos 10 blocos de requisitos (A a J).</li>
               <li>Geração da minuta de decisão capitulada sob o CPC art. 1.030.</li>
             </ul>

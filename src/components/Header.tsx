@@ -1,20 +1,28 @@
 import React from 'react';
-import { Scale, BookOpen, Sparkles, RefreshCw, FileText, ShieldCheck } from 'lucide-react';
+import { Scale, BookOpen, Search, Sparkles, RefreshCw, FileText, ShieldCheck, LogOut, UserCog } from 'lucide-react';
 
 interface HeaderProps {
   onOpenGuide: () => void;
+  onOpenConsulta: () => void;
   onLoadSample: () => void;
   onReset: () => void;
   hasResult: boolean;
   onDownloadPDF?: () => void;
+  usuarioNome?: string;
+  onConta?: () => void;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenGuide,
+  onOpenConsulta,
   onLoadSample,
   onReset,
   hasResult,
   onDownloadPDF,
+  usuarioNome,
+  onConta,
+  onLogout,
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 shadow-xs">
@@ -34,7 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
                 <span className="text-[11px] font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                  <span>Proteção Anti-Injection</span>
+                  <span>Rascunho assistido por IA</span>
                 </span>
               </div>
               <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 mt-0.5">
@@ -54,6 +62,15 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <BookOpen className="w-3.5 h-3.5 text-slate-500" />
               <span>Orientações Técnicas</span>
+            </button>
+
+            <button
+              onClick={onOpenConsulta}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition shadow-xs"
+              title="Consultar súmulas e precedentes vinculantes (sem IA)"
+            >
+              <Search className="w-3.5 h-3.5 text-slate-500" />
+              <span>Consultar Súmulas</span>
             </button>
 
             <button
@@ -84,6 +101,17 @@ export const Header: React.FC<HeaderProps> = ({
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Novo Caso</span>
               </button>
+            )}
+            {usuarioNome && (
+              <div className="flex items-center gap-1 pl-2 ml-1 border-l border-slate-200">
+                <button onClick={onConta} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg hover:bg-slate-100 text-slate-700" title="Conta e usuários">
+                  <UserCog className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="max-w-[10rem] truncate">{usuarioNome}</span>
+                </button>
+                <button onClick={onLogout} aria-label="Sair" title="Sair" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
             )}
           </div>
         </div>

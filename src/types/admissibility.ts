@@ -1,87 +1,42 @@
-export type ChecklistStatus = 'conforme' | 'nao_conforme' | 'atencao' | 'nao_aplicavel';
+// Tipos derivados do schema compartilhado (fonte única: shared/schema.ts).
+export type {
+  ChecklistStatus,
+  ProcessoInfo,
+  RecursoAnalisado,
+  ChecklistItem,
+  ChecklistSecao,
+  DiagnosticoGeral,
+  CapituloFundamentacao,
+  MinutaDecisao1VP,
+  VerificacaoPrazo,
+  Verificacoes,
+  CitacaoPrecedente,
+  AdmissibilityAnalysisResult,
+  Provedor,
+  FileRole,
+  EntradasPrazo,
+} from '../../shared/schema';
 
-export interface ProcessoInfo {
-  numero: string;
-  classe: string;
-  materia: string;
-  origemOrgao: string;
-  relatorOrigem?: string;
-  recorrentes: string[];
-  recorridos: string[];
-  advogados?: string[];
-  dataPublicacaoAcordao: string;
-  houveEmbargosDeclaracao?: boolean;
-  dataPublicacaoEmbargos?: string;
-  marcoTemporalRelevancia2026: string;
-  exigeTopicoRelevancia: boolean;
-  valorCausa?: string;
-}
-
-export interface RecursoAnalisado {
-  id: string;
-  tipo: string;
-  recorrente: string;
-  alineasConstitucionais?: string[];
-  dispositivosInvocados?: string[];
-  tesesPrincipais?: string[];
-}
-
-export interface ChecklistItem {
-  id: string;
-  titulo: string;
-  status: ChecklistStatus;
-  novidade2026?: boolean;
-  analiseTecnica: string;
-  fundamentoLegal?: string;
-  trechoRelevante?: string;
-  observacaoAssessor?: string; // allow assessor to annotate
-}
-
-export interface ChecklistSecao {
-  secaoCodigo: string; // A, B, C, D, E, F, G, H, I, J
-  secaoTitulo: string;
-  itens: ChecklistItem[];
-}
-
-export interface DiagnosticoGeral {
-  probabilidadeAdmissao: string;
-  incisoArt1030Principal: string;
-  isDecisaoMista: boolean;
-  recursoCabivelAdvertencia: string;
-  principaisObicesIdentificados: string[];
-  resumoParecer: string;
-}
-
-export interface CapituloFundamentacao {
-  tituloCapitulo: string;
-  incisoArt1030: string;
-  conteudo: string;
-  recursoCabivel?: string;
-}
-
-export interface MinutaDecisao1VP {
-  cabecalho: string;
-  relatorio: string;
-  capitulosFundamentacao: CapituloFundamentacao[];
-  dispositivoFinal: string;
-  advertenciaRecursual: string;
-}
-
-export interface AdmissibilityAnalysisResult {
-  processo: ProcessoInfo;
-  recursosAnalisados: RecursoAnalisado[];
-  checklistSecoes: ChecklistSecao[];
-  diagnosticoGeral: DiagnosticoGeral;
-  minutaDecisao1VP: MinutaDecisao1VP;
-}
+import type { FileRole } from '../../shared/schema';
+import type { ProtocoloDetectado } from '../../shared/protocolo';
 
 export interface UploadedFileItem {
   id: string;
-  file?: File;
   name: string;
   size: number;
-  role: 'acordao' | 'acordao_embargos' | 'recurso_especial' | 'recurso_extraordinario' | 'outro';
+  role: FileRole;
   label: string;
-  dataBase64?: string;
+  /** Arquivo original (lido só no momento do envio, se o modo for PDF). */
+  arquivo?: File;
+  /** "texto": envia o texto extraído em Markdown (menos tokens). "pdf": envia o PDF original. */
+  modo: 'texto' | 'pdf';
+  extraindo?: boolean;
+  paginas?: number;
+  /** Texto extraído (editável pelo usuário, p. ex. para tarjar dados pessoais). */
   textPreview?: string;
+  caracteres?: number;
+  escaneado?: boolean;
+  linhasRemovidas?: number;
+  avisoExtracao?: string;
+  protocolo?: ProtocoloDetectado;
 }

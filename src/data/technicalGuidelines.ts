@@ -1,3 +1,4 @@
+import { MARCO_RELEVANCIA_BR } from '../../shared/regras';
 export interface GuidelineSummary {
   marco: string;
   data: string;
@@ -26,7 +27,7 @@ export const LINHA_TEMPO_2026: GuidelineSummary[] = [
     efeito: 'Passam a existir temas de relevância com a mesma numeração dos repetitivos.',
   },
   {
-    data: '03/09/2026',
+    data: MARCO_RELEVANCIA_BR,
     marco: 'Vigência da Lei 15.484/2026 e Emenda Regimental STJ 55/2026',
     efeito: 'Tópico de relevância obrigatório para acórdãos publicados a partir desta data; novo art. 1.030, I, "c", do CPC.',
   },

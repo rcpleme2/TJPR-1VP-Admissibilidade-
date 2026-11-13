@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   BookOpen,
@@ -13,6 +13,7 @@ import {
   TABELA_ART_1030,
   SUMULAS_MAIS_FREQUENTES,
 } from '../data/technicalGuidelines';
+import { MARCO_RELEVANCIA_BR } from '../../shared/regras';
 
 interface TechnicalGuideModalProps {
   isOpen: boolean;
@@ -22,10 +23,17 @@ interface TechnicalGuideModalProps {
 export const TechnicalGuideModal: React.FC<TechnicalGuideModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<'saidas' | 'relevancia' | 'sumulas' | 'rotina'>('saidas');
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs overflow-y-auto">
+    <div role="dialog" aria-modal="true" aria-labelledby="guia-titulo" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs overflow-y-auto">
       <div className="bg-white border border-slate-300 rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto">
         {/* Modal Header */}
         <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
@@ -34,7 +42,7 @@ export const TechnicalGuideModal: React.FC<TechnicalGuideModalProps> = ({ isOpen
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">
+              <h3 id="guia-titulo" className="text-base font-bold text-slate-900">
                 Orientações Técnicas da 1ª Vice-Presidência (TJPR)
               </h3>
               <p className="text-xs text-slate-500">
@@ -45,6 +53,7 @@ export const TechnicalGuideModal: React.FC<TechnicalGuideModalProps> = ({ isOpen
 
           <button
             onClick={onClose}
+            aria-label="Fechar"
             className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200/60 transition"
           >
             <X className="w-5 h-5" />
@@ -146,7 +155,7 @@ export const TechnicalGuideModal: React.FC<TechnicalGuideModalProps> = ({ isOpen
                   </li>
                   <li>
                     <strong>Marco temporal:</strong> A exigência vale para recurso contra acórdão <strong>publicado a
-                    partir de 03/09/2026</strong> (art. 4º da Lei 15.484/2026). Não é a data da interposição que decide!
+                    partir de {MARCO_RELEVANCIA_BR}</strong> (art. 4º da Lei 15.484/2026). Não é a data da interposição que decide!
                   </li>
                   <li>
                     <strong>Quem decide a irrelevância:</strong> Apenas o STJ, por 2/3 do órgão competente, rejeita a
@@ -171,7 +180,7 @@ export const TechnicalGuideModal: React.FC<TechnicalGuideModalProps> = ({ isOpen
                         <span className="font-semibold text-slate-800 block">{m.marco}</span>
                         <span className="text-[11px] text-slate-500">{m.efeito}</span>
                       </div>
-                      <span className="text-[10px] font-mono text-slate-600 shrink-0 font-bold">{m.data}</span>
+                      <span className="text-[11px] font-mono text-slate-600 shrink-0 font-bold">{m.data}</span>
                     </div>
                   ))}
                 </div>
@@ -189,7 +198,7 @@ export const TechnicalGuideModal: React.FC<TechnicalGuideModalProps> = ({ isOpen
                   <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-900">{s.numero}</span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-white text-slate-700 border border-slate-200">
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-white text-slate-700 border border-slate-200">
                         {s.aplicacao}
                       </span>
                     </div>
