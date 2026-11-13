@@ -9,7 +9,6 @@ import helmet from 'helmet';
 import { AnalyzeRequestSchema, LIMITES, PROVEDORES, type ModelOutput } from '../shared/schema';
 import { enriquecer, executarAnalise, RequisicaoInvalida } from './analyze';
 import {
-  ACCESS_TOKEN,
   chaveDoServidor,
   IS_PROD,
   MODELOS_PADRAO,
@@ -17,8 +16,10 @@ import {
   provedoresComChaveNoServidor,
   RATE_LIMIT_MAX,
   RATE_LIMIT_WINDOW_MIN,
-  tokenConfere,
 } from './config';
+import { criarAuth, semearAdmin } from './auth';
+import { criarRotasCasos } from './casos';
+import { criarStore, type Store } from './store';
 import { ProviderError } from './providers/types';
 import { redigirSegredos } from './sanitize';
 
@@ -33,7 +34,7 @@ export function auditar(evento: Record<string, unknown>) {
 
 const hashIp = (ip: string | undefined) => crypto.createHash('sha256').update(ip ?? '').digest('hex').slice(0, 12);
 
-export function createApp() {
+export function createApp(store: Store) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // Cloud Run encaminha o IP real via X-Forwarded-For
@@ -59,11 +60,15 @@ export function createApp() {
   // Cloud Run limita a requisição a 32 MiB; 30 MB cobre os 22 MB de PDF em base64.
   app.use('/api', express.json({ limit: '30mb' }));
 
+  const { autenticar, exigirAjax, auth, usuarios } = criarAuth(store);
+  const rotas = criarRotasCasos(store);
+  app.use('/api', exigirAjax);
+
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
   app.get('/api/config', (_req, res) => {
     res.json({
-      authRequired: Boolean(ACCESS_TOKEN),
+      autenticacao: true,
       serverKeys: provedoresComChaveNoServidor(),
       provedores: PROVEDORES,
       modelosPadrao: MODELOS_PADRAO,
@@ -71,14 +76,12 @@ export function createApp() {
     });
   });
 
-  const exigirAcesso = (req: Request, res: Response, next: NextFunction) => {
-    if (!tokenConfere(req.header('x-access-token'))) {
-      return res.status(401).json({ error: 'Token de acesso ausente ou inválido.' });
-    }
-    next();
-  };
+  app.use('/api/auth', auth);
+  app.use('/api/usuarios', usuarios);
+  app.use('/api/casos', autenticar, rotas.casos);
+  app.use('/api/base-precedentes', autenticar, rotas.base);
 
-  app.get('/api/sample-case', exigirAcesso, (_req, res) => {
+  app.get('/api/sample-case', autenticar, (_req, res) => {
     const fixture = JSON.parse(readFileSync(path.resolve(__dirname, IS_PROD ? '../server/fixtures/sample-case.json' : 'fixtures/sample-case.json'), 'utf8')) as ModelOutput;
     res.json({ success: true, data: enriquecer(fixture, { provedor: 'exemplo', modelo: 'caso-simulado', geradoEm: new Date().toISOString() }) });
   });
@@ -91,7 +94,7 @@ export function createApp() {
     message: { error: `Muitas análises em pouco tempo. Tente novamente em alguns minutos.` },
   });
 
-  app.post('/api/analyze', exigirAcesso, limiter, async (req: Request, res: Response) => {
+  app.post('/api/analyze', autenticar, limiter, async (req: Request, res: Response) => {
     const inicio = Date.now();
     const parsed = AnalyzeRequestSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -129,6 +132,7 @@ export function createApp() {
       modelo: dados.model ?? MODELOS_PADRAO[dados.provider],
       arquivos: dados.files.length,
       chaveDoUsuario: Boolean(chaveUsuario),
+      usuario: req.usuario!.id,
       ip: hashIp(req.ip),
     };
     try {
@@ -162,7 +166,9 @@ export function createApp() {
 }
 
 async function iniciar() {
-  const app = createApp();
+  const store = await criarStore();
+  await semearAdmin(store, auditar);
+  const app = createApp(store);
 
   if (!IS_PROD) {
     const { createServer } = await import('vite');
@@ -180,7 +186,7 @@ async function iniciar() {
   });
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(JSON.stringify({ severity: 'INFO', evento: 'inicio', porta: PORT, producao: IS_PROD, autenticacao: Boolean(ACCESS_TOKEN) }));
+    console.log(JSON.stringify({ severity: 'INFO', evento: 'inicio', porta: PORT, producao: IS_PROD, armazenamento: process.env.STORE || (IS_PROD ? 'firestore' : 'file') }));
   });
 }
 

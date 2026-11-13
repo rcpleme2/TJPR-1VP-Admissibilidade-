@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Cpu, Eye, EyeOff, KeyRound, Lock } from 'lucide-react';
+import { Cpu, Eye, EyeOff, KeyRound } from 'lucide-react';
 import type { ConfigServidor } from '../lib/api';
 import type { ConfigMotor } from '../lib/storage';
 import type { Provedor } from '../types/admissibility';
@@ -9,8 +9,6 @@ interface Props {
   onConfig: (c: ConfigMotor) => void;
   chaves: Partial<Record<Provedor, string>>;
   onChaves: (c: Partial<Record<Provedor, string>>) => void;
-  token: string;
-  onToken: (t: string) => void;
   servidor: ConfigServidor | null;
 }
 
@@ -20,7 +18,7 @@ const MOTORES: Array<{ id: Provedor; nome: string; empresa: string; onde: string
   { id: 'gpt', nome: 'GPT', empresa: 'OpenAI', onde: 'platform.openai.com/api-keys' },
 ];
 
-export const EngineSettings: React.FC<Props> = ({ config, onConfig, chaves, onChaves, token, onToken, servidor }) => {
+export const EngineSettings: React.FC<Props> = ({ config, onConfig, chaves, onChaves, servidor }) => {
   const [mostrar, setMostrar] = useState(false);
   const p = config.provider;
   const info = MOTORES.find((m) => m.id === p)!;
@@ -113,22 +111,6 @@ export const EngineSettings: React.FC<Props> = ({ config, onConfig, chaves, onCh
           className="w-full bg-slate-50 text-xs text-slate-800 border border-slate-300 rounded-xl px-3 py-2 outline-none focus:border-slate-500 font-mono"
         />
       </div>
-
-      {servidor?.authRequired && (
-        <div>
-          <label htmlFor="token" className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
-            <Lock className="w-3 h-3" /> Token de acesso da instalação
-          </label>
-          <input
-            id="token"
-            type="password"
-            autoComplete="off"
-            value={token}
-            onChange={(e) => onToken(e.target.value)}
-            className="w-full bg-slate-50 text-xs text-slate-800 border border-slate-300 rounded-xl px-3 py-2 outline-none focus:border-slate-500 font-mono"
-          />
-        </div>
-      )}
 
       <p className="text-[11px] text-slate-500 leading-relaxed">
         A chave é enviada ao servidor apenas para repassar à {info.empresa} nesta análise; não é gravada nem registrada em log.

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { UploadedFileItem } from '../types/admissibility';
 import { LIMITES } from '../../shared/schema';
-import type { RegistroHistorico } from '../lib/storage';
+import type { CasoResumo } from '../../shared/registro';
 import { ArquivoCard } from './ArquivoCard';
 import { extrairPdf } from '../lib/pdfText';
 import { MARCO_RELEVANCIA_BR } from '../../shared/regras';
@@ -31,6 +31,9 @@ export function detectarPapel(nome: string, padrao: UploadedFileItem['role']): U
     .split(/[^a-z0-9]+/)
     .filter(Boolean);
   const tem = (...ps: string[]) => ps.some((p) => tokens.includes(p));
+  const colado = tokens.join('');
+  if (/recursoextraordinario/.test(colado)) return 'recurso_extraordinario';
+  if (/recursoespecial/.test(colado)) return 'recurso_especial';
   if (tem('acordao', 'sentenca')) return tem('embargos', 'edcl', 'ed') ? 'acordao_embargos' : 'acordao';
   if (tem('embargos', 'edcl')) return 'acordao_embargos';
   if (tem('extraordinario', 're')) return 'recurso_extraordinario';
@@ -59,11 +62,12 @@ interface DocumentUploadSectionProps {
   setConsent: (v: boolean) => void;
   canAnalyze: boolean;
   missingReason: string;
-  historico: RegistroHistorico[];
-  onOpenHistorico: (id: string) => void;
-  onDeleteHistorico: (id: string) => void;
-  saveLocal: boolean;
-  setSaveLocal: (v: boolean) => void;
+  casos: CasoResumo[];
+  buscaCasos: string;
+  onBuscaCasos: (q: string) => void;
+  onOpenCaso: (id: string) => void;
+  onDeleteCaso: (c: CasoResumo) => void;
+  podeExcluir: (c: CasoResumo) => boolean;
   onClearLocal: () => void;
   onCancel: () => void;
 }
@@ -89,11 +93,12 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   setConsent,
   canAnalyze,
   missingReason,
-  historico,
-  onOpenHistorico,
-  onDeleteHistorico,
-  saveLocal,
-  setSaveLocal,
+  casos,
+  buscaCasos,
+  onBuscaCasos,
+  onOpenCaso,
+  onDeleteCaso,
+  podeExcluir,
   onClearLocal,
   onCancel,
 }) => {
@@ -451,34 +456,39 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 space-y-2 shadow-xs">
-            <div className="flex items-center justify-between font-semibold text-slate-800">
-              <span>Análises salvas neste navegador</span>
-              <label className="flex items-center gap-1 text-[11px] font-normal text-slate-600 cursor-pointer">
-                <input type="checkbox" checked={saveLocal} onChange={(e) => setSaveLocal(e.target.checked)} /> salvar
-              </label>
-            </div>
-            {historico.length === 0 ? (
-              <p className="text-[11px] text-slate-400">Nenhuma análise salva.</p>
+            <div className="font-semibold text-slate-800">Registros na nuvem (equipe)</div>
+            <input
+              type="search"
+              aria-label="Buscar registros por número, matéria ou autor"
+              value={buscaCasos}
+              onChange={(e) => onBuscaCasos(e.target.value)}
+              placeholder="Buscar por nº, matéria ou autor"
+              className="w-full bg-slate-50 text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 outline-none focus:border-slate-500"
+            />
+            {casos.length === 0 ? (
+              <p className="text-[11px] text-slate-400">Nenhum registro encontrado.</p>
             ) : (
-              <ul className="space-y-1.5">
-                {historico.map((h) => (
-                  <li key={h.id} className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
-                    <button onClick={() => onOpenHistorico(h.id)} className="text-left min-w-0">
-                      <span className="block font-mono text-[11px] text-slate-800 truncate">{h.numero || 'Sem número'}</span>
+              <ul className="space-y-1.5 max-h-80 overflow-y-auto">
+                {casos.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+                    <button onClick={() => onOpenCaso(c.id)} className="text-left min-w-0">
+                      <span className="block font-mono text-[11px] text-slate-800 truncate">{c.numeroProcesso}</span>
                       <span className="block text-[11px] text-slate-500 truncate">
-                        {new Date(h.atualizadoEm).toLocaleString('pt-BR')} · {h.materia}
+                        v{c.versao} · {c.atualizadoPor.nome} · {new Date(c.atualizadoEm).toLocaleString('pt-BR')} · {c.status.replace('_', ' ')}
                       </span>
                     </button>
-                    <button onClick={() => onDeleteHistorico(h.id)} aria-label="Excluir análise salva" className="text-slate-400 hover:text-rose-700 shrink-0">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {podeExcluir(c) && (
+                      <button onClick={() => onDeleteCaso(c)} aria-label={`Excluir registro ${c.numeroProcesso}`} className="text-slate-400 hover:text-rose-700 shrink-0">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
             )}
             <p className="text-[11px] text-slate-400">
-              Os dados dos autos ficam só neste navegador.{' '}
-              <button onClick={onClearLocal} className="underline hover:text-slate-700">Apagar tudo (inclui chaves)</button>
+              Só os dados extraídos e cadastrados são gravados; os arquivos anexados nunca são guardados.{' '}
+              <button onClick={onClearLocal} className="underline hover:text-slate-700">Esquecer chaves de API deste navegador</button>
             </p>
           </div>
 

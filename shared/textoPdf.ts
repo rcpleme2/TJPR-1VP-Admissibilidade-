@@ -10,10 +10,11 @@ export interface ResultadoMarkdown {
   linhasRepetidasRemovidas: number;
 }
 
+/** Normaliza para comparar linhas repetidas: números viram "#", exceto datas (carimbos com datas diferentes não se confundem). */
 const normalizaCabecalho = (l: string) =>
   l
     .toLowerCase()
-    .replace(/\d+/g, '#')
+    .replace(/(\d{2}\/\d{2}\/\d{4})|\d+/g, (_m, data: string | undefined) => data ?? '#')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -48,6 +49,7 @@ export function montarMarkdown(linhasPorPagina: string[][]): ResultadoMarkdown {
 
   let removidas = 0;
   const partes: string[] = [];
+  const carimbos = new Map<string, string>(); // linha normalizada -> 1ª ocorrência (mostrada uma única vez no topo)
   linhasPorPagina.forEach((linhas, i) => {
     const margem = naMargem(linhas);
     const uteis = linhas
@@ -56,6 +58,8 @@ export function montarMarkdown(linhasPorPagina: string[][]): ResultadoMarkdown {
         if (!l) return true;
         if (repetida(l, margem.has(k))) {
           removidas++;
+          const chave = normalizaCabecalho(l);
+          if (!carimbos.has(chave)) carimbos.set(chave, l);
           return false;
         }
         return true;
@@ -68,6 +72,10 @@ export function montarMarkdown(linhasPorPagina: string[][]): ResultadoMarkdown {
       .trim();
     if (corpo) partes.push(`[p. ${i + 1}]\n${corpo}`);
   });
+  // o conteúdo do carimbo (protocolo, assinatura, número do recurso) é informação dos autos: fica uma vez só, no topo
+  if (carimbos.size > 0) {
+    partes.unshift(`[Cabeçalho/rodapé repetido em todas as páginas, mostrado uma vez]\n${[...carimbos.values()].join('\n')}`);
+  }
   const texto = partes.join('\n\n');
   return { texto, paginas: n, caracteres: texto.length, linhasRepetidasRemovidas: removidas };
 }

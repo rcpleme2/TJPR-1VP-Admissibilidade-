@@ -1,4 +1,4 @@
-import { extrairDataProtocolo } from '../../shared/protocolo';
+import { extrairDataProtocolo, type ProtocoloDetectado } from '../../shared/protocolo';
 import { montarMarkdown, pareceEscaneado } from '../../shared/textoPdf';
 
 export interface PdfExtraido {
@@ -7,7 +7,7 @@ export interface PdfExtraido {
   caracteres: number;
   escaneado: boolean;
   linhasRemovidas: number;
-  protocolo: { data: string; pagina: number; trecho: string } | null;
+  protocolo: ProtocoloDetectado | null;
 }
 
 interface ItemTexto {

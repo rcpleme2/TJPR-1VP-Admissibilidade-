@@ -128,35 +128,41 @@ describe('provedores (fetch simulado)', () => {
 
 describe('API HTTP', () => {
   let base = '';
+  let cookie = '';
   beforeAll(async () => {
-    process.env.APP_ACCESS_TOKEN = 'segredo-do-teste';
+    process.env.SESSION_SECRET = 'segredo-de-teste-com-mais-de-32-caracteres!!';
     vi.resetModules();
     const { createApp } = await import('../server/index');
-    const srv = createApp().listen(0);
+    const { criarStoreMemoria } = await import('../server/store/memory');
+    const { hashSenha } = await import('../server/auth');
+    const store = criarStoreMemoria();
+    await store.usuarios.criar({ id: 'u1', email: 'ana@tjpr.test', nome: 'Ana', papel: 'admin', ativo: true, senhaHash: await hashSenha('senha-longa-123'), criadoEm: '', atualizadoEm: '' });
+    const srv = createApp(store).listen(0);
     base = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
+    const r = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-requested-with': 'fetch' }, body: JSON.stringify({ email: 'ana@tjpr.test', senha: 'senha-longa-123' }) });
+    cookie = (r.headers.get('set-cookie') ?? '').split(';')[0];
   });
 
   const post = (body: unknown, headers: Record<string, string> = {}) =>
-    fetch(`${base}/api/analyze`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+    fetch(`${base}/api/analyze`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-requested-with': 'fetch', cookie, ...headers }, body: JSON.stringify(body) });
 
-  it('health e config são públicos; demais rotas exigem token', async () => {
+  it('health e config são públicos; demais rotas exigem login', async () => {
     expect((await fetch(`${base}/api/health`)).status).toBe(200);
     const cfg = await (await fetch(`${base}/api/config`)).json();
-    expect(cfg.authRequired).toBe(true);
+    expect(cfg.autenticacao).toBe(true);
     expect((await fetch(`${base}/api/sample-case`)).status).toBe(401);
-    expect((await post(reqBase)).status).toBe(401);
+    expect((await post(reqBase, { cookie: '' })).status).toBe(401);
   });
 
   it('serve o caso de exemplo enriquecido', async () => {
-    const r = await (await fetch(`${base}/api/sample-case`, { headers: { 'x-access-token': 'segredo-do-teste' } })).json();
+    const r = await (await fetch(`${base}/api/sample-case`, { headers: { cookie } })).json();
     expect(r.data.verificacoes.prazos[0].status).toBe('tempestivo');
     expect(r.data.precedentes.length).toBeGreaterThan(3);
   });
 
   it('valida o corpo e exige chave de API', async () => {
-    const h = { 'x-access-token': 'segredo-do-teste' };
-    expect((await post({ ...reqBase, confirmaUsoAutorizado: false }, h)).status).toBe(400);
-    const r = await post(reqBase, h);
+    expect((await post({ ...reqBase, confirmaUsoAutorizado: false })).status).toBe(400);
+    const r = await post(reqBase);
     expect(r.status).toBe(400);
     expect((await r.json()).error).toMatch(/chave de API/);
   });
@@ -167,7 +173,7 @@ describe('API HTTP', () => {
       if (String(url).startsWith('http://127.0.0.1')) return real(url, init);
       return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(sample) }] } }] }), { status: 200 });
     }));
-    const r = await post(reqBase, { 'x-access-token': 'segredo-do-teste', 'x-llm-api-key': 'chave-de-teste-123' });
+    const r = await post(reqBase, { 'x-llm-api-key': 'chave-de-teste-123' });
     const linhas = (await r.text()).trim().split('\n').map((l) => JSON.parse(l));
     vi.unstubAllGlobals();
     expect(linhas.some((l) => l.type === 'stage')).toBe(true);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Scale, BookOpen, Search, Sparkles, RefreshCw, FileText, ShieldCheck } from 'lucide-react';
+import { Scale, BookOpen, Search, Sparkles, RefreshCw, FileText, ShieldCheck, LogOut, UserCog } from 'lucide-react';
 
 interface HeaderProps {
   onOpenGuide: () => void;
@@ -8,6 +8,9 @@ interface HeaderProps {
   onReset: () => void;
   hasResult: boolean;
   onDownloadPDF?: () => void;
+  usuarioNome?: string;
+  onConta?: () => void;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -17,6 +20,9 @@ export const Header: React.FC<HeaderProps> = ({
   onReset,
   hasResult,
   onDownloadPDF,
+  usuarioNome,
+  onConta,
+  onLogout,
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 shadow-xs">
@@ -95,6 +101,17 @@ export const Header: React.FC<HeaderProps> = ({
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Novo Caso</span>
               </button>
+            )}
+            {usuarioNome && (
+              <div className="flex items-center gap-1 pl-2 ml-1 border-l border-slate-200">
+                <button onClick={onConta} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg hover:bg-slate-100 text-slate-700" title="Conta e usuários">
+                  <UserCog className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="max-w-[10rem] truncate">{usuarioNome}</span>
+                </button>
+                <button onClick={onLogout} aria-label="Sair" title="Sair" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
             )}
           </div>
         </div>

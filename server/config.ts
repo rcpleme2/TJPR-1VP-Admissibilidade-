@@ -1,11 +1,7 @@
-import crypto from 'node:crypto';
 import type { Provedor } from '../shared/schema';
 
 export const PORT = Number(process.env.PORT) || 8080;
 export const IS_PROD = process.env.NODE_ENV === 'production';
-
-/** Se definido, todas as rotas /api (exceto health/config) exigem o cabeçalho x-access-token. */
-export const ACCESS_TOKEN = process.env.APP_ACCESS_TOKEN || '';
 
 /** Teto de requisições de análise por IP/janela. */
 export const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX) || 15;
@@ -26,22 +22,11 @@ const ENV_KEYS: Record<Provedor, string | undefined> = {
   gpt: process.env.OPENAI_API_KEY,
 };
 
-/**
- * Chaves guardadas no servidor só podem ser usadas se houver APP_ACCESS_TOKEN;
- * do contrário qualquer visitante gastaria a cota do órgão.
- */
+/** Chaves de API guardadas no servidor (usadas apenas por usuários autenticados). */
 export function chaveDoServidor(p: Provedor): string | undefined {
-  return ACCESS_TOKEN ? ENV_KEYS[p] || undefined : undefined;
+  return ENV_KEYS[p] || undefined;
 }
 
 export function provedoresComChaveNoServidor(): Provedor[] {
   return (['gemini', 'claude', 'gpt'] as const).filter((p) => Boolean(chaveDoServidor(p)));
-}
-
-export function tokenConfere(recebido: string | undefined): boolean {
-  if (!ACCESS_TOKEN) return true;
-  if (!recebido) return false;
-  const a = crypto.createHash('sha256').update(recebido).digest();
-  const b = crypto.createHash('sha256').update(ACCESS_TOKEN).digest();
-  return crypto.timingSafeEqual(a, b);
 }

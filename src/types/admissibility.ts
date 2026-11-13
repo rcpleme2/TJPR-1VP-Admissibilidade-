@@ -18,6 +18,7 @@ export type {
 } from '../../shared/schema';
 
 import type { FileRole } from '../../shared/schema';
+import type { ProtocoloDetectado } from '../../shared/protocolo';
 
 export interface UploadedFileItem {
   id: string;
@@ -37,5 +38,5 @@ export interface UploadedFileItem {
   escaneado?: boolean;
   linhasRemovidas?: number;
   avisoExtracao?: string;
-  protocolo?: { data: string; pagina: number; trecho: string };
+  protocolo?: ProtocoloDetectado;
 }

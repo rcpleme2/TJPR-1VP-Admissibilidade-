@@ -71,8 +71,8 @@ describe('conversão de PDF em Markdown', () => {
   ];
   const r = montarMarkdown([1, 2, 3, 4, 5].map(pagina));
   it('remove cabeçalhos/rodapés repetidos e junta linhas', () => {
-    expect(r.texto).not.toContain('TRIBUNAL DE JUSTIÇA');
-    expect(r.texto).not.toMatch(/Página \d de 5/);
+    expect((r.texto.match(/TRIBUNAL DE JUSTIÇA/g) ?? []).length).toBe(1); // uma única vez, no topo
+    expect((r.texto.match(/Página \d de 5/g) ?? []).length).toBe(1);
     expect(r.texto).toContain('informação importante que continua na linha seguinte.');
     expect(r.linhasRepetidasRemovidas).toBe(10);
   });
@@ -105,5 +105,58 @@ describe('consulta de súmulas', () => {
     const r = consultarBase('tema 466', custom);
     expect(r.resultados[0].noUsuario).toBe(true);
     expect(consultarBase('', custom, { tipo: 'tema' }).resultados).toHaveLength(1);
+  });
+});
+
+describe('carimbo do Projudi (protocolo)', () => {
+  // estrutura reproduzida do exemplo real (dados fictícios): o carimbo aparece no fim de CADA página
+  const carimbo = (data = '20/07/2026') => [
+    'Documento assinado digitalmente, conforme MP nº 2.200-2/2001, Lei nº 11.419/2006, resolução do Projudi, do TJPR/OE',
+    'Validação deste em https://projudi.tjpr.jus.br/projudi/ - Identificador: ABCDE FGHIJ KLMNO PQRST',
+    'PROJUDI - Recurso: 0010045-96.2026.8.16.0045 - Ref. mov. 1.1 - Assinado digitalmente por Fulano de Tal:00000000000',
+    `${data}: JUNTADA DE PETIÇÃO DE RECURSO ESPECIAL. Arq: Petição`,
+  ];
+  const corpo = (n: number) => [`Texto exclusivo ${['alfa', 'beta', 'gama', 'delta', 'epsilon', 'zeta'][n]} um`, `segunda ${['alfa', 'beta', 'gama', 'delta', 'epsilon', 'zeta'][n]} dois`, 'a Recorrente foi intimada em 29/06/2026 com término em 20/07/2026.', `quarta ${['alfa', 'beta', 'gama', 'delta', 'epsilon', 'zeta'][n]}`, `quinta ${['alfa', 'beta', 'gama', 'delta', 'epsilon', 'zeta'][n]}`];
+  const paginas = [0, 1, 2, 3, 4, 5].map((n) => [...corpo(n), ...carimbo()]);
+
+  it('lê a data, o movimento e a referência do carimbo', () => {
+    const r = extrairDataProtocolo(paginas.map((l) => l.join('\n')))!;
+    expect(r.data).toBe('20/07/2026');
+    expect(r.sistema).toBe('projudi');
+    expect(r.movimento).toBe('RECURSO ESPECIAL');
+    expect(r.referencia).toBe('Recurso 0010045-96.2026.8.16.0045 · mov. 1.1');
+    expect(r.pagina).toBe(1);
+  });
+
+  it('não confunde com as datas citadas no corpo da petição', () => {
+    const r = extrairDataProtocolo(paginas.map((l) => l.join('\n')))!;
+    expect(r.data).not.toBe('29/06/2026');
+    expect(r.data).not.toBe('30/06/2026');
+  });
+
+  it('usa a data mais frequente se houver carimbos diferentes', () => {
+    const mistas = paginas.map((l, i) => (i === 0 ? [...corpo(0), ...carimbo('15/07/2026')] : l).join('\n'));
+    expect(extrairDataProtocolo(mistas)!.data).toBe('20/07/2026');
+  });
+
+  it('verifica a compatibilidade do movimento com o papel do arquivo', async () => {
+    const { movimentoCompativel } = await import('../shared/protocolo');
+    expect(movimentoCompativel('recurso_especial', 'RECURSO ESPECIAL')).toBe(true);
+    expect(movimentoCompativel('recurso_extraordinario', 'RECURSO ESPECIAL')).toBe(false);
+    expect(movimentoCompativel('recurso_especial', 'PETIÇÃO INTERMEDIÁRIA')).toBeNull();
+  });
+
+  it('o carimbo repetido vai uma vez para o topo do Markdown e não se perde', () => {
+    const md = montarMarkdown(paginas);
+    expect(md.texto.startsWith('[Cabeçalho/rodapé repetido')).toBe(true);
+    expect(md.texto).toContain('20/07/2026: JUNTADA DE PETIÇÃO DE RECURSO ESPECIAL');
+    expect((md.texto.match(/JUNTADA DE PETIÇÃO/g) ?? []).length).toBe(1);
+    expect(md.texto).toContain('[p. 6]');
+  });
+
+  it('carimbos com datas diferentes não são tratados como repetição', () => {
+    const md = montarMarkdown([0, 1, 2, 3].map((n) => [...corpo(n), ...carimbo(`0${n + 1}/07/2026`)]));
+    expect(md.texto).toContain('01/07/2026: JUNTADA');
+    expect(md.texto).toContain('04/07/2026: JUNTADA');
   });
 });

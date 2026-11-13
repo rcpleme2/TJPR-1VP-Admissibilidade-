@@ -10,7 +10,7 @@ function arquivoParaBase64(file: File): Promise<string> {
 }
 
 export interface ConfigServidor {
-  authRequired: boolean;
+  autenticacao: boolean;
   serverKeys: Provedor[];
   modelosPadrao: Record<Provedor, string>;
   limites: { maxArquivos: number; maxBytesTotal: number };
@@ -25,8 +25,6 @@ export async function buscarConfig(): Promise<ConfigServidor | null> {
   }
 }
 
-const cabecalhos = (token: string): Record<string, string> => (token ? { 'x-access-token': token } : {});
-
 async function erroDaResposta(res: Response): Promise<string> {
   try {
     const j = await res.json();
@@ -34,14 +32,14 @@ async function erroDaResposta(res: Response): Promise<string> {
   } catch {
     /* corpo não JSON */
   }
-  if (res.status === 401) return 'Token de acesso ausente ou inválido.';
+  if (res.status === 401) return 'Sessão expirada. Entre novamente.';
   if (res.status === 413) return 'Arquivos grandes demais para enviar.';
   if (res.status === 429) return 'Muitas análises em pouco tempo. Aguarde alguns minutos.';
   return `Falha na comunicação com o servidor (HTTP ${res.status}).`;
 }
 
-export async function carregarExemplo(token: string): Promise<AdmissibilityAnalysisResult> {
-  const res = await fetch('/api/sample-case', { headers: cabecalhos(token) });
+export async function carregarExemplo(): Promise<AdmissibilityAnalysisResult> {
+  const res = await fetch('/api/sample-case');
   if (!res.ok) throw new Error(await erroDaResposta(res));
   const json = await res.json();
   if (!json.data) throw new Error('Falha ao carregar o caso simulado.');
@@ -52,7 +50,6 @@ export interface ParametrosAnalise {
   provider: Provedor;
   model?: string;
   apiKey?: string;
-  token: string;
   files: UploadedFileItem[];
   appealType: string;
   notes: string;
@@ -75,7 +72,7 @@ export async function analisar(p: ParametrosAnalise): Promise<{ data: Admissibil
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...cabecalhos(p.token),
+      'x-requested-with': 'fetch',
       ...(p.apiKey ? { 'x-llm-api-key': p.apiKey } : {}),
     },
     body: JSON.stringify({

@@ -25,24 +25,13 @@ import { LIMITES } from '../shared/schema';
 import type { EntradaBase } from '../shared/precedentesBase';
 import { analisar, buscarConfig, carregarExemplo, type ConfigServidor } from './lib/api';
 import { baixarMinutaWord } from './lib/exportWord';
-import {
-  apagarDadosLocais,
-  definirSalvarLocal,
-  lerBaseCustom,
-  lerChaves,
-  lerConfig,
-  lerHistorico,
-  lerToken,
-  removerDoHistorico,
-  salvarBaseCustom,
-  salvarChaves,
-  salvarConfig,
-  salvarLocalAtivo,
-  salvarNoHistorico,
-  salvarToken,
-  type ConfigMotor,
-  type RegistroHistorico,
-} from './lib/storage';
+import { apagarDadosLocais, lerChaves, lerConfig, salvarChaves, salvarConfig, type ConfigMotor } from './lib/storage';
+import { ErroApi, nuvem, type UsuarioNuvem } from './lib/nuvem';
+import type { Caso, CasoResumo, StatusCaso } from '../shared/registro';
+import { LoginView } from './components/LoginView';
+import { SaveBar, type EstadoSalvamento } from './components/SaveBar';
+import { HistoricoModal } from './components/HistoricoModal';
+import { ContaModal } from './components/ContaModal';
 import { LayoutDashboard, CheckSquare, FileText, AlertCircle, ArrowLeft, Download, ShieldAlert, BookMarked } from 'lucide-react';
 
 type Aba = 'dashboard' | 'checklist' | 'minuta' | 'precedentes';
@@ -55,7 +44,6 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [stage, setStage] = useState('');
   const [analysisResult, setAnalysisResult] = useState<AdmissibilityAnalysisResult | null>(null);
-  const [analysisId, setAnalysisId] = useState<string>(() => crypto.randomUUID());
   const [securityWarnings, setSecurityWarnings] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<Aba>('dashboard');
   const [isGuideOpen, setIsGuideOpen] = useState(false);
@@ -66,31 +54,169 @@ export default function App() {
   const [servidor, setServidor] = useState<ConfigServidor | null>(null);
   const [config, setConfig] = useState<ConfigMotor>(lerConfig);
   const [chaves, setChaves] = useState<Partial<Record<Provedor, string>>>(lerChaves);
-  const [token, setToken] = useState(lerToken);
   const [consent, setConsent] = useState(false);
   const [prazo, setPrazo] = useState<EntradasPrazo>(ENTRADAS_VAZIAS);
-  const [baseCustom, setBaseCustom] = useState<EntradaBase[]>(lerBaseCustom);
-  const [historico, setHistorico] = useState<RegistroHistorico[]>(lerHistorico);
-  const [saveLocal, setSaveLocalState] = useState(salvarLocalAtivo);
+  const [baseCustom, setBaseCustom] = useState<EntradaBase[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+
+  // --- sessão e registros na nuvem ---------------------------------------------------------------
+  const [usuario, setUsuario] = useState<UsuarioNuvem | null>(null);
+  const [autenticando, setAutenticando] = useState(true);
+  const [contaAberta, setContaAberta] = useState(false);
+  const [histAberto, setHistAberto] = useState(false);
+  const [casos, setCasos] = useState<CasoResumo[]>([]);
+  const [buscaCasos, setBuscaCasos] = useState('');
+  const [registro, setRegistro] = useState<{ id: string; versao: number; status: StatusCaso; atualizadoPor: string; atualizadoEm: string } | null>(null);
+  const [salvamento, setSalvamento] = useState<{ estado: EstadoSalvamento; mensagem?: string; conflito?: { versao: number; por: string; em: string } }>({ estado: 'novo' });
+  const baselineRef = useRef('');
+  const statusGravadoRef = useRef<StatusCaso>('em_analise');
+  const salvandoRef = useRef(false);
+  const pendenteRef = useRef(false);
+  const resultRef = useRef<AdmissibilityAnalysisResult | null>(null);
+  const registroRef = useRef(registro);
+  const salvamentoRef = useRef(salvamento);
+  resultRef.current = analysisResult;
+  registroRef.current = registro;
+  salvamentoRef.current = salvamento;
 
   useEffect(() => {
     buscarConfig().then(setServidor);
   }, []);
   useEffect(() => salvarConfig(config), [config]);
   useEffect(() => salvarChaves(chaves, config.lembrarChaves), [chaves, config.lembrarChaves]);
-  useEffect(() => salvarToken(token), [token]);
-  useEffect(() => salvarBaseCustom(baseCustom), [baseCustom]);
 
-  // Autosave da análise (com edições do assessor) no histórico local.
   useEffect(() => {
-    if (!analysisResult) return;
-    const t = setTimeout(() => {
-      salvarNoHistorico(analysisId, analysisResult);
-      setHistorico(lerHistorico());
-    }, 600);
+    nuvem
+      .me()
+      .then(setUsuario)
+      .catch(() => setUsuario(null))
+      .finally(() => setAutenticando(false));
+  }, []);
+
+  const sessaoExpirada = (e: unknown) => {
+    if (e instanceof ErroApi && e.status === 401) setUsuario(null);
+  };
+
+  const atualizarLista = useCallback(
+    (busca = buscaCasos) =>
+      nuvem.casos
+        .listar(busca)
+        .then(setCasos)
+        .catch(sessaoExpirada),
+    [buscaCasos],
+  );
+  useEffect(() => {
+    if (!usuario) return;
+    const t = setTimeout(() => atualizarLista(buscaCasos), 300);
     return () => clearTimeout(t);
-  }, [analysisResult, analysisId]);
+  }, [usuario, buscaCasos, atualizarLista]);
+
+  useEffect(() => {
+    if (usuario) nuvem.base.listar().then(setBaseCustom).catch(sessaoExpirada);
+  }, [usuario]);
+
+  /** Base compartilhada: grava na nuvem só o que foi incluído/alterado (sem apagar o que outros cadastraram). */
+  const handleBaseChange = async (nova: EntradaBase[]) => {
+    const chave = (e: EntradaBase) => `${e.tipo}|${e.tribunal}|${e.numero}`;
+    const forma = (e?: EntradaBase) => (e ? JSON.stringify([e.enunciado, e.situacao, e.palavrasChave]) : '');
+    const antigas = new Map(baseCustom.map((e) => [chave(e), e]));
+    const mudadas = nova.filter((e) => forma(e) !== forma(antigas.get(chave(e))));
+    if (mudadas.length === 0) return;
+    try {
+      setBaseCustom(await nuvem.base.salvar(mudadas));
+    } catch (e) {
+      sessaoExpirada(e);
+      setErrorMessage('Não foi possível gravar a base de precedentes: ' + (e as Error).message);
+    }
+  };
+
+  const adotarCaso = (c: Caso, trocarAba = true) => {
+    setConsultaAberta(false);
+    setAnalysisResult(c.dados);
+    baselineRef.current = JSON.stringify(c.dados);
+    statusGravadoRef.current = c.status;
+    setRegistro({ id: c.id, versao: c.versao, status: c.status, atualizadoPor: c.atualizadoPor.nome, atualizadoEm: c.atualizadoEm });
+    setSalvamento({ estado: 'salvo' });
+    if (trocarAba) setActiveTab('dashboard');
+  };
+
+  const tratarErroGravacao = (e: unknown) => {
+    sessaoExpirada(e);
+    if (e instanceof ErroApi) {
+      if (e.codigo === 'conflito') {
+        const a = e.extra?.atual as CasoResumo;
+        return setSalvamento({ estado: 'conflito', conflito: { versao: a.versao, por: a.atualizadoPor.nome, em: a.atualizadoEm } });
+      }
+      if (e.codigo === 'numero_invalido') return setSalvamento({ estado: 'numero_invalido', mensagem: e.message });
+      return setSalvamento({ estado: 'erro', mensagem: e.message });
+    }
+    setSalvamento({ estado: 'erro', mensagem: 'Sem conexão com o servidor.' });
+  };
+
+  /** Atualiza o registro existente (controle de versão otimista). */
+  const gravar = async (versaoBase?: number) => {
+    const r = registroRef.current;
+    const dados = resultRef.current;
+    if (!r || !dados) return;
+    if (salvandoRef.current) {
+      pendenteRef.current = true;
+      return;
+    }
+    salvandoRef.current = true;
+    setSalvamento((s) => ({ ...s, estado: 'salvando', conflito: undefined }));
+    const enviado = JSON.stringify(dados);
+    try {
+      const c = await nuvem.casos.atualizar(r.id, versaoBase ?? r.versao, dados, r.status);
+      baselineRef.current = enviado;
+      statusGravadoRef.current = r.status;
+      setRegistro((atual) => (atual ? { ...atual, versao: c.versao, atualizadoPor: c.atualizadoPor.nome, atualizadoEm: c.atualizadoEm } : atual));
+      setSalvamento({ estado: 'salvo' });
+      atualizarLista();
+    } catch (e) {
+      tratarErroGravacao(e);
+    } finally {
+      salvandoRef.current = false;
+      if (pendenteRef.current) {
+        pendenteRef.current = false;
+        gravar();
+      }
+    }
+  };
+
+  /** Cria o registro a partir de uma análise nova: só os dados extraídos/calculados, nunca os arquivos. */
+  const criarRegistro = async (dados: AdmissibilityAnalysisResult) => {
+    setSalvamento({ estado: 'salvando' });
+    try {
+      adotarCaso(await nuvem.casos.criar(dados), false);
+      atualizarLista();
+    } catch (e) {
+      if (e instanceof ErroApi && e.codigo === 'numero_duplicado') {
+        const ex = e.extra?.existente as CasoResumo;
+        const substituir = window.confirm(
+          `Já existe um registro deste processo (v${ex.versao}, alterado por ${ex.atualizadoPor.nome} em ${new Date(ex.atualizadoEm).toLocaleString('pt-BR')}).\n\nOK = substituir os dados pela nova análise (a versão anterior fica no histórico).\nCancelar = abrir o registro existente.`,
+        );
+        try {
+          adotarCaso(substituir ? await nuvem.casos.atualizar(ex.id, ex.versao, dados) : await nuvem.casos.obter(ex.id), false);
+          atualizarLista();
+        } catch (e2) {
+          tratarErroGravacao(e2);
+        }
+        return;
+      }
+      setRegistro(null);
+      tratarErroGravacao(e);
+    }
+  };
+
+  // Autosave: grava as edições do assessor (com pequena espera) quando há mudança em relação ao último gravado.
+  useEffect(() => {
+    if (!analysisResult || !registro || analysisResult.meta?.provedor === 'exemplo') return;
+    if (salvamentoRef.current.estado === 'conflito') return;
+    if (JSON.stringify(analysisResult) === baselineRef.current && registro.status === statusGravadoRef.current) return;
+    const t = setTimeout(() => gravar(), 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysisResult, registro?.status]);
 
   // Reverificação automática dos precedentes quando a minuta/checklist/base mudam.
   const texto = analysisResult
@@ -133,11 +259,9 @@ export default function App() {
               ? 'Informe a data da intimação do acórdão.'
               : !prazo.feriadosRespondido
                 ? 'Responda se há feriado ou suspensão de expediente no período.'
-                : servidor?.authRequired && !token
-          ? 'Informe o token de acesso da instalação.'
-          : !consent
-            ? 'Confirme a declaração de uso autorizado.'
-            : '';
+                : !consent
+                  ? 'Confirme a declaração de uso autorizado.'
+                  : '';
 
   const handleAddFile = (fileItem: UploadedFileItem) => {
     setFiles((prev) => [...prev, fileItem]);
@@ -149,10 +273,11 @@ export default function App() {
   const handleUpdateRole = (id: string, role: UploadedFileItem['role']) =>
     setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, role } : f)));
 
-  const abrirResultado = (data: AdmissibilityAnalysisResult, id: string = crypto.randomUUID()) => {
+  const abrirResultado = (data: AdmissibilityAnalysisResult) => {
     setConsultaAberta(false);
-    setAnalysisId(id);
     setAnalysisResult(data);
+    setRegistro(null);
+    setSalvamento({ estado: data.meta?.provedor === 'exemplo' ? 'exemplo' : 'novo' });
     setActiveTab('dashboard');
   };
 
@@ -161,7 +286,7 @@ export default function App() {
       setIsAnalyzing(true);
       setErrorMessage(null);
       setSecurityWarnings([]);
-      abrirResultado(await carregarExemplo(token));
+      abrirResultado(await carregarExemplo());
     } catch (err) {
       setErrorMessage('Erro ao carregar exemplo de teste: ' + (err as Error).message);
     } finally {
@@ -183,7 +308,6 @@ export default function App() {
         provider,
         model: config.model[provider] || undefined,
         apiKey: usaChaveServidor ? undefined : chaves[provider],
-        token,
         files,
         appealType,
         notes,
@@ -193,6 +317,7 @@ export default function App() {
       });
       setSecurityWarnings(r.securityWarnings);
       abrirResultado(r.data);
+      criarRegistro(r.data);
     } catch (err) {
       const e = err as Error;
       if (e.name === 'AbortError' && !controller.signal.reason) setErrorMessage('Análise cancelada.');
@@ -229,7 +354,65 @@ export default function App() {
     setSecurityWarnings([]);
     setConsent(false);
     setPrazo(ENTRADAS_VAZIAS);
-    setAnalysisId(crypto.randomUUID());
+    setRegistro(null);
+    setSalvamento({ estado: 'novo' });
+    baselineRef.current = '';
+    atualizarLista();
+  };
+
+  const alterarNumero = (n: string) => {
+    if (!analysisResult) return;
+    const novo = { ...analysisResult, processo: { ...analysisResult.processo, numero: n } };
+    setAnalysisResult(novo);
+    if (!registro && novo.meta?.provedor !== 'exemplo') criarRegistro(novo);
+  };
+
+  const carregarDaNuvem = async () => {
+    if (!registro) return;
+    try {
+      adotarCaso(await nuvem.casos.obter(registro.id), false);
+    } catch (e) {
+      tratarErroGravacao(e);
+    }
+  };
+
+  const restaurarVersao = async (v: number) => {
+    if (!registro) return;
+    try {
+      const dados = await nuvem.casos.versao(registro.id, v);
+      setAnalysisResult(dados); // vira edição local; o autosave grava como nova versão
+      setHistAberto(false);
+    } catch (e) {
+      tratarErroGravacao(e);
+    }
+  };
+
+  const abrirCasoDaLista = async (id: string) => {
+    try {
+      adotarCaso(await nuvem.casos.obter(id));
+    } catch (e) {
+      sessaoExpirada(e);
+      setErrorMessage('Não foi possível abrir o registro: ' + (e as Error).message);
+    }
+  };
+
+  const excluirCaso = async (c: CasoResumo) => {
+    if (!window.confirm(`Excluir definitivamente o registro ${c.numeroProcesso}, com todo o histórico?`)) return;
+    try {
+      await nuvem.casos.excluir(c.id);
+      if (registro?.id === c.id) handleReset();
+      atualizarLista();
+    } catch (e) {
+      sessaoExpirada(e);
+      setErrorMessage('Não foi possível excluir: ' + (e as Error).message);
+    }
+  };
+
+  const sair = async () => {
+    await nuvem.logout().catch(() => {});
+    if (!config.lembrarChaves) setChaves({});
+    handleReset();
+    setUsuario(null);
   };
 
   const alertasPrecedentes = useMemo(
@@ -247,6 +430,9 @@ export default function App() {
     { id: 'precedentes', rotulo: 'Precedentes', Icon: BookMarked, badge: alertasPrecedentes },
   ];
 
+  if (autenticando) return <div className="min-h-screen bg-slate-50" aria-busy="true" />;
+  if (!usuario) return <LoginView onLogin={setUsuario} />;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-slate-200">
       <Header
@@ -256,6 +442,9 @@ export default function App() {
         onReset={handleReset}
         hasResult={Boolean(analysisResult)}
         onDownloadPDF={() => setIsPdfModalOpen(true)}
+        usuarioNome={usuario?.nome}
+        onConta={() => setContaAberta(true)}
+        onLogout={sair}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-7">
@@ -287,7 +476,7 @@ export default function App() {
         )}
 
         {consultaAberta ? (
-          <ConsultaPrecedentes baseCustom={baseCustom} onBaseChange={setBaseCustom} onClose={() => setConsultaAberta(false)} />
+          <ConsultaPrecedentes baseCustom={baseCustom} onBaseChange={handleBaseChange} onClose={() => setConsultaAberta(false)} />
         ) : !analysisResult ? (
           <DocumentUploadSection
             files={files}
@@ -309,25 +498,15 @@ export default function App() {
             setConsent={setConsent}
             canAnalyze={!faltando}
             missingReason={faltando}
-            historico={historico}
-            onOpenHistorico={(id) => {
-              const h = historico.find((x) => x.id === id);
-              if (h) abrirResultado(h.resultado, h.id);
-            }}
-            onDeleteHistorico={(id) => {
-              removerDoHistorico(id);
-              setHistorico(lerHistorico());
-            }}
-            saveLocal={saveLocal}
-            setSaveLocal={(v) => {
-              setSaveLocalState(v);
-              definirSalvarLocal(v);
-            }}
+            casos={casos}
+            buscaCasos={buscaCasos}
+            onBuscaCasos={setBuscaCasos}
+            onOpenCaso={abrirCasoDaLista}
+            onDeleteCaso={excluirCaso}
+            podeExcluir={(c) => usuario?.papel === 'admin' || c.criadoPor.id === usuario?.id}
             onClearLocal={() => {
               apagarDadosLocais();
-              setHistorico([]);
               setChaves({});
-              setBaseCustom([]);
               setConfig(lerConfig());
             }}
             prazoForm={<PrazoForm value={prazo} onChange={setPrazo} idPrefix="pre" />}
@@ -337,8 +516,6 @@ export default function App() {
                 onConfig={setConfig}
                 chaves={chaves}
                 onChaves={setChaves}
-                token={token}
-                onToken={setToken}
                 servidor={servidor}
               />
             }
@@ -354,6 +531,23 @@ export default function App() {
                   : ''}
               A IA pode errar fatos, datas e citações: confira os autos, os prazos calculados e os precedentes antes de qualquer uso.
             </div>
+
+            <SaveBar
+              estado={analysisResult.meta?.provedor === 'exemplo' ? 'exemplo' : salvamento.estado}
+              numero={analysisResult.processo.numero}
+              onNumero={alterarNumero}
+              versao={registro?.versao}
+              atualizadoPor={registro?.atualizadoPor}
+              atualizadoEm={registro?.atualizadoEm}
+              status={registro?.status ?? 'em_analise'}
+              onStatus={(st) => setRegistro((r) => (r ? { ...r, status: st } : r))}
+              mensagem={salvamento.mensagem}
+              onRetry={() => gravar()}
+              onHistorico={() => setHistAberto(true)}
+              conflito={salvamento.conflito}
+              onCarregarNuvem={carregarDaNuvem}
+              onSobrescrever={() => gravar(salvamento.conflito?.versao)}
+            />
 
             <div className="flex flex-col lg:flex-row items-center justify-between gap-4 bg-white border border-slate-200 p-2 rounded-2xl shadow-xs">
               <div role="tablist" className="flex flex-wrap items-center gap-1.5 w-full lg:w-auto">
@@ -427,7 +621,7 @@ export default function App() {
                 baseCustom={baseCustom}
                 onChange={(c) => updateResult((r) => ({ ...r, precedentes: c }))}
                 onReverificar={reverificar}
-                onBaseChange={setBaseCustom}
+                onBaseChange={handleBaseChange}
               />
             )}
           </div>
@@ -440,6 +634,9 @@ export default function App() {
           Conforme Lei 15.484/2026, Emenda Regimental STJ 55/2026 e Código de Processo Civil (art. 1.030)
         </p>
       </footer>
+
+      {contaAberta && <ContaModal usuario={usuario} onClose={() => setContaAberta(false)} />}
+      {histAberto && registro && <HistoricoModal casoId={registro.id} versaoAtual={registro.versao} onClose={() => setHistAberto(false)} onRestaurar={restaurarVersao} />}
 
       <TechnicalGuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
 

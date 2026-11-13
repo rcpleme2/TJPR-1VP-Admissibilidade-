@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, FileText, Loader2, Trash2 } from 'lucide-react';
 import { estimarTokensPdf, estimarTokensTexto } from '../../shared/textoPdf';
+import { movimentoCompativel } from '../../shared/protocolo';
 import type { UploadedFileItem } from '../types/admissibility';
 
 interface Props {
@@ -71,9 +72,20 @@ export const ArquivoCard: React.FC<Props> = ({ file, papeis, onUpdateRole, onRem
 
       {file.avisoExtracao && <p className="px-3 pb-2 text-[11px] text-amber-800">{file.avisoExtracao}</p>}
       {file.protocolo && (
-        <p className="px-3 pb-2 text-[11px] text-emerald-800">
-          Protocolo detectado no PDF: <strong>{file.protocolo.data}</strong> (p. {file.protocolo.pagina})
-        </p>
+        <div className="px-3 pb-2 text-[11px] space-y-0.5">
+          <p className="text-emerald-800">
+            Protocolo detectado no PDF: <strong>{file.protocolo.data}</strong> (p. {file.protocolo.pagina}
+            {file.protocolo.sistema === 'projudi' ? ', carimbo Projudi' : ''})
+            {file.protocolo.movimento ? ` · movimento: ${file.protocolo.movimento}` : ''}
+          </p>
+          {file.protocolo.referencia && <p className="text-slate-500">{file.protocolo.referencia}</p>}
+          {(file.role === 'recurso_especial' || file.role === 'recurso_extraordinario') &&
+            movimentoCompativel(file.role, file.protocolo.movimento) === false && (
+              <p className="text-amber-800">
+                O carimbo indica "{file.protocolo.movimento}", mas o arquivo está classificado como {file.role === 'recurso_especial' ? 'Recurso Especial' : 'Recurso Extraordinário'}. Confira o papel do arquivo.
+              </p>
+            )}
+        </div>
       )}
 
       {!file.extraindo && file.arquivo && (

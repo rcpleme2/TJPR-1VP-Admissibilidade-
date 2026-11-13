@@ -17,6 +17,23 @@ npm run build && npm start   # versão de produção
 
 Não é preciso `.env`: cada usuário escolhe o motor e cola a própria chave na tela. Variáveis opcionais em `.env.example`.
 
+## Registros na nuvem (multiusuário)
+
+Cada análise gera um **registro por processo** (chave: número CNJ, com dígito verificador validado) que a equipe compartilha.
+
+- **O que é gravado:** só os dados extraídos, calculados e cadastrados: partes e datas, recursos, checklist e anotações, diagnóstico, minuta
+  editada, entradas de prazo (intimação, feriados, interposição), verificação e conferência de precedentes. **Nunca** PDFs, texto integral das
+  peças nem base64: o schema descarta campos desconhecidos e o servidor impõe teto de 900 KB por registro.
+- **Consistência:** os campos derivados (prazos e verificação de precedentes) são **recalculados no servidor** a cada gravação, com a base de
+  súmulas compartilhada; controle de versão otimista (edição concorrente gera aviso de conflito, sem perder dados); um registro por processo;
+  salvar sem alteração não cria versão.
+- **Histórico:** cada versão guarda autor, data, resumo das mudanças e o conteúdo (últimas 50); qualquer versão pode ser restaurada.
+- **Usuários:** login por e-mail e senha (scrypt), sessão em cookie HttpOnly/SameSite=Strict, papéis `admin` e `assessor`, desativação de contas.
+  Todos os usuários veem e editam os registros; excluir é do autor ou de um admin. Admin gerencia usuários em "Conta e usuários".
+- **Base de súmulas e temas:** compartilhada pela equipe (cadastros ficam com autor e data).
+- **Armazenamento:** `STORE=firestore` (Cloud Run; camada gratuita do Firestore), `STORE=file` (desenvolvimento, `DATA_DIR`) ou `memory` (testes).
+  Em desenvolvimento, se não houver usuários, cria-se `admin@local.test` com senha impressa no console.
+
 ## Motores de IA (Gemini, Claude, GPT)
 
 Na caixa "Motor de IA" escolha o provedor, informe a chave e, se quiser, o nome do modelo.
@@ -25,7 +42,7 @@ Fica em `sessionStorage` (some ao fechar a aba) ou, se marcado "lembrar", em `lo
 Modelos padrão: `GEMINI_MODEL`, `ANTHROPIC_MODEL`, `OPENAI_MODEL`. As três integrações usam a API REST oficial
 (`server/providers/`) e o mesmo JSON Schema, derivado de `shared/schema.ts`.
 
-Chaves do servidor (`GEMINI_API_KEY` etc.) só funcionam se `APP_ACCESS_TOKEN` estiver definido.
+Chaves do servidor (`GEMINI_API_KEY` etc.) podem ser usadas por qualquer usuário autenticado.
 
 ## Verificação de precedentes
 
@@ -73,28 +90,31 @@ No modo texto a varredura de prompt injection alcança o conteúdo dos autos.
 Pré-requisitos: projeto GCP com faturamento ativo (exigido mesmo para a camada gratuita) e `gcloud` autenticado.
 
 ```bash
-PROJECT_ID=meu-projeto ./scripts/deploy-cloudrun.sh
+PROJECT_ID=meu-projeto ADMIN_EMAIL=voce@exemplo.gov.br ./scripts/deploy-cloudrun.sh
 ```
 
-O script usa `gcloud run deploy --source .` (Dockerfile incluso) com: região `us-central1`, `--min-instances 0` (escala a zero, sem custo parado),
-`--max-instances 2`, 1 vCPU/512 MiB e `APP_ACCESS_TOKEN` no Secret Manager. Ao fim, imprime a URL; use o token para entrar.
+O script habilita as APIs, cria o banco Firestore (modo nativo) e desliga a indexação dos campos de dados extraídos, gera `SESSION_SECRET` e a senha do
+primeiro administrador no Secret Manager, concede à conta de serviço o papel `roles/datastore.user` e publica com `gcloud run deploy --source .`
+(Dockerfile incluso): região `us-central1`, `--min-instances 0` (escala a zero), `--max-instances 2`, 1 vCPU/512 MiB. Ao fim imprime a URL e, no
+primeiro deploy, o e-mail e a senha inicial do administrador (troque-a na tela).
 Pontos de atenção:
 
 - Confira os limites vigentes da camada gratuita do Cloud Run na página de preços do Google; Cloud Build, Artifact Registry e Secret Manager têm cotas gratuitas próprias e pequenas (apague imagens antigas).
 - O Cloud Run aceita requisições de até **32 MiB**: o sistema limita a 22 MB de PDFs por análise.
 - O custo das chamadas de IA é do dono da chave informada, não do Cloud Run.
-- Escalando a zero, o limitador de requisições é por instância; para controle global use Cloud Armor/API Gateway.
+- Escalando a zero, o limitador de requisições é por instância; para controle global use Cloud Armor/API Gateway. O Firestore tem camada gratuita própria (1 GiB, 50 mil leituras e 20 mil gravações por dia); confira a página de preços.
+- O adaptador do Firestore (`server/store/firestore.ts`) foi escrito para a API oficial, mas não foi exercitado contra um projeto real neste repositório (os testes usam o armazenamento em memória/arquivo): valide no primeiro deploy.
 - Para restringir o acesso à rede do órgão, troque `--allow-unauthenticated` por IAP/VPC ou autenticação do Cloud Run.
 
 ## Segurança e privacidade
 
-- Token de acesso (`APP_ACCESS_TOKEN`), rate limit, `helmet` + CSP, validação de entrada (zod), PDF com assinatura `%PDF` e limites de tamanho.
+- Login com sessão, CSRF por cabeçalho, rate limit, `helmet` + CSP, validação de entrada (zod), PDF com assinatura `%PDF` e limites de tamanho.
 - Log estruturado sem conteúdo dos autos, chaves ou tokens (apenas provedor, modelo, nº de arquivos, duração, status).
 - O usuário declara, antes de enviar, estar autorizado e que os autos não estão em segredo de justiça. **Os autos vão ao provedor de IA escolhido**:
   valide a política do órgão (LGPD, Res. CNJ 615/2025) antes de usar em produção.
 - Prompt injection: mitigação parcial (delimitadores, varredura das notas e do texto extraído, instruções de sistema, validação do schema de saída).
   PDFs enviados como arquivo original não são varridos; por isso a revisão humana é obrigatória.
-- Dados da análise ficam apenas no navegador (histórico dos últimos 10 casos, com opção de desligar e de apagar tudo).
+- Os registros ficam no banco da nuvem (só dados extraídos/cadastrados, nunca os arquivos). No navegador ficam apenas preferências e, se você pedir, chaves de API.
 
 ## Estrutura
 

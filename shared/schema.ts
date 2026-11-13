@@ -114,6 +114,9 @@ export const EntradasPrazoSchema = z.object({
         data: z.string(),
         pagina: z.number(),
         trecho: z.string(),
+        sistema: z.enum(['projudi', 'generico']).optional(),
+        movimento: z.string().optional(),
+        referencia: z.string().optional(),
       }),
     )
     .default([]),
