@@ -3,19 +3,22 @@ import { AdmissibilityAnalysisResult, EntradasPrazo } from '../types/admissibili
 import { DeadlinesPanel } from './DeadlinesPanel';
 import { MARCO_RELEVANCIA_BR } from '../../shared/regras';
 import { Botao, Folha, TituloSecao } from './ui';
+import { obterSobrestamento, ROTULO_CONCLUSAO } from '../../shared/sobrestamento';
 
 interface DashboardOverviewProps {
   data: AdmissibilityAnalysisResult;
   onChangePrazo: (e: EntradasPrazo) => void;
   onNavigateToChecklist: () => void;
   onNavigateToMinuta: () => void;
+  onNavigateToSobrestamento: () => void;
 }
 
-export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onChangePrazo, onNavigateToChecklist, onNavigateToMinuta }) => {
+export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onChangePrazo, onNavigateToChecklist, onNavigateToMinuta, onNavigateToSobrestamento }) => {
   const { processo, diagnosticoGeral, recursosAnalisados } = data;
   const isMista = diagnosticoGeral.isDecisaoMista;
   const exigeTopico = data.verificacoes?.relevancia.exigeTopicoCalculado ?? processo.exigeTopicoRelevancia;
   const obices = diagnosticoGeral.principaisObicesIdentificados ?? [];
+  const sob = obterSobrestamento(data);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_19rem]">
@@ -24,7 +27,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onCh
           <p className="text-[13px] text-tinta-3">Diagnóstico preliminar</p>
           <p className="mt-1.5 font-serif text-[24px] font-semibold leading-snug tracking-[-0.01em] text-tinta">{diagnosticoGeral.probabilidadeAdmissao}</p>
 
-          <dl className="mt-6 grid gap-x-8 gap-y-4 sm:grid-cols-3">
+          <dl className="mt-6 grid gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
             <div>
               <dt className="text-[13px] text-tinta-3">Art. 1.030 do CPC</dt>
               <dd className="mt-0.5 text-sm text-tinta">{diagnosticoGeral.incisoArt1030Principal}</dd>
@@ -39,6 +42,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onCh
               <dt className="text-[13px] text-tinta-3">Óbices</dt>
               <dd className={`num mt-0.5 text-sm ${obices.length ? 'font-medium text-obice' : 'text-tinta'}`}>
                 {obices.length === 0 ? 'Nenhum identificado' : obices.length === 1 ? '1 identificado' : `${obices.length} identificados`}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[13px] text-tinta-3">Sobrestamento</dt>
+              <dd className="mt-0.5 text-sm">
+                <button type="button" onClick={onNavigateToSobrestamento} className={`text-left underline-offset-2 hover:underline ${sob.conclusao === 'nao_verificado' ? 'text-atencao' : sob.conclusao === 'sobrestar' ? 'font-medium text-atencao' : 'text-tinta'}`}>
+                  {sob.conclusao === 'nao_verificado' ? (sob.temas.length ? `Verificar ${sob.temas.length === 1 ? '1 tema' : `${sob.temas.length} temas`}` : 'Não verificado') : ROTULO_CONCLUSAO[sob.conclusao]}
+                </button>
               </dd>
             </div>
           </dl>

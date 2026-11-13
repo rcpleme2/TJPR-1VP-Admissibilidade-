@@ -377,5 +377,25 @@
     ],
     "dispositivoFinal": "DISPOSITIVO:\nDiante do exposto, por delegação da Presidência deste Tribunal de Justiça (RITJPR, art. 15, § 3º):\n1) NEGO SEGUIMENTO ao Recurso Extraordinário, com fulcro no art. 1.030, I, \"a\", do CPC (Tema 660/STF);\n2) NEGO SEGUIMENTO ao Recurso Especial quanto ao capítulo da responsabilidade bancária objetiva, com fulcro no art. 1.030, I, \"b\", do CPC (Tema 466 e Súmula 479/STJ);\n3) INADMITO o Recurso Especial quanto aos demais capítulos, com esteio no art. 1.030, V, do CPC c/c Súmulas 5, 7 e 83 do STJ e 283 do STF.",
     "advertenciaRecursual": "ADVERTÊNCIA RECURSAL OBRIGATÓRIA (SISTEMA DE DECISÃO MISTA):\nAdverte-se a parte recorrente de que esta decisão é MISTA, com capítulos fundados em incisos autônomos do art. 1.030 do CPC:\n- Contra os itens \"1\" e \"2\" do dispositivo (art. 1.030, I), cabe exclusivamente AGRAVO INTERNO perante o Órgão Especial do TJPR no prazo de 15 (quinze) dias úteis (art. 1.030, § 2º c/c art. 1.021 do CPC);\n- Contra o item \"3\" do dispositivo (art. 1.030, V), cabe exclusivamente AGRAVO DO ART. 1.042 DO CPC perante o STJ no prazo de 15 (quinze) dias úteis.\nA interposição de um único recurso para combater ambos os regimes decisórios caracteriza ERRO GROSSEIRO e afasta a aplicação do princípio da fungibilidade recursal (STJ, AgInt no AREsp 1.890.112; STF, ARE 1.576.450).\nPublique-se. Intimem-se.\nCuritiba/PR, data do sistema.\nDesembargador 1º Vice-Presidente do Tribunal de Justiça do Estado do Paraná"
-  }
+  },
+  "temasRepetitivos": [
+    {
+      "tribunal": "STJ",
+      "especie": "repetitivo",
+      "numero": "466",
+      "questao": "Responsabilidade objetiva das instituições financeiras por fraudes praticadas por terceiros (fortuito interno).",
+      "pertinencia": "O recurso especial discute a responsabilidade do banco por fraude eletrônica em conta corrente, mesma questão de direito do tema.",
+      "suspensao": "nao_determinada",
+      "situacao": "julgado"
+    },
+    {
+      "tribunal": "STF",
+      "especie": "repercussao_geral",
+      "numero": "660",
+      "questao": "Violação aos princípios do contraditório, da ampla defesa e do devido processo legal quando o julgamento depende de normas infraconstitucionais.",
+      "pertinencia": "O recurso extraordinário alega ofensa ao art. 5º, LIV e LV, da CF por indeferimento de prova pericial.",
+      "suspensao": "nao_determinada",
+      "situacao": "julgado"
+    }
+  ]
 }

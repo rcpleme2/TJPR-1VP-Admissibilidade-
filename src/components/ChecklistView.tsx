@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
 import { ChecklistSecao, ChecklistStatus } from '../types/admissibility';
 import { Abas, campo, Folha, type Tom } from './ui';
@@ -20,6 +20,24 @@ const STATUS: Record<ChecklistStatus, { rotulo: string; tom: Tom }> = {
 
 const COR: Record<Tom, string> = { ok: 'text-ok', obice: 'text-obice', atencao: 'text-atencao', neutro: 'text-tinta-3' };
 const FUNDO: Record<Tom, string> = { ok: 'bg-ok', obice: 'bg-obice', atencao: 'bg-atencao', neutro: 'bg-linha-forte' };
+
+/** Rascunho local enquanto digita; grava ao sair do campo. Acompanha o valor quando ele muda de fora (versão restaurada). */
+const NotaItem: React.FC<{ id: string; valor: string; onSalvar: (v: string) => void }> = ({ id, valor, onSalvar }) => {
+  const [texto, setTexto] = useState(valor);
+  useEffect(() => setTexto(valor), [valor]);
+  return (
+    <input
+      id={id}
+      type="text"
+      value={texto}
+      placeholder="Ressalva do assessor (vai para o relatório em PDF)"
+      onChange={(e) => setTexto(e.target.value)}
+      onBlur={() => texto !== valor && onSalvar(texto)}
+      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      className={`${campo} h-8 border-dashed text-[13px] focus:border-solid`}
+    />
+  );
+};
 
 export const ChecklistView: React.FC<ChecklistViewProps> = ({ sections, onUpdateItemStatus, onUpdateItemNote }) => {
   const [statusFilter, setStatusFilter] = useState<Filtro>('all');
@@ -138,14 +156,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({ sections, onUpdate
                             <label htmlFor={`nota-${item.id}`} className="sr-only">
                               Ressalva do assessor para o item {item.id}
                             </label>
-                            <input
-                              id={`nota-${item.id}`}
-                              type="text"
-                              defaultValue={item.observacaoAssessor || ''}
-                              placeholder="Ressalva do assessor (vai para o relatório em PDF)"
-                              onBlur={(e) => onUpdateItemNote(sec.secaoCodigo, item.id, e.target.value)}
-                              className={`${campo} h-8 border-dashed text-[13px] focus:border-solid`}
-                            />
+                            <NotaItem id={`nota-${item.id}`} valor={item.observacaoAssessor || ''} onSalvar={(v) => onUpdateItemNote(sec.secaoCodigo, item.id, v)} />
                           </div>
                         )}
                       </div>

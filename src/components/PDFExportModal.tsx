@@ -8,12 +8,13 @@ interface PDFExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   data: AdmissibilityAnalysisResult;
+  responsavel?: string;
 }
 
-export const PDFExportModal: React.FC<PDFExportModalProps> = ({ isOpen, onClose, data }) => {
+export const PDFExportModal: React.FC<PDFExportModalProps> = ({ isOpen, onClose, data, responsavel }) => {
   const [includeMinuta, setIncludeMinuta] = useState(true);
   const [includeAssessorNotes, setIncludeAssessorNotes] = useState(true);
-  const [assessorName, setAssessorName] = useState('Assessor Jurídico - 1ª VP/TJPR');
+  const [assessorName, setAssessorName] = useState(responsavel || '');
   const [isGenerating, setIsGenerating] = useState(false);
 
   if (!isOpen) return null;

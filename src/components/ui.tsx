@@ -87,12 +87,27 @@ export function Abas<T extends string>({
   className?: string;
 }) {
   return (
-    <div role="tablist" aria-label={rotulo} className={`flex gap-6 overflow-x-auto ${className}`}>
+    <div
+      role="tablist"
+      aria-label={rotulo}
+      className={`flex gap-6 overflow-x-auto ${className}`}
+      onKeyDown={(e) => {
+        const passo = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (!passo) return;
+        e.preventDefault();
+        const i = itens.findIndex((a) => a.id === ativa);
+        const prox = itens[(i + passo + itens.length) % itens.length]!;
+        onChange(prox.id);
+        (e.currentTarget.querySelector(`[data-aba="${prox.id}"]`) as HTMLElement | null)?.focus();
+      }}
+    >
       {itens.map((a) => (
         <button
           key={a.id}
           role="tab"
           type="button"
+          data-aba={a.id}
+          tabIndex={ativa === a.id ? 0 : -1}
           aria-selected={ativa === a.id}
           onClick={() => onChange(a.id)}
           className={`-mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 py-3 text-sm transition-colors ${
