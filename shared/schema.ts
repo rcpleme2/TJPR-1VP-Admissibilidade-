@@ -84,6 +84,22 @@ export const MinutaDecisao1VPSchema = z.object({
   advertenciaRecursual: z.string().optional(),
 });
 
+export const TribunalSchema = z.enum(['STJ', 'STF']);
+export const EspecieTemaSchema = z.enum(['repetitivo', 'repercussao_geral', 'relevancia']);
+
+/** Tema indicado pela IA como possivelmente pertinente à matéria do recurso (sempre a conferir). */
+export const TemaCandidatoSchema = z.object({
+  tribunal: TribunalSchema,
+  especie: EspecieTemaSchema.describe('repetitivo (STJ), repercussao_geral (STF) ou relevancia (STJ)'),
+  numero: z.string().describe('Número do tema. Deixe vazio se não souber com segurança; nunca invente.'),
+  questao: z.string().describe('Questão submetida a julgamento no tema, em uma frase'),
+  pertinencia: z.string().describe('Por que a matéria deduzida no recurso se insere, ou pode se inserir, no tema'),
+  suspensao: z
+    .enum(['determinada', 'nao_determinada', 'desconhecida'])
+    .describe('Se houve ordem de suspensão dos processos pendentes (CPC, art. 1.037, II; art. 1.035, § 5º)'),
+  situacao: z.enum(['afetado_pendente', 'julgado', 'desconhecida']).describe('Mérito do tema pendente de julgamento ou já julgado'),
+});
+
 /** O que o modelo de IA deve devolver. */
 export const ModelOutputSchema = z.object({
   processo: ProcessoInfoSchema,
@@ -91,6 +107,10 @@ export const ModelOutputSchema = z.object({
   checklistSecoes: z.array(ChecklistSecaoSchema),
   diagnosticoGeral: DiagnosticoGeralSchema,
   minutaDecisao1VP: MinutaDecisao1VPSchema,
+  temasRepetitivos: z
+    .array(TemaCandidatoSchema)
+    .optional()
+    .describe('Temas repetitivos, de repercussão geral ou de relevância que versem sobre a mesma questão de direito do recurso. Lista vazia se nenhum.'),
 });
 
 // --- Campos calculados pelo sistema (nunca pelo modelo) -------------------
@@ -152,7 +172,6 @@ export const VerificacoesSchema = z.object({
   avisos: z.array(z.string()),
 });
 
-export const TribunalSchema = z.enum(['STJ', 'STF']);
 export const TipoPrecedenteSchema = z.enum(['sumula', 'sumula_vinculante', 'tema', 'acordao']);
 
 export const CitacaoPrecedenteSchema = z.object({
@@ -190,11 +209,39 @@ export const MetaAnaliseSchema = z.object({
   geradoEm: z.string(),
 });
 
+/** Tema examinado pelo assessor para fins de sobrestamento (CPC, art. 1.030, III). */
+export const TemaSobrestamentoSchema = z.object({
+  id: z.string(),
+  origem: z.enum(['ia', 'assessor']),
+  tribunal: TribunalSchema,
+  especie: EspecieTemaSchema,
+  numero: z.string(),
+  questao: z.string().max(2000).default(''),
+  pertinencia: z.string().max(4000).optional(),
+  situacao: z.enum(['afetado_pendente', 'julgado', 'desconhecida']).default('desconhecida'),
+  suspensao: z.enum(['determinada', 'nao_determinada', 'a_conferir']).default('a_conferir'),
+  enquadramento: z.enum(['se_insere', 'nao_se_insere', 'a_verificar']).default('a_verificar'),
+  decisaoAfetacao: z.string().max(300).optional(),
+  abrangencia: z.string().max(300).optional(),
+  observacao: z.string().max(2000).optional(),
+});
+
+export const ConclusaoSobrestamentoSchema = z.enum(['nao_verificado', 'sobrestar', 'tema_sem_suspensao', 'nao_ha_tema']);
+
+export const SobrestamentoSchema = z.object({
+  conclusao: ConclusaoSobrestamentoSchema.default('nao_verificado'),
+  temas: z.array(TemaSobrestamentoSchema).default([]),
+  fundamentacao: z.string().max(4000).optional(),
+  verificadoPor: z.string().max(120).optional(),
+  verificadoEm: z.string().optional(),
+});
+
 /** Resultado completo trafegado entre servidor, UI, armazenamento local e PDF. */
 export const AdmissibilityAnalysisResultSchema = ModelOutputSchema.extend({
   entradasPrazo: EntradasPrazoSchema.optional(),
   verificacoes: VerificacoesSchema.optional(),
   precedentes: z.array(CitacaoPrecedenteSchema).optional(),
+  sobrestamento: SobrestamentoSchema.optional(),
   meta: MetaAnaliseSchema.optional(),
 });
 
@@ -211,6 +258,10 @@ export type VerificacaoPrazo = z.infer<typeof VerificacaoPrazoSchema>;
 export type EntradasPrazo = z.infer<typeof EntradasPrazoSchema>;
 export type Verificacoes = z.infer<typeof VerificacoesSchema>;
 export type CitacaoPrecedente = z.infer<typeof CitacaoPrecedenteSchema>;
+export type TemaCandidato = z.infer<typeof TemaCandidatoSchema>;
+export type TemaSobrestamento = z.infer<typeof TemaSobrestamentoSchema>;
+export type ConclusaoSobrestamento = z.infer<typeof ConclusaoSobrestamentoSchema>;
+export type Sobrestamento = z.infer<typeof SobrestamentoSchema>;
 export type AdmissibilityAnalysisResult = z.infer<typeof AdmissibilityAnalysisResultSchema>;
 
 /** JSON Schema (sem a chave "$schema") para enviar aos provedores de IA. */

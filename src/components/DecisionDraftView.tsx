@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, Copy, Download, FileDown, Pencil } from 'lucide-react';
 import { MinutaDecisao1VP } from '../types/admissibility';
 import { Botao } from './ui';
+import { cabecalhoSemTimbre } from '../../shared/minuta';
 
 interface DecisionDraftViewProps {
   minuta: MinutaDecisao1VP;
@@ -92,7 +93,7 @@ export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({ minuta, is
         </header>
 
         <div className="mt-10 border-y border-linha py-4">
-          <Texto editing={editing} label="Cabeçalho" rows={4} value={minuta.cabecalho} onChange={(v) => set({ cabecalho: v })} className="whitespace-pre-line font-serif text-[14px] leading-relaxed text-tinta-2" />
+          <Texto editing={editing} label="Cabeçalho" rows={4} value={editing ? minuta.cabecalho : cabecalhoSemTimbre(minuta.cabecalho)} onChange={(v) => set({ cabecalho: v })} className="whitespace-pre-line font-serif text-[14px] leading-relaxed text-tinta-2" />
         </div>
 
         <section className="mt-10">

@@ -43,6 +43,13 @@ MARCOS LEGISLATIVOS E REGIMENTAIS MANDATÓRIOS (ATUALIZADO NOV/2026):
    - Súmula 636/STF (ofensa reflexa à CF).
    - Súmula 115/STJ (ausência de procuração).
 
+7. Temas Repetitivos e Sobrestamento (CPC, arts. 1.030, III; 1.035, § 5º; 1.036 a 1.037, II):
+   - Em "temasRepetitivos", liste os temas (repetitivos do STJ, de repercussão geral do STF e de relevância do STJ) que versem sobre a mesma questão de direito deduzida no recurso, inclusive os afetados e ainda não julgados.
+   - Para cada um, informe se houve ordem de suspensão dos processos pendentes (art. 1.037, II) e se o mérito está pendente ou julgado. Se não souber, use "desconhecida".
+   - Só informe o número do tema se o conhecer com segurança; caso contrário, deixe "numero" vazio e descreva a questão. Nunca invente número de tema.
+   - Se nenhum tema for pertinente, devolva lista vazia.
+   - Tema afetado, com suspensão determinada e mérito pendente, em que a matéria se insere: a saída do capítulo é o sobrestamento (art. 1.030, III), e não a inadmissão.
+
 Preencha todas as 10 seções do checklist (A a J) de modo fático e objetivo.
 
 REGRAS ADICIONAIS DE CONFIABILIDADE (OBRIGATÓRIAS):

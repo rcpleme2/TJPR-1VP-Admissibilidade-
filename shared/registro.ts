@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { AdmissibilityAnalysisResultSchema, type AdmissibilityAnalysisResult } from './schema';
+import { ROTULO_CONCLUSAO } from './sobrestamento';
 
 /**
  * Registro (caso) gravado na nuvem: SOMENTE dados extraídos, calculados e cadastrados.
@@ -122,5 +123,10 @@ export function resumirAlteracoes(antigo: RegistroDados | null, novo: RegistroDa
   if (conferidos) r.push(`Precedentes: ${conferidos} conferência(s)`);
   if (novos) r.push(`Precedentes: ${novos} nova(s) citação(ões)`);
 
-  return r.slice(0, 8);
+  if (!igual(novo.sobrestamento, antigo.sobrestamento)) {
+    const c = novo.sobrestamento?.conclusao;
+    r.push(c && c !== antigo.sobrestamento?.conclusao ? `Sobrestamento: ${ROTULO_CONCLUSAO[c].toLowerCase()}` : 'Sobrestamento: temas');
+  }
+
+  return r.slice(0, 9);
 }

@@ -6,7 +6,7 @@ import type { CasoResumo } from '../../shared/registro';
 import { ArquivoCard } from './ArquivoCard';
 import { extrairPdf } from '../lib/pdfText';
 import { ROTULO_STATUS } from './CasoCabecalho';
-import { Ajuda, Botao, campo, campoArea, campoSelect, dataHora, Folha, Rotulo, TituloSecao } from './ui';
+import { Botao, campo, campoArea, campoSelect, dataHora, Folha, Rotulo, TituloSecao } from './ui';
 
 /** Papel do arquivo a partir de palavras inteiras do nome (evita falsos positivos como "resposta" → REsp). */
 export function detectarPapel(nome: string, padrao: UploadedFileItem['role']): UploadedFileItem['role'] {
@@ -48,7 +48,7 @@ interface DocumentUploadSectionProps {
   consent: boolean;
   setConsent: (v: boolean) => void;
   canAnalyze: boolean;
-  missingReason: string;
+  pendencias: string[];
   casos: CasoResumo[];
   buscaCasos: string;
   onBuscaCasos: (q: string) => void;
@@ -89,7 +89,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   consent,
   setConsent,
   canAnalyze,
-  missingReason,
+  pendencias,
   casos,
   buscaCasos,
   onBuscaCasos,
@@ -295,7 +295,19 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
                   <Botao variante="primario" disabled={!canAnalyze} onClick={onAnalyze} className="w-full">
                     Analisar admissibilidade
                   </Botao>
-                  {!canAnalyze && missingReason && <Ajuda className="mt-0">{missingReason}</Ajuda>}
+                  {pendencias.length > 0 && (
+                    <div className="text-[13px] text-tinta-3">
+                      <p>Para analisar, falta:</p>
+                      <ul className="mt-1 space-y-0.5">
+                        {pendencias.map((p) => (
+                          <li key={p} className="flex gap-2">
+                            <span aria-hidden className="mt-[7px] h-px w-2 shrink-0 bg-tinta-3" />
+                            {p}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </>
               )}
             </div>

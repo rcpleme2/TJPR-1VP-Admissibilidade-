@@ -5,6 +5,8 @@ import { DashboardOverview } from './components/DashboardOverview';
 import { ChecklistView } from './components/ChecklistView';
 import { DecisionDraftView } from './components/DecisionDraftView';
 import { PrecedentsView } from './components/PrecedentsView';
+import { SobrestamentoView } from './components/SobrestamentoView';
+import { avisosSobrestamento, obterSobrestamento } from '../shared/sobrestamento';
 import { ConsultaPrecedentes } from './components/ConsultaPrecedentes';
 import { EngineSettings } from './components/EngineSettings';
 import { ENTRADAS_VAZIAS, PrazoForm } from './components/PrazoForm';
@@ -35,7 +37,7 @@ import { HistoricoModal } from './components/HistoricoModal';
 import { ContaModal } from './components/ContaModal';
 import { Download, Plus, X } from 'lucide-react';
 
-type Aba = 'dashboard' | 'checklist' | 'minuta' | 'precedentes';
+type Aba = 'dashboard' | 'checklist' | 'sobrestamento' | 'minuta' | 'precedentes';
 const TIMEOUT_CLIENTE_MS = 6 * 60_000;
 
 export default function App() {
@@ -59,6 +61,7 @@ export default function App() {
   const [prazo, setPrazo] = useState<EntradasPrazo>(ENTRADAS_VAZIAS);
   const [baseCustom, setBaseCustom] = useState<EntradaBase[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+  const alertaRef = useRef<HTMLDivElement | null>(null);
 
   // --- sessão e registros na nuvem ---------------------------------------------------------------
   const [usuario, setUsuario] = useState<UsuarioNuvem | null>(null);
@@ -83,6 +86,11 @@ export default function App() {
   useEffect(() => {
     buscarConfig().then(setServidor);
   }, []);
+
+  // A mensagem de erro fica no topo da página: traz para a vista quem está no rodapé do formulário.
+  useEffect(() => {
+    if (errorMessage) alertaRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [errorMessage]);
   useEffect(() => salvarConfig(config), [config]);
   useEffect(() => salvarChaves(chaves, config.lembrarChaves), [chaves, config.lembrarChaves]);
 
@@ -219,6 +227,18 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysisResult, registro?.status]);
 
+  // Avisa antes de fechar a aba com alterações ainda não gravadas na nuvem.
+  useEffect(() => {
+    const h = (e: BeforeUnloadEvent) => {
+      const dados = resultRef.current;
+      if (!dados || dados.meta?.provedor === 'exemplo') return;
+      const pendente = !registroRef.current || JSON.stringify(dados) !== baselineRef.current || ['salvando', 'erro', 'conflito'].includes(salvamentoRef.current.estado);
+      if (pendente) e.preventDefault();
+    };
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
+  }, []);
+
   // Reverificação automática dos precedentes quando a minuta/checklist/base mudam.
   const texto = analysisResult
     ? JSON.stringify([analysisResult.minutaDecisao1VP, analysisResult.checklistSecoes.map((s) => s.itens.map((i) => [i.analiseTecnica, i.fundamentoLegal]))])
@@ -246,23 +266,18 @@ export default function App() {
   const extraindo = files.some((f) => f.extraindo);
   const temAcordao = files.some((f) => f.role === 'acordao' || f.role === 'acordao_embargos');
   const temRecurso = files.some((f) => f.role === 'recurso_especial' || f.role === 'recurso_extraordinario');
-  const faltando = !temAcordao
-    ? 'Anexe o acórdão recorrido.'
-    : !temRecurso
-      ? 'Anexe ao menos um recurso (REsp ou RE).'
-      : !temChave
-        ? `Informe a chave de API do motor ${provider.toUpperCase()}.`
-        : extraindo
-          ? 'Aguarde a extração do texto dos PDFs.'
-          : bytesPdf > LIMITES.maxBytesTotal
-            ? `Os PDFs enviados como arquivo somam ${(bytesPdf / 1048576).toFixed(0)} MB (limite ${(LIMITES.maxBytesTotal / 1048576).toFixed(0)} MB). Desmarque "Enviar o PDF original" nos que têm texto.`
-            : !prazo.dataIntimacaoAcordao
-              ? 'Informe a data da intimação do acórdão.'
-              : !prazo.feriadosRespondido
-                ? 'Responda se há feriado ou suspensão de expediente no período.'
-                : !consent
-                  ? 'Confirme a declaração de uso autorizado.'
-                  : '';
+  const pendencias = [
+    !temAcordao && 'Anexar o acórdão recorrido',
+    !temRecurso && 'Anexar ao menos um recurso',
+    !prazo.dataIntimacaoAcordao && 'Informar a intimação do acórdão',
+    !prazo.feriadosRespondido && 'Responder sobre feriados e suspensões',
+    !temChave && `Informar a chave de API do ${provider === 'gpt' ? 'GPT' : provider[0].toUpperCase() + provider.slice(1)}`,
+    !consent && 'Marcar a declaração de uso autorizado',
+    extraindo && 'Aguardar a leitura dos PDFs',
+    bytesPdf > LIMITES.maxBytesTotal &&
+      `Reduzir os PDFs enviados como arquivo: somam ${(bytesPdf / 1048576).toFixed(0)} MB (limite de ${(LIMITES.maxBytesTotal / 1048576).toFixed(0)} MB). Envie como texto os que têm camada de texto.`,
+  ].filter((x): x is string => Boolean(x));
+  const faltando = pendencias[0] ?? '';
 
   const handleAddFile = (fileItem: UploadedFileItem) => {
     setFiles((prev) => [...prev, fileItem]);
@@ -424,9 +439,12 @@ export default function App() {
     [analysisResult?.precedentes],
   );
 
+  const avisosSob = useMemo(() => (analysisResult ? avisosSobrestamento(analysisResult) : []), [analysisResult]);
+
   const abas: Array<{ id: Aba; rotulo: string; contagem?: number; alerta?: boolean }> = [
     { id: 'dashboard', rotulo: 'Diagnóstico' },
     { id: 'checklist', rotulo: 'Checklist' },
+    { id: 'sobrestamento', rotulo: 'Sobrestamento', contagem: avisosSob.length || undefined, alerta: avisosSob.length > 0 },
     { id: 'minuta', rotulo: 'Minuta' },
     { id: 'precedentes', rotulo: 'Precedentes', contagem: alertasPrecedentes || undefined, alerta: alertasPrecedentes > 0 },
   ];
@@ -447,7 +465,7 @@ export default function App() {
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-10 sm:px-8">
         {errorMessage && (
-          <div role="alert" className="mb-8 flex items-start justify-between gap-4 border-l-2 border-obice bg-folha py-3 pl-4 pr-2 text-sm text-tinta">
+          <div ref={alertaRef} role="alert" className="mb-8 flex scroll-mt-4 items-start justify-between gap-4 border-l-2 border-obice bg-folha py-3 pl-4 pr-2 text-sm text-tinta">
             <span>{errorMessage}</span>
             <button type="button" onClick={() => setErrorMessage(null)} aria-label="Dispensar mensagem" className="rounded p-0.5 text-tinta-3 hover:text-tinta">
               <X className="size-4" />
@@ -488,7 +506,7 @@ export default function App() {
             consent={consent}
             setConsent={setConsent}
             canAnalyze={!faltando}
-            missingReason={faltando}
+            pendencias={pendencias}
             casos={casos}
             buscaCasos={buscaCasos}
             onBuscaCasos={setBuscaCasos}
@@ -545,6 +563,16 @@ export default function App() {
                   onChangePrazo={atualizarPrazo}
                   onNavigateToChecklist={() => setActiveTab('checklist')}
                   onNavigateToMinuta={() => setActiveTab('minuta')}
+                  onNavigateToSobrestamento={() => setActiveTab('sobrestamento')}
+                />
+              )}
+
+              {activeTab === 'sobrestamento' && (
+                <SobrestamentoView
+                  valor={obterSobrestamento(analysisResult)}
+                  avisos={avisosSob}
+                  usuarioNome={usuario?.nome}
+                  onChange={(sob) => updateResult((r) => ({ ...r, sobrestamento: sob }))}
                 />
               )}
 
@@ -585,7 +613,7 @@ export default function App() {
 
       <TechnicalGuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
 
-      {analysisResult && <PDFExportModal isOpen={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} data={analysisResult} />}
+      {analysisResult && <PDFExportModal isOpen={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} data={analysisResult} responsavel={usuario?.nome} />}
     </div>
   );
 }
