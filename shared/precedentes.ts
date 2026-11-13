@@ -256,7 +256,6 @@ export function coletarTextos(r: Pick<ModelOutput, 'minutaDecisao1VP' | 'checkli
   t.push({ origem: 'Minuta › Relatório', texto: m.relatorio });
   m.capitulosFundamentacao.forEach((c, i) => t.push({ origem: `Minuta › Capítulo ${i + 1}`, texto: `${c.tituloCapitulo}\n${c.conteudo}` }));
   t.push({ origem: 'Minuta › Dispositivo', texto: m.dispositivoFinal });
-  if (m.advertenciaRecursual) t.push({ origem: 'Minuta › Advertência', texto: m.advertenciaRecursual });
   for (const s of r.checklistSecoes) {
     for (const it of s.itens) {
       t.push({ origem: `Checklist › ${s.secaoCodigo} › ${it.titulo}`.slice(0, 90), texto: `${it.analiseTecnica}\n${it.fundamentoLegal ?? ''}` });

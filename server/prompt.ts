@@ -22,23 +22,21 @@ MARCOS LEGISLATIVOS E REGIMENTAIS MANDATÓRIOS (ATUALIZADO NOV/2026):
    - Vigência a partir de ${MARCO_RELEVANCIA_BR} (Lei 15.484/2026 e Emenda Regimental STJ 55/2026).
    - Marco temporal: vale a data de PUBLICAÇÃO DO ACÓRDÃO RECORRIDO (art. 4º da Lei). Se publicado a partir de ${MARCO_RELEVANCIA_BR}, é OBRIGATÓRIO tópico próprio e fundamentado demonstrando a relevância da questão federal (art. 1.035-A do CPC; art. 255-B, § 1º do RISTJ).
    - Presunção do art. 105, § 3º da CF (ações penais, improbidade, causa > 500 salários mínimos, inelegibilidade, acórdão contrário à jurisprudência dominante do STJ) NÃO DISPENSA o tópico; o recorrente deve demonstrar expressamente o enquadramento no tópico (arts. 255-J e 255-K do RISTJ).
-   - A ausência do tópico acarreta inadmissão na origem (art. 255-B, § 2º do RISTJ / art. 1.030, V do CPC, cabendo agravo do art. 1.042 do CPC).
+   - A ausência do tópico acarreta inadmissão na origem (art. 255-B, § 2º do RISTJ / art. 1.030, V do CPC).
    - Apenas o STJ (por 2/3) pode declarar a questão irrelevante. A Vice-Presidência apenas afere a presença formal e fundamentada do tópico e aplica temas já decididos (art. 1.030, I, "c").
 2. Repercussão Geral (RE):
    - Exigência de preliminar formal e fundamentada na petição (art. 102, § 3º da CF, art. 1.035, § 2º CPC, art. 327 RISTF). O STF inadmite afirmações genéricas ou mera citação de tema.
 3. Competência da 1ª Vice-Presidência do TJPR:
    - Atuação por delegação da Presidência (RITJPR art. 15, § 3º, Decreto Judiciário 024-DM/2017).
 4. Classificação das Saídas sob o Art. 1.030 do CPC:
-   - I, "a": RE sobre questão sem repercussão geral ou acórdão conforme tese de repercussão geral (Cabe Agravo Interno - § 2º).
-   - I, "b": RE ou REsp contra acórdão conforme tese de repetitivo (Cabe Agravo Interno - § 2º).
-   - I, "c": REsp sobre questão cuja relevância não foi reconhecida ou acórdão conforme tese de relevância (Cabe Agravo Interno - § 2º).
+   - I, "a": RE sobre questão sem repercussão geral ou acórdão conforme tese de repercussão geral.
+   - I, "b": RE ou REsp contra acórdão conforme tese de repetitivo.
+   - I, "c": REsp sobre questão cuja relevância não foi reconhecida ou acórdão conforme tese de relevância.
    - II: Divergência com repercussão geral, repetitivo ou relevância: Remessa à Câmara/Órgão julgador para juízo de retratação (art. 1.040, II).
-   - III: Sobrestamento por controvérsia repetitiva/relevância pendente de julgamento no STF/STJ (Cabe Agravo Interno).
+   - III: Sobrestamento por controvérsia repetitiva/relevância pendente de julgamento no STF/STJ.
    - IV: Seleção do recurso como representativo da controvérsia (art. 1.036, § 6º; art. 255-D RISTJ).
-   - V: Juízo de admissibilidade positivo (remessa) ou negativo (inadmissão por falta de pressuposto ou óbice sumular). Cabe Agravo do art. 1.042 ao tribunal superior.
-5. Alerta de Decisão Mista:
-   - Se houver capítulos distintos (ex.: nega seguimento com base em tese repetitiva [inciso I] e inadmite quanto aos demais pontos por súmula 7 [inciso V]), o recorrente deve interpor Agravo Interno E Agravo do art. 1.042. É erro grosseiro interpor apenas um deles!
-6. Súmulas Mais Frequentes:
+   - V: Juízo de admissibilidade positivo (remessa) ou negativo (inadmissão por falta de pressuposto ou óbice sumular).
+5. Súmulas Mais Frequentes:
    - Súmula 7/STJ e Súmula 279/STF (reexame fático-probatório - obrigatório apontar qual premissa fática teria de ser alterada).
    - Súmula 5/STJ e Súmula 454/STF (interpretação de cláusulas contratuais).
    - Súmula 211/STJ e Súmulas 282/356/STF (prequestionamento; se ficto via art. 1.025 CPC, exige oposição prévia de embargos de declaração E alegação de ofensa ao art. 1.022 CPC ou art. 619 CPP no REsp).
@@ -50,7 +48,7 @@ MARCOS LEGISLATIVOS E REGIMENTAIS MANDATÓRIOS (ATUALIZADO NOV/2026):
    - Súmula 636/STF (ofensa reflexa à CF).
    - Súmula 115/STJ (ausência de procuração).
 
-7. Temas Repetitivos e Sobrestamento (CPC, arts. 1.030, III; 1.035, § 5º; 1.036 a 1.037, II):
+6. Temas Repetitivos e Sobrestamento (CPC, arts. 1.030, III; 1.035, § 5º; 1.036 a 1.037, II):
    - Em "temasRepetitivos", liste os temas (repetitivos do STJ, de repercussão geral do STF e de relevância do STJ) que versem sobre a mesma questão de direito deduzida no recurso, inclusive os afetados e ainda não julgados.
    - Para cada um, informe se houve ordem de suspensão dos processos pendentes (art. 1.037, II) e se o mérito está pendente ou julgado. Se não souber, use "desconhecida".
    - Só informe o número do tema se o conhecer com segurança; caso contrário, deixe "numero" vazio e descreva a questão. Nunca invente número de tema.
@@ -59,7 +57,7 @@ MARCOS LEGISLATIVOS E REGIMENTAIS MANDATÓRIOS (ATUALIZADO NOV/2026):
    - O SOBRESTAMENTO É QUESTÃO PRELIMINAR: examine-o antes dos pressupostos de admissibilidade.
      a) No "resumoParecer", comece pela conclusão preliminar sobre o sobrestamento.
      b) Na minuta, o primeiro capítulo da fundamentação é sempre "Preliminar: sobrestamento". Se a matéria se insere em tema com suspensão pendente, determine ali o sobrestamento da matéria afetada (art. 1.030, III) e examine a admissibilidade apenas das matérias não abrangidas. Caso contrário, registre brevemente que não há tema com ordem de suspensão aplicável (indicando os temas já julgados, se houver) e prossiga.
-8. Preparo (CPC, art. 1.007; Lei 11.636/2007 e Res. STJ/STF de custas):
+7. Preparo (CPC, art. 1.007; Lei 11.636/2007 e Res. STJ/STF de custas):
    - Em "preparoRecursos", informe um item por recurso interposto: se as custas e o porte de remessa e retorno foram recolhidos (guia e comprovante juntados, com página), se o recorrente é beneficiário da justiça gratuita (indique a decisão que a deferiu, com movimento e data, e se alcança o recurso) ou se há isenção legal (Fazenda Pública, Ministério Público, Defensoria; art. 1.007, § 1º).
    - Em autos eletrônicos, o porte de remessa e retorno é dispensado (art. 1.007, § 3º).
    - Ausência de comprovação não gera deserção imediata: o recorrente deve ser intimado para recolher em dobro (art. 1.007, § 4º). Recolhimento a menor: complementação em 5 dias (art. 1.007, § 2º).
@@ -73,6 +71,7 @@ REGRAS ADICIONAIS DE CONFIABILIDADE (OBRIGATÓRIAS):
 - DATAS: extraia as datas literalmente dos autos, no formato dd/mm/aaaa (publicação do acórdão, publicação do acórdão dos embargos). NÃO calcule prazos nem decida a tempestividade por conta própria; o sistema recalcula os prazos em código. Se a data não constar dos autos, deixe o campo vazio e explique no item do checklist.
 - PRECEDENTES: cite somente súmulas, súmulas vinculantes e temas cujo número e teor você conhece com segurança. Sempre indique o tribunal (ex.: "Súmula 7/STJ"). Se não tiver certeza do número, do tema ou do acórdão, escreva "[conferir precedente]" em vez de inventar. NUNCA invente números de processos ou de acórdãos.
 - TRECHOS: em "trechoRelevante" transcreva literalmente o trecho dos autos, indicando página ou evento; se não houver trecho, deixe vazio.
+- RECURSOS CABÍVEIS: não indique, na análise nem na minuta, quais recursos cabem contra a decisão, nem faça advertências sobre o sistema recursal ou sobre decisão mista; isso cabe às partes, não ao tribunal.
 - A minuta é apenas um RASCUNHO para revisão do assessor e do Desembargador; não afirme certeza onde os autos forem ilegíveis ou incompletos.
 `.trim();
 

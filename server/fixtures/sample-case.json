@@ -314,34 +314,23 @@
     },
     {
       "secaoCodigo": "J",
-      "secaoTitulo": "J. Conclusão, Enquadramento no Art. 1.030 e Advertências Recursais",
+      "secaoTitulo": "J. Conclusão e Enquadramento no Art. 1.030",
       "itens": [
         {
           "id": "J1",
-          "titulo": "Enquadramento e classificação por capítulos (Decisão Mista)",
+          "titulo": "Enquadramento e classificação por capítulos",
           "status": "conforme",
           "novidade2026": true,
-          "analiseTecnica": "Trata-se de DECISÃO MISTA: (1) Quanto à matéria vinculada à responsabilidade bancária objetiva (Tema 466/STJ) e alegações do Tema 660/STF, nega-se seguimento com fulcro no art. 1.030, I, \"b\" (REsp) e art. 1.030, I, \"a\" (RE); (2) Quanto aos demais fundamentos do REsp (violação ao art. 1.022 e pedidos que exigem revolvimento probatório e contratual), inadmite-se o recurso com fulcro no art. 1.030, V do CPC (Súmulas 5, 7, 83/STJ e 283/STF).",
+          "analiseTecnica": "A decisão terá capítulos distintos: (1) Quanto à matéria vinculada à responsabilidade bancária objetiva (Tema 466/STJ) e alegações do Tema 660/STF, nega-se seguimento com fulcro no art. 1.030, I, \"b\" (REsp) e art. 1.030, I, \"a\" (RE); (2) Quanto aos demais fundamentos do REsp (violação ao art. 1.022 e pedidos que exigem revolvimento probatório e contratual), inadmite-se o recurso com fulcro no art. 1.030, V do CPC (Súmulas 5, 7, 83/STJ e 283/STF).",
           "fundamentoLegal": "Art. 1.030, I e V do CPC",
-          "trechoRelevante": "Necessidade imperativa de cisão em capítulos autônomos."
-        },
-        {
-          "id": "J2",
-          "titulo": "Advertência sobre o sistema recursal adequado (Alerta de Erro Grosseiro)",
-          "status": "conforme",
-          "novidade2026": true,
-          "analiseTecnica": "A decisão deve advertir expressamente o recorrente de que: contra o capítulo fundamentado no art. 1.030, I cabe AGRAVO INTERNO perante o Órgão Especial do TJPR (art. 1.030, § 2º); e contra o capítulo do art. 1.030, V cabe AGRAVO EM REsp/RE perante o Tribunal Superior (art. 1.042 do CPC). A interposição de um único recurso para impugnar ambos os capítulos configura ERRO GROSSEIRO inescusável, não admitindo o princípio da fungibilidade recursal segundo firme jurisprudência do STJ e STF.",
-          "fundamentoLegal": "Art. 1.030, § 1º e § 2º; Art. 1.042 do CPC; STJ, AgInt no AREsp 1.890.112; STF, ARE 1.576.450",
-          "trechoRelevante": "Advertência redigida expressamente na minuta da 1VP."
+          "trechoRelevante": "Cisão em capítulos autônomos."
         }
       ]
     }
   ],
   "diagnosticoGeral": {
-    "probabilidadeAdmissao": "Inadmissão Parcial com Negativa de Seguimento (Decisão Mista)",
+    "probabilidadeAdmissao": "Inadmissão parcial com negativa de seguimento",
     "incisoArt1030Principal": "Art. 1.030, I, \"b\" e Art. 1.030, V do CPC (Capítulos Autônomos)",
-    "isDecisaoMista": true,
-    "recursoCabivelAdvertencia": "ATENÇÃO - DECISÃO MISTA: Cabe AGRAVO INTERNO contra a negativa de seguimento baseada em tese vinculante (art. 1.030, I) e AGRAVO DO ART. 1.042 DO CPC contra a inadmissão por óbices processuais (art. 1.030, V). A interposição de apenas um recurso constitui erro grosseiro sem fungibilidade recursal.",
     "principaisObicesIdentificados": [
       "Tema Repetitivo 466/STJ e Súmula 479/STJ (art. 1.030, I, \"b\" do CPC)",
       "Tema 660 de Repercussão Geral do STF e Súmula 636/STF (ofensa reflexa à CF)",
@@ -350,7 +339,7 @@
       "Súmula 283 do STF (subsistência de fundamento autônomo inatacado)",
       "Súmula 83 do STJ (orientação da corte no mesmo sentido do aresto atacado)"
     ],
-    "resumoParecer": "A análise técnica dos recursos interpostos em face do acórdão publicado sob a égide da Lei 15.484/2026 revela que, embora o REsp tenha atendido formalmente ao novo requisito do tópico de Relevância da Questão Federal (art. 1.035-A do CPC) e ambos sejam tempestivos com preparo comprovado, incidem óbices vinculantes intransponíveis. Parte das matérias coincide com teses repetitivas pacificadas (Tema 466/STJ e Tema 660/STF), ensejando NEGATIVA DE SEGUIMENTO (art. 1.030, I). Os demais capítulos esbarram nas Súmulas 5, 7 e 83 do STJ e 283 do STF, impondo a INADMISSIBILIDADE (art. 1.030, V). O caso exige minuta com capítulos estanques e expressa advertência sobre o duplo agravo."
+    "resumoParecer": "A análise técnica dos recursos interpostos em face do acórdão publicado sob a égide da Lei 15.484/2026 revela que, embora o REsp tenha atendido formalmente ao novo requisito do tópico de Relevância da Questão Federal (art. 1.035-A do CPC) e ambos sejam tempestivos com preparo comprovado, incidem óbices vinculantes intransponíveis. Parte das matérias coincide com teses repetitivas pacificadas (Tema 466/STJ e Tema 660/STF), ensejando NEGATIVA DE SEGUIMENTO (art. 1.030, I). Os demais capítulos esbarram nas Súmulas 5, 7 e 83 do STJ e 283 do STF, impondo a INADMISSIBILIDADE (art. 1.030, V). A minuta é organizada em capítulos autônomos."
   },
   "minutaDecisao1VP": {
     "cabecalho": "TRIBUNAL DE JUSTIÇA DO ESTADO DO PARANÁ\n1ª VICE-PRESIDÊNCIA\nAutos nº 0014298-70.2023.8.16.0001\nRecorrente: Banco Progresso S/A\nRecorrida: Indústria Metalúrgica Paranaense Ltda.\nOrigem: 16ª Câmara Cível\nJuízo de Admissibilidade Recursal exercido por delegação da Presidência (RITJPR, art. 15, § 3º)",
@@ -359,24 +348,20 @@
       {
         "tituloCapitulo": "CAPÍTULO I – DO RECURSO EXTRAORDINÁRIO: OFENSA REFLEXA E TEMA 660/STF (CPC, ART. 1.030, I, \"A\")",
         "incisoArt1030": "Art. 1.030, I, alínea \"a\", do CPC",
-        "conteudo": "O Supremo Tribunal Federal, ao examinar o Tema 660 de Repercussão Geral (ARE 748.371), assentou que a alegação de violação aos princípios do contraditório, da ampla defesa, do devido processo legal e dos limites da coisa julgada, quando demandar o exame prévio de legislação infraconstitucional, não ostenta repercussão geral por configurar ofensa reflexa à Carta Magna.\nNo caso vertente, o recorrente sustenta cerceamento de defesa pelo indeferimento de prova pericial complementar. Todavia, a aferição da necessidade probatória e da higidez processual subordina-se à legislação processual civil ordinária, amoldando-se perfeitamente à tese fixada no aludido Tema 660/STF.\nDessa forma, em relação ao Recurso Extraordinário, impõe-se a negativa de seguimento.",
-        "recursoCabivel": "Agravo Interno (art. 1.030, § 2º c/c art. 1.021 do CPC) perante o Órgão Especial do TJPR."
+        "conteudo": "O Supremo Tribunal Federal, ao examinar o Tema 660 de Repercussão Geral (ARE 748.371), assentou que a alegação de violação aos princípios do contraditório, da ampla defesa, do devido processo legal e dos limites da coisa julgada, quando demandar o exame prévio de legislação infraconstitucional, não ostenta repercussão geral por configurar ofensa reflexa à Carta Magna.\nNo caso vertente, o recorrente sustenta cerceamento de defesa pelo indeferimento de prova pericial complementar. Todavia, a aferição da necessidade probatória e da higidez processual subordina-se à legislação processual civil ordinária, amoldando-se perfeitamente à tese fixada no aludido Tema 660/STF.\nDessa forma, em relação ao Recurso Extraordinário, impõe-se a negativa de seguimento."
       },
       {
         "tituloCapitulo": "CAPÍTULO II – DO RECURSO ESPECIAL: RESPONSABILIDADE BANCÁRIA OBJETIVA E TEMA 466/STJ (CPC, ART. 1.030, I, \"B\")",
         "incisoArt1030": "Art. 1.030, I, alínea \"b\", do CPC",
-        "conteudo": "A tese deduzida pelo recorrente pretendendo eximir-se da responsabilidade decorrente de fraude praticada por terceiros contraria frontalmente a orientação vinculante firmada pelo Superior Tribunal de Justiça sob o rito dos recursos repetitivos no Tema 466 e consolidada na Súmula 479/STJ, segundo a qual \"as instituições financeiras respondem objetivamente pelos danos gerados por fortuito interno relativo a fraudes e delitos praticados por terceiros no âmbito de operações bancárias\".\nEstando o acórdão recorrido em perfeita sintonia com o precedente repetitivo qualificado do STJ, impõe-se a negativa de seguimento neste ponto, com arrimo no art. 1.030, I, \"b\", do CPC.",
-        "recursoCabivel": "Agravo Interno (art. 1.030, § 2º do CPC) perante o Órgão Especial do TJPR."
+        "conteudo": "A tese deduzida pelo recorrente pretendendo eximir-se da responsabilidade decorrente de fraude praticada por terceiros contraria frontalmente a orientação vinculante firmada pelo Superior Tribunal de Justiça sob o rito dos recursos repetitivos no Tema 466 e consolidada na Súmula 479/STJ, segundo a qual \"as instituições financeiras respondem objetivamente pelos danos gerados por fortuito interno relativo a fraudes e delitos praticados por terceiros no âmbito de operações bancárias\".\nEstando o acórdão recorrido em perfeita sintonia com o precedente repetitivo qualificado do STJ, impõe-se a negativa de seguimento neste ponto, com arrimo no art. 1.030, I, \"b\", do CPC."
       },
       {
         "tituloCapitulo": "CAPÍTULO III – DO RECURSO ESPECIAL: PRESSUPOSTOS INTRÍNSECOS, SÚMULAS 5, 7 E 83 DO STJ E 283 DO STF (CPC, ART. 1.030, V)",
         "incisoArt1030": "Art. 1.030, V, do CPC",
-        "conteudo": "No tocante aos demais pontos suscitados no Recurso Especial (art. 1.022 e alegações sobre culpa exclusiva da vítima e termos contratuais), cumpre observar que, nada obstante atendido o novo requisito formal do tópico de relevância previsto no art. 1.035-A do CPC (introduzido pela Lei 15.484/2026), a irresignação esbarra em óbices intrínsecos intransponíveis.\nCom efeito, infirmar a conclusão do órgão colegiado local acerca da ausência de culpa concorrente e da falha no mecanismo eletrônico de segurança bancária demandaria o reexame do contexto fático-probatório dos autos e a interpretação de cláusulas contratuais, providência expressamente vedada pelas Súmulas 5 e 7 do STJ. Ademais, o fundamento autônomo do aresto relativo à ausência de bloqueio preventivo não foi especificamente impugnado (Súmula 283/STF).\nPor fim, pela alínea \"c\", incide a Súmula 83/STJ ante a harmonia do julgado impugnado com a jurisprudência dominante do Superior Tribunal de Justiça.\nDestarte, impõe-se a inadmissão do Recurso Especial quanto a estes tópicos.",
-        "recursoCabivel": "Agravo em Recurso Especial (art. 1.042 do CPC) dirigido ao Superior Tribunal de Justiça."
+        "conteudo": "No tocante aos demais pontos suscitados no Recurso Especial (art. 1.022 e alegações sobre culpa exclusiva da vítima e termos contratuais), cumpre observar que, nada obstante atendido o novo requisito formal do tópico de relevância previsto no art. 1.035-A do CPC (introduzido pela Lei 15.484/2026), a irresignação esbarra em óbices intrínsecos intransponíveis.\nCom efeito, infirmar a conclusão do órgão colegiado local acerca da ausência de culpa concorrente e da falha no mecanismo eletrônico de segurança bancária demandaria o reexame do contexto fático-probatório dos autos e a interpretação de cláusulas contratuais, providência expressamente vedada pelas Súmulas 5 e 7 do STJ. Ademais, o fundamento autônomo do aresto relativo à ausência de bloqueio preventivo não foi especificamente impugnado (Súmula 283/STF).\nPor fim, pela alínea \"c\", incide a Súmula 83/STJ ante a harmonia do julgado impugnado com a jurisprudência dominante do Superior Tribunal de Justiça.\nDestarte, impõe-se a inadmissão do Recurso Especial quanto a estes tópicos."
       }
     ],
-    "dispositivoFinal": "DISPOSITIVO:\nDiante do exposto, por delegação da Presidência deste Tribunal de Justiça (RITJPR, art. 15, § 3º):\n1) NEGO SEGUIMENTO ao Recurso Extraordinário, com fulcro no art. 1.030, I, \"a\", do CPC (Tema 660/STF);\n2) NEGO SEGUIMENTO ao Recurso Especial quanto ao capítulo da responsabilidade bancária objetiva, com fulcro no art. 1.030, I, \"b\", do CPC (Tema 466 e Súmula 479/STJ);\n3) INADMITO o Recurso Especial quanto aos demais capítulos, com esteio no art. 1.030, V, do CPC c/c Súmulas 5, 7 e 83 do STJ e 283 do STF.",
-    "advertenciaRecursual": "ADVERTÊNCIA RECURSAL OBRIGATÓRIA (SISTEMA DE DECISÃO MISTA):\nAdverte-se a parte recorrente de que esta decisão é MISTA, com capítulos fundados em incisos autônomos do art. 1.030 do CPC:\n- Contra os itens \"1\" e \"2\" do dispositivo (art. 1.030, I), cabe exclusivamente AGRAVO INTERNO perante o Órgão Especial do TJPR no prazo de 15 (quinze) dias úteis (art. 1.030, § 2º c/c art. 1.021 do CPC);\n- Contra o item \"3\" do dispositivo (art. 1.030, V), cabe exclusivamente AGRAVO DO ART. 1.042 DO CPC perante o STJ no prazo de 15 (quinze) dias úteis.\nA interposição de um único recurso para combater ambos os regimes decisórios caracteriza ERRO GROSSEIRO e afasta a aplicação do princípio da fungibilidade recursal (STJ, AgInt no AREsp 1.890.112; STF, ARE 1.576.450).\nPublique-se. Intimem-se.\nCuritiba/PR, data do sistema.\nDesembargador 1º Vice-Presidente do Tribunal de Justiça do Estado do Paraná"
+    "dispositivoFinal": "DISPOSITIVO:\nDiante do exposto, por delegação da Presidência deste Tribunal de Justiça (RITJPR, art. 15, § 3º):\n1) NEGO SEGUIMENTO ao Recurso Extraordinário, com fulcro no art. 1.030, I, \"a\", do CPC (Tema 660/STF);\n2) NEGO SEGUIMENTO ao Recurso Especial quanto ao capítulo da responsabilidade bancária objetiva, com fulcro no art. 1.030, I, \"b\", do CPC (Tema 466 e Súmula 479/STJ);\n3) INADMITO o Recurso Especial quanto aos demais capítulos, com esteio no art. 1.030, V, do CPC c/c Súmulas 5, 7 e 83 do STJ e 283 do STF.\n\nPublique-se. Intimem-se.\nCuritiba, data do sistema."
   },
   "temasRepetitivos": [
     {

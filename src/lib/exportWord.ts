@@ -8,8 +8,7 @@ export function baixarMinutaWord(minuta: MinutaDecisao1VP, numeroProcesso: strin
   const caps = minuta.capitulosFundamentacao
     .map(
       (c) =>
-        `<h3>${esc(c.tituloCapitulo)} <small>(${esc(c.incisoArt1030)})</small></h3><p>${esc(c.conteudo)}</p>` +
-        (c.recursoCabivel ? `<p><i>Recurso cabível: ${esc(c.recursoCabivel)}</i></p>` : ''),
+        `<h3>${esc(c.tituloCapitulo)} <small>(${esc(c.incisoArt1030)})</small></h3><p>${esc(c.conteudo)}</p>`,
     )
     .join('');
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Minuta</title>
@@ -20,7 +19,6 @@ export function baixarMinutaWord(minuta: MinutaDecisao1VP, numeroProcesso: strin
 <h3>I. RELATÓRIO</h3><p>${esc(minuta.relatorio)}</p>
 <h3>II. FUNDAMENTAÇÃO</h3>${caps}
 <h3>III. DISPOSITIVO</h3><p>${esc(minuta.dispositivoFinal)}</p>
-${minuta.advertenciaRecursual ? `<p><b>${esc(minuta.advertenciaRecursual)}</b></p>` : ''}
 </body></html>`;
   const blob = new Blob(['﻿', html], { type: 'application/msword' });
   const url = URL.createObjectURL(blob);

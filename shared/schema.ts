@@ -63,8 +63,6 @@ export const ChecklistSecaoSchema = z.object({
 export const DiagnosticoGeralSchema = z.object({
   probabilidadeAdmissao: z.string(),
   incisoArt1030Principal: z.string().describe('I ("a", "b" ou "c"), II, III, IV ou V'),
-  isDecisaoMista: z.boolean(),
-  recursoCabivelAdvertencia: z.string(),
   principaisObicesIdentificados: z.array(z.string()).optional(),
   resumoParecer: z.string(),
 });
@@ -73,7 +71,6 @@ export const CapituloFundamentacaoSchema = z.object({
   tituloCapitulo: z.string(),
   incisoArt1030: z.string(),
   conteudo: z.string(),
-  recursoCabivel: z.string().optional(),
 });
 
 export const MinutaDecisao1VPSchema = z.object({
@@ -81,7 +78,6 @@ export const MinutaDecisao1VPSchema = z.object({
   relatorio: z.string(),
   capitulosFundamentacao: z.array(CapituloFundamentacaoSchema),
   dispositivoFinal: z.string(),
-  advertenciaRecursual: z.string().optional(),
 });
 
 export const TribunalSchema = z.enum(['STJ', 'STF']);

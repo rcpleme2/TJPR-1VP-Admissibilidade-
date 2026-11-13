@@ -45,18 +45,12 @@ export const TechnicalGuideModal: React.FC<TechnicalGuideModalProps> = ({ isOpen
       <div className="text-sm">
         {aba === 'saidas' && (
           <>
-            <p className="max-w-[65ch] text-tinta-2">
-              O recurso cabível depende do inciso em que a decisão se apoia, não do rótulo usado. Em decisão mista, é obrigatória a interposição de ambos os recursos.
-            </p>
-            <ul className="mt-4 divide-y divide-linha border-t border-linha">
+            <ul className="divide-y divide-linha">
               {TABELA_ART_1030.map((s, i) => (
                 <li key={i} className="grid gap-x-6 gap-y-1 py-4 sm:grid-cols-[7rem_1fr]">
                   <p className="font-serif text-[17px] font-semibold text-toga">Inciso {s.inciso}</p>
                   <div>
                     <p className="text-tinta">{s.quando}</p>
-                    <p className="mt-1 text-[13px] text-tinta-2">
-                      <span className="text-tinta-3">Cabe:</span> {s.recurso}
-                    </p>
                     {s.observacoes && <p className="mt-1 text-[13px] text-tinta-3">{s.observacoes}</p>}
                   </div>
                 </li>
@@ -83,8 +77,7 @@ export const TechnicalGuideModal: React.FC<TechnicalGuideModalProps> = ({ isOpen
                 Somente o STJ, por 2/3 do órgão competente. A Vice-Presidência verifica a existência formal e fundamentada do tópico e aplica temas já decididos (art. 1.030, I, c).
               </Regra>
               <Regra titulo="Novo art. 1.030, I, c, do CPC">
-                Nega-se seguimento ao REsp sobre questão cuja relevância o STJ não reconheceu, ou contra acórdão conforme o entendimento firmado nesse regime. Cabe agravo
-                interno (§ 2º), não o agravo do art. 1.042.
+                Nega-se seguimento ao REsp sobre questão cuja relevância o STJ não reconheceu, ou contra acórdão conforme o entendimento firmado nesse regime.
               </Regra>
             </ul>
 

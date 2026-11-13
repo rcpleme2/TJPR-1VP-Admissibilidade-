@@ -12,7 +12,7 @@ import {
   ROTULO_SUSPENSAO,
   rotuloTema,
 } from '../../shared/sobrestamento';
-import { Botao, campo, campoArea, dataHora, Folha, Marca, TituloSecao, type Tom } from './ui';
+import { Botao, campo, campoArea, dataHora, Folha, Marca, type Tom } from './ui';
 
 interface Props {
   valor: Sobrestamento;
@@ -45,7 +45,7 @@ function Escolha<T extends string>({ id, rotulo, valor, opcoes, onChange }: { id
 }
 
 export const SobrestamentoView: React.FC<Props> = ({ valor, avisos, usuarioNome, onChange }) => {
-  const [abertos, setAbertos] = useState<Record<string, boolean>>(() => Object.fromEntries(valor.temas.map((t) => [t.id, t.enquadramento === 'a_verificar'])));
+  const [abertos, setAbertos] = useState<Record<string, boolean>>({});
   const [novo, setNovo] = useState<{ tribunal: 'STJ' | 'STF'; especie: TemaSobrestamento['especie']; numero: string }>({ tribunal: 'STJ', especie: 'repetitivo', numero: '' });
   const sugerida = conclusaoSugerida(valor);
 
@@ -63,10 +63,17 @@ export const SobrestamentoView: React.FC<Props> = ({ valor, avisos, usuarioNome,
   };
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_19rem]">
-      <div className="min-w-0 space-y-8">
-        <Folha className="p-6 sm:p-8">
-          <p className="text-[13px] text-tinta-3">A matéria se insere em tema com ordem de suspensão?</p>
+    <Folha aria-labelledby="sob-titulo">
+      <div className="flex flex-col gap-1 border-b border-linha px-5 py-4 sm:flex-row sm:items-baseline sm:justify-between sm:px-6">
+        <h3 id="sob-titulo" className="font-serif text-[18px] font-semibold leading-tight text-tinta">
+          Preliminar: sobrestamento
+        </h3>
+        <p className="text-[13px] text-tinta-3">CPC, arts. 1.030, III, e 1.037, II</p>
+      </div>
+
+      <div className="space-y-8 px-5 py-5 sm:px-6">
+        <div>
+          <p className="text-[13px] text-tinta-3">A matéria se insere em tema afetado com ordem de suspensão e mérito pendente?</p>
           <div role="radiogroup" aria-label="Conclusão sobre o sobrestamento" className="mt-3 grid gap-2 sm:grid-cols-2">
             {(Object.keys(ROTULO_CONCLUSAO) as ConclusaoSobrestamento[]).map((c) => {
               const ativa = valor.conclusao === c;
@@ -108,7 +115,7 @@ export const SobrestamentoView: React.FC<Props> = ({ valor, avisos, usuarioNome,
           </div>
 
           {avisos.length > 0 && (
-            <div className="mt-6 space-y-1.5 border-t border-linha pt-5">
+            <div className="mt-6 space-y-1.5">
               {avisos.map((a, i) => (
                 <p key={i} className="flex gap-2.5 text-sm text-tinta-2">
                   <span aria-hidden className="mt-[7px] size-[6px] shrink-0 rounded-[1.5px] bg-atencao" />
@@ -117,11 +124,13 @@ export const SobrestamentoView: React.FC<Props> = ({ valor, avisos, usuarioNome,
               ))}
             </div>
           )}
-        </Folha>
+        </div>
 
         <section aria-labelledby="temas-titulo">
           <div className="flex flex-col gap-3 border-b border-linha pb-3 lg:flex-row lg:items-end lg:justify-between">
-            <TituloSecao id="temas-titulo">Temas examinados</TituloSecao>
+            <h4 id="temas-titulo" className="text-sm font-semibold text-tinta">
+              Temas examinados
+            </h4>
             <form onSubmit={adicionar} className="flex flex-wrap items-center gap-1.5">
               <select aria-label="Tribunal" value={novo.tribunal} onChange={(e) => setNovo({ ...novo, tribunal: e.target.value as 'STJ' | 'STF', especie: e.target.value === 'STF' ? 'repercussao_geral' : 'repetitivo' })} className={mini}>
                 <option>STJ</option>
@@ -189,7 +198,7 @@ export const SobrestamentoView: React.FC<Props> = ({ valor, avisos, usuarioNome,
                     </div>
 
                     {aberto && (
-                      <div className="mt-4 space-y-4 rounded-md border border-linha bg-folha p-4">
+                      <div className="mt-4 space-y-4 border-l-2 border-linha pl-4">
                         {t.pertinencia && (
                           <p className="text-[13px] leading-relaxed text-tinta-2">
                             <span className="text-tinta-3">Pertinência apontada: </span>
@@ -246,16 +255,11 @@ export const SobrestamentoView: React.FC<Props> = ({ valor, avisos, usuarioNome,
             </ul>
           )}
         </section>
-      </div>
 
-      <aside className="space-y-4 text-[13px] leading-relaxed text-tinta-2">
-        <h3 className="border-b border-linha pb-2 text-sm font-semibold text-tinta">Como decidir</h3>
-        <p>
-          Se a matéria se insere em tema afetado com <span className="text-tinta">ordem de suspensão</span> e mérito pendente, o recurso fica sobrestado até o julgamento (CPC, art. 1.030, III; art. 1.037, II). Cabe agravo interno.
+        <p className="text-[13px] leading-relaxed text-tinta-3">
+          Os temas indicados pela IA são ponto de partida: confira número, questão e situação no portal oficial. Tema já julgado não sobresta; aplica-se a tese (art. 1.030, I ou II).
         </p>
-        <p>Se o tema já foi julgado, aplica-se a tese: negativa de seguimento (art. 1.030, I) ou retratação (art. 1.030, II).</p>
-        <p>Os temas indicados pela IA são só um ponto de partida. Confira número, questão e situação no portal oficial antes de concluir.</p>
-      </aside>
-    </div>
+      </div>
+    </Folha>
   );
 };

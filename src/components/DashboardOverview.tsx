@@ -19,7 +19,6 @@ interface DashboardOverviewProps {
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onChangePrazo, onNavigateToChecklist, onNavigateToMinuta, onNavigateToSobrestamento, onChangePreparo }) => {
   const { processo, diagnosticoGeral, recursosAnalisados } = data;
-  const isMista = diagnosticoGeral.isDecisaoMista;
   const exigeTopico = data.verificacoes?.relevancia.exigeTopicoCalculado ?? processo.exigeTopicoRelevancia;
   const obices = diagnosticoGeral.principaisObicesIdentificados ?? [];
   const sob = obterSobrestamento(data);
@@ -69,15 +68,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onCh
             </div>
           </dl>
 
-          {isMista && (
-            <div className="mt-7 border-l-2 border-obice pl-4">
-              <p className="text-sm font-semibold text-obice">Decisão mista</p>
-              <p className="mt-1 text-sm text-tinta">{diagnosticoGeral.recursoCabivelAdvertencia}</p>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-tinta-2">
-                Recurso único contra decisão mista é erro grosseiro e não admite fungibilidade. A decisão deve ter capítulos estanques, com advertência expressa ao recorrente.
-              </p>
-            </div>
-          )}
 
           <div className="mt-8 border-t border-linha pt-6">
             <TituloSecao as="h3" className="!text-[17px]">
@@ -88,7 +78,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onCh
               <Botao variante="primario" onClick={onNavigateToMinuta}>
                 Revisar a minuta
               </Botao>
-              <Botao onClick={onNavigateToChecklist}>Conferir o checklist</Botao>
+              <Botao onClick={onNavigateToChecklist}>Conferir os requisitos</Botao>
             </div>
           </div>
         </Folha>

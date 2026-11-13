@@ -6,7 +6,6 @@ import { cabecalhoSemTimbre } from '../../shared/minuta';
 
 interface DecisionDraftViewProps {
   minuta: MinutaDecisao1VP;
-  isMista: boolean;
   onChange: (m: MinutaDecisao1VP) => void;
   onDownloadPDF: () => void;
   onDownloadWord: () => void;
@@ -36,7 +35,7 @@ const Titulo: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <h3 className="mb-3 text-center text-[13px] font-semibold uppercase tracking-[0.12em] text-tinta">{children}</h3>
 );
 
-export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({ minuta, isMista, onChange, onDownloadPDF, onDownloadWord }) => {
+export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({ minuta, onChange, onDownloadPDF, onDownloadWord }) => {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const set = (parcial: Partial<MinutaDecisao1VP>) => onChange({ ...minuta, ...parcial });
@@ -49,10 +48,8 @@ export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({ minuta, is
     full += `II. FUNDAMENTAÇÃO\n`;
     minuta.capitulosFundamentacao.forEach((cap) => {
       full += `\n${cap.tituloCapitulo}\n${cap.conteudo}\n`;
-      if (cap.recursoCabivel) full += `[Recurso cabível deste capítulo: ${cap.recursoCabivel}]\n`;
     });
     full += `\nIII. DISPOSITIVO\n${minuta.dispositivoFinal}\n\n`;
-    full += `${minuta.advertenciaRecursual ?? ''}\n`;
     return full;
   };
 
@@ -111,9 +108,6 @@ export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({ minuta, is
                   {cap.incisoArt1030 && <span className="text-[12px] text-tinta-3">{cap.incisoArt1030}</span>}
                 </h4>
                 <Texto editing={editing} label={`Conteúdo do capítulo ${idx + 1}`} rows={10} value={cap.conteudo} onChange={(v) => setCap(idx, { conteudo: v })} className={corpo} />
-                {cap.recursoCabivel && (
-                  <p className="mt-2 font-serif text-[14px] italic text-tinta-2">Recurso cabível deste capítulo: {cap.recursoCabivel}</p>
-                )}
               </div>
             ))}
           </div>
@@ -124,12 +118,6 @@ export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({ minuta, is
           <Texto editing={editing} label="Dispositivo" rows={8} value={minuta.dispositivoFinal} onChange={(v) => set({ dispositivoFinal: v })} className={`${corpo} font-medium`} />
         </section>
 
-        {(minuta.advertenciaRecursual || editing) && (
-          <section className={`mt-10 border-l-2 pl-5 ${isMista ? 'border-obice' : 'border-linha-forte'}`}>
-            <p className={`mb-2 text-[13px] font-medium ${isMista ? 'text-obice' : 'text-tinta-2'}`}>Advertência recursal{isMista ? ' (decisão mista)' : ''}</p>
-            <Texto editing={editing} label="Advertência recursal" rows={8} value={minuta.advertenciaRecursual ?? ''} onChange={(v) => set({ advertenciaRecursual: v })} className={corpo} />
-          </section>
-        )}
 
         <footer className="mt-20 text-center">
           <div className="mx-auto h-px w-64 bg-tinta-3/50" />

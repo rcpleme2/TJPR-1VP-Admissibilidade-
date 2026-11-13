@@ -16,7 +16,6 @@ export interface SumulaInfo {
 export interface SaidaArt1030 {
   inciso: string;
   quando: string;
-  recurso: string;
   observacoes: string;
 }
 
@@ -52,44 +51,37 @@ export const TABELA_ART_1030: SaidaArt1030[] = [
   {
     inciso: 'I, "a"',
     quando: 'RE sobre questão a que o STF não reconheceu repercussão geral, ou contra acórdão conforme tese de repercussão geral',
-    recurso: 'Agravo Interno (art. 1.030, § 2º c/c art. 1.021)',
-    observacoes: 'Julgado pelo Órgão Especial do TJPR. Agravo do art. 1.042 é ERRO GROSSEIRO.',
+    observacoes: '',
   },
   {
     inciso: 'I, "b"',
     quando: 'RE ou REsp contra acórdão conforme tese de recurso repetitivo (STF ou STJ)',
-    recurso: 'Agravo Interno (art. 1.030, § 2º)',
     observacoes: 'Cabe juízo de retratação pela 1ª Vice-Presidência se demonstrada distinção (distinguishing).',
   },
   {
     inciso: 'I, "c" [2026]',
     quando: 'REsp sobre questão a que o STJ não reconheceu relevância, ou acórdão conforme tese de relevância',
-    recurso: 'Agravo Interno (art. 1.030, § 2º)',
-    observacoes: 'Introduzido pela Lei 15.484/2026. NÃO cabe agravo do art. 1.042!',
+    observacoes: 'Introduzido pela Lei 15.484/2026.',
   },
   {
     inciso: 'II',
     quando: 'Acórdão diverge de tese de repercussão geral, repetitivo ou relevância',
-    recurso: 'Sem recurso nesta fase',
     observacoes: 'Envio ao órgão julgador originário (Câmara Cível/Criminal) para juízo de retratação.',
   },
   {
     inciso: 'III',
     quando: 'Sobrestar recurso que trate de controvérsia repetitiva/relevância ainda não decidida',
-    recurso: 'Agravo Interno (art. 1.030, § 2º)',
     observacoes: 'Suspensão dos autos aguardando tese vinculante do tribunal superior.',
   },
   {
     inciso: 'IV',
     quando: 'Selecionar o recurso como representativo da controvérsia (art. 1.036, § 6º; art. 255-D RISTJ)',
-    recurso: 'Sem recurso previsto no art. 1.030',
     observacoes: 'Remessa ao STJ/STF para afetação e fixação de tese de repercussão geral ou relevância.',
   },
   {
     inciso: 'V',
     quando: 'Juízo de admissibilidade positivo (remessa) ou negativo (inadmissão por falta de requisitos, súmulas etc.)',
-    recurso: 'Agravo em REsp/RE (art. 1.042 do CPC)',
-    observacoes: 'Prazo de 15 dias, sem custas, interposto na origem e remetido ao tribunal superior. Agravo interno é ERRO GROSSEIRO.',
+    observacoes: 'Admissão com remessa ao tribunal superior, ou inadmissão por falta de pressuposto ou por óbice sumular.',
   },
 ];
 

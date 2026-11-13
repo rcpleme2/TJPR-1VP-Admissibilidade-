@@ -245,7 +245,6 @@ export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, opti
   const exigeTopico = data.verificacoes?.relevancia.exigeTopicoCalculado ?? processo.exigeTopicoRelevancia;
   rotuloValor('Enquadramento no art. 1.030 do CPC', dg.incisoArt1030Principal);
   rotuloValor('Tópico de relevância', exigeTopico ? 'Exigido (Lei 15.484/2026)' : `Não exigido, acórdão anterior a ${MARCO_RELEVANCIA_BR}`);
-  if (dg.isDecisaoMista && dg.recursoCabivelAdvertencia) rotuloValor('Decisão mista', dg.recursoCabivelAdvertencia, TINTA, OBICE);
 
   const obices = dg.principaisObicesIdentificados ?? [];
   if (obices.length) {
@@ -404,31 +403,11 @@ export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, opti
       fonte('times', 'bold', 11);
       texto(cap.tituloCapitulo, { entrelinha: 5.2 });
       corpoMinuta(cap.conteudo);
-      if (cap.recursoCabivel) {
-        fonte('times', 'italic', 10.5, TINTA_2);
-        texto(`Recurso cabível deste capítulo: ${cap.recursoCabivel}`, { entrelinha: 5 });
-      }
       y += 2;
     }
 
     secao('III. DISPOSITIVO');
     corpoMinuta(minuta.dispositivoFinal);
-
-    if (minuta.advertenciaRecursual?.trim()) {
-      garantir(24);
-      y += 4;
-      const ini = { pagina: doc.getNumberOfPages(), y: y - 4 };
-      fonte('times', 'normal', 10.5, TINTA);
-      texto(minuta.advertenciaRecursual, { x: M.esq + 5, largura: larg - 5, entrelinha: 5, justificar: true });
-      const fim = { pagina: doc.getNumberOfPages(), y: y - 4 };
-      doc.setDrawColor(...(dg.isDecisaoMista ? OBICE : LINHA_FORTE));
-      doc.setLineWidth(0.5);
-      for (let pg = ini.pagina; pg <= fim.pagina; pg++) {
-        doc.setPage(pg);
-        doc.line(M.esq, pg === ini.pagina ? ini.y : M.topo - 4, M.esq, pg === fim.pagina ? fim.y : limite - 3);
-      }
-      doc.setLineWidth(0.2);
-    }
 
     garantir(30);
     y += 18;

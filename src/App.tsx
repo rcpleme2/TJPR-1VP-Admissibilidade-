@@ -38,7 +38,7 @@ import { HistoricoModal } from './components/HistoricoModal';
 import { ContaModal } from './components/ContaModal';
 import { Download, Plus, X } from 'lucide-react';
 
-type Aba = 'dashboard' | 'sobrestamento' | 'checklist' | 'minuta' | 'precedentes';
+type Aba = 'dashboard' | 'checklist' | 'minuta' | 'precedentes';
 const TIMEOUT_CLIENTE_MS = 6 * 60_000;
 
 export default function App() {
@@ -448,8 +448,7 @@ export default function App() {
 
   const abas: Array<{ id: Aba; rotulo: string; contagem?: number; alerta?: boolean }> = [
     { id: 'dashboard', rotulo: 'Diagnóstico' },
-    { id: 'sobrestamento', rotulo: 'Sobrestamento', contagem: avisosSob.length || undefined, alerta: avisosSob.length > 0 },
-    { id: 'checklist', rotulo: 'Checklist' },
+    { id: 'checklist', rotulo: 'Requisitos', contagem: avisosSob.length || undefined, alerta: avisosSob.length > 0 },
     { id: 'minuta', rotulo: 'Minuta' },
     { id: 'precedentes', rotulo: 'Precedentes', contagem: alertasPrecedentes || undefined, alerta: alertasPrecedentes > 0 },
   ];
@@ -563,22 +562,22 @@ export default function App() {
                   onChangePrazo={atualizarPrazo}
                   onNavigateToChecklist={() => setActiveTab('checklist')}
                   onNavigateToMinuta={() => setActiveTab('minuta')}
-                  onNavigateToSobrestamento={() => setActiveTab('sobrestamento')}
+                  onNavigateToSobrestamento={() => setActiveTab('checklist')}
                   onChangePreparo={(preparo) => updateResult((r) => ({ ...r, preparo }))}
                 />
               )}
 
-              {activeTab === 'sobrestamento' && (
-                <SobrestamentoView
-                  valor={obterSobrestamento(analysisResult)}
-                  avisos={avisosSob}
-                  usuarioNome={usuario?.nome}
-                  onChange={(sob) => updateResult((r) => ({ ...r, sobrestamento: sob }))}
-                />
-              )}
 
               {activeTab === 'checklist' && (
                 <ChecklistView
+                  preliminar={
+                    <SobrestamentoView
+                      valor={obterSobrestamento(analysisResult)}
+                      avisos={avisosSob}
+                      usuarioNome={usuario?.nome}
+                      onChange={(sob) => updateResult((r) => ({ ...r, sobrestamento: sob }))}
+                    />
+                  }
                   sections={analysisResult.checklistSecoes}
                   onUpdateItemStatus={(sec, id, status) => mapItem(sec, id, { status })}
                   onUpdateItemNote={(sec, id, note) => mapItem(sec, id, { observacaoAssessor: note })}
@@ -588,7 +587,6 @@ export default function App() {
               {activeTab === 'minuta' && (
                 <DecisionDraftView
                   minuta={analysisResult.minutaDecisao1VP}
-                  isMista={analysisResult.diagnosticoGeral.isDecisaoMista}
                   onChange={(m: MinutaDecisao1VP) => updateResult((r) => ({ ...r, minutaDecisao1VP: m }))}
                   onDownloadPDF={() => setIsPdfModalOpen(true)}
                   onDownloadWord={() => baixarMinutaWord(analysisResult.minutaDecisao1VP, analysisResult.processo.numero)}

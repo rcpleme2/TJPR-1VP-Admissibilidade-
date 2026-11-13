@@ -111,7 +111,6 @@ export function resumirAlteracoes(antigo: RegistroDados | null, novo: RegistroDa
   });
   if (n.capitulosFundamentacao.length !== a.capitulosFundamentacao.length) m.push('nº de capítulos');
   if (a.dispositivoFinal !== n.dispositivoFinal) m.push('dispositivo');
-  if ((a.advertenciaRecursual ?? '') !== (n.advertenciaRecursual ?? '')) m.push('advertência recursal');
   if (m.length) r.push(`Minuta: ${m.join(', ')}`);
 
   if (!igual(novo.entradasPrazo, antigo.entradasPrazo)) r.push('Prazos: datas, feriados ou interposição');

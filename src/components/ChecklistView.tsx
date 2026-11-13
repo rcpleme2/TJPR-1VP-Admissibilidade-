@@ -7,6 +7,8 @@ interface ChecklistViewProps {
   sections: ChecklistSecao[];
   onUpdateItemStatus?: (sectionCode: string, itemId: string, newStatus: ChecklistStatus) => void;
   onUpdateItemNote?: (sectionCode: string, itemId: string, note: string) => void;
+  /** Seção preliminar exibida antes dos requisitos (sobrestamento). */
+  preliminar?: React.ReactNode;
 }
 
 type Filtro = 'all' | 'nao_conforme' | 'atencao' | 'conforme' | 'novidade2026';
@@ -39,7 +41,7 @@ const NotaItem: React.FC<{ id: string; valor: string; onSalvar: (v: string) => v
   );
 };
 
-export const ChecklistView: React.FC<ChecklistViewProps> = ({ sections, onUpdateItemStatus, onUpdateItemNote }) => {
+export const ChecklistView: React.FC<ChecklistViewProps> = ({ sections, onUpdateItemStatus, onUpdateItemNote, preliminar }) => {
   const [statusFilter, setStatusFilter] = useState<Filtro>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
@@ -71,6 +73,8 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({ sections, onUpdate
 
   return (
     <div className="space-y-6">
+      {preliminar && <div id="preliminar">{preliminar}</div>}
+
       <div className="flex flex-col gap-3 border-b border-linha md:flex-row md:items-end md:justify-between">
         <Abas rotulo="Filtrar itens" itens={abas} ativa={statusFilter} onChange={setStatusFilter} />
         <div className="relative pb-2 md:w-72">
