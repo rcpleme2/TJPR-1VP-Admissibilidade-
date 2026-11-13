@@ -22,7 +22,10 @@ gcloud firestore indexes fields update dadosJson --collection-group=historico --
 
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
 SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
-gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:${SA}" --role=roles/datastore.user >/dev/null
+# Projetos novos não dão à conta de serviço padrão as permissões de build; sem elas o "gcloud run deploy --source" falha com "Build failed".
+for PAPEL in roles/datastore.user roles/cloudbuild.builds.builder roles/artifactregistry.writer roles/logging.logWriter roles/storage.objectViewer; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:${SA}" --role="$PAPEL" --condition=None >/dev/null
+done
 
 # --- Segredos (gerados uma única vez) ---------------------------------------------------------------
 cria_segredo() { # nome, comando que imprime o valor
