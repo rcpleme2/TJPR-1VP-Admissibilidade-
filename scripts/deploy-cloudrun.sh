@@ -22,27 +22,23 @@ gcloud firestore indexes fields update dadosJson --collection-group=historico --
 
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
 SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
-# Projetos novos não dão à conta de serviço padrão as permissões de build; sem elas o "gcloud run deploy --source" falha com "Build failed".
-for PAPEL in roles/datastore.user roles/cloudbuild.builds.builder roles/artifactregistry.writer roles/logging.logWriter roles/storage.objectViewer; do
-  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:${SA}" --role="$PAPEL" --condition=None >/dev/null
-done
-
-# --- Segredos (gerados uma única vez) ---------------------------------------------------------------
-cria_segredo() { # nome, comando que imprime o valor
-  if ! gcloud secrets describe "$1" >/dev/null 2>&1; then
-    eval "$2" | tr -d '\n' | gcloud secrets create "$1" --data-file=-
-    NOVO_SEGREDO="$1"
-    echo ">> Segredo $1 criado."
-  fi
-  gcloud secrets add-iam-policy-binding "$1" --member="serviceAccount:${SA}" --role=roles/secretmanager.secretAccessor >/dev/null
-}
-cria_segredo session-secret "openssl rand -base64 48"
-NOVO_SEGREDO=""
-cria_segredo admin-password "openssl rand -base64 18"
-SENHA_NOVA="$NOVO_SEGREDO"
+# Projetos novos não dão à conta de serviço padrão as permissões de build; sem elas o "# --- Imagem ------------------------------------------------------------------------------------------
+# Se houver Docker (o Cloud Shell tem), a imagem é construída aqui: mais rápido, sem custo de Cloud Build e com o log na tela.
+# Sem Docker, usa o Cloud Build (--source).
+FONTE=(--source .)
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/admissibilidade"
+  IMAGEM="${REPO}/${SERVICE}:$(date +%Y%m%d-%H%M%S)"
+  gcloud artifacts repositories describe admissibilidade --location="$REGION" >/dev/null 2>&1 \
+    || gcloud artifacts repositories create admissibilidade --repository-format=docker --location="$REGION" --description="Imagens do sistema de admissibilidade"
+  gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+  docker build -t "$IMAGEM" .
+  docker push "$IMAGEM"
+  FONTE=(--image "$IMAGEM")
+fi
 
 gcloud run deploy "$SERVICE" \
-  --source . \
+  "${FONTE[@]}" \
   --region "$REGION" \
   --allow-unauthenticated \
   --min-instances 0 \
