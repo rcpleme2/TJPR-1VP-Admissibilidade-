@@ -13,6 +13,7 @@ import {
   rotuloTema,
 } from '../../shared/sobrestamento';
 import { cabecalhoSemTimbre } from '../../shared/minuta';
+import { avisosPreparo, obterPreparo, ROTULO_PREPARO } from '../../shared/preparo';
 
 export interface PDFExportOptions {
   includeMinuta?: boolean;
@@ -273,6 +274,24 @@ export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, opti
     );
     nota(`Relevância. ${data.verificacoes.relevancia.observacao}`);
     data.verificacoes.avisos.forEach((a) => nota(a, ATENCAO));
+  }
+
+  // --- Preparo -------------------------------------------------------------------------------------
+  const preparo = obterPreparo(data);
+  if (preparo.length) {
+    titulo('Preparo');
+    const corPrep = (st: string): RGB => (st === 'nao_comprovado' ? OBICE : st === 'insuficiente' ? ATENCAO : st === 'a_verificar' ? TINTA_3 : OK);
+    tabela(
+      ['Recurso', 'Situação', 'Comprovação', 'Conferido'],
+      preparo.map((p) => [
+        p.recurso,
+        { content: `${ROTULO_PREPARO[p.situacao]}${p.valorRecolhido ? `\n${p.valorRecolhido}` : ''}`, styles: { textColor: corPrep(p.situacao) } },
+        [p.fundamento, p.observacao].filter(Boolean).join('\n') || '—',
+        p.conferido ? 'Sim' : 'Não',
+      ]),
+      { columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 30 }, 3: { cellWidth: 18 } } },
+    );
+    avisosPreparo(preparo).forEach((a) => nota(a, ATENCAO));
   }
 
   // --- Sobrestamento -------------------------------------------------------------------------------

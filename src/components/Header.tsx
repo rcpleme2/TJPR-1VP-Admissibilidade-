@@ -1,9 +1,10 @@
 import React from 'react';
-import { BookOpen, LogOut, Search } from 'lucide-react';
+import { BookOpen, LogOut, Search, Settings } from 'lucide-react';
 
 interface HeaderProps {
   onOpenGuide: () => void;
   onOpenConsulta: () => void;
+  onOpenConfig: () => void;
   onHome: () => void;
   usuarioNome?: string;
   onConta?: () => void;
@@ -20,7 +21,7 @@ const iniciais = (nome: string) =>
 
 const link = 'inline-flex h-9 items-center gap-2 rounded-md px-2.5 text-sm text-tinta-2 transition-colors hover:bg-tinta/[0.05] hover:text-tinta';
 
-export const Header: React.FC<HeaderProps> = ({ onOpenGuide, onOpenConsulta, onHome, usuarioNome, onConta, onLogout }) => (
+export const Header: React.FC<HeaderProps> = ({ onOpenGuide, onOpenConsulta, onOpenConfig, onHome, usuarioNome, onConta, onLogout }) => (
   <header className="border-b border-linha bg-folha">
     <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-8">
       <button type="button" onClick={onHome} className="flex min-w-0 items-baseline gap-3 text-left" title="Voltar ao início">
@@ -36,6 +37,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenGuide, onOpenConsulta, onH
         <button type="button" onClick={onOpenConsulta} className={link} aria-label="Consultar súmulas">
           <Search className="size-4" />
           <span className="hidden sm:inline">Súmulas</span>
+        </button>
+        <button type="button" onClick={onOpenConfig} className={link} aria-label="Configurações" title="Configurações">
+          <Settings className="size-4" />
         </button>
 
         {usuarioNome && (

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import type { ConfigServidor } from '../lib/api';
 import type { ConfigMotor } from '../lib/storage';
 import type { Provedor } from '../types/admissibility';
@@ -26,22 +26,11 @@ export const EngineSettings: React.FC<Props> = ({ config, onConfig, chaves, onCh
   const temChaveNoServidor = Boolean(servidor?.serverKeys.includes(p));
   const usandoServidor = temChaveNoServidor && config.usarChaveDoServidor;
   const pronto = usandoServidor || Boolean(chaves[p]);
-  const [aberto, setAberto] = useState(!pronto);
 
   return (
-    <details open={aberto} onToggle={(e) => setAberto((e.currentTarget as HTMLDetailsElement).open)} className="group">
-      <summary className="flex cursor-pointer items-center justify-between gap-3 py-1">
-        <span>
-          <span className="block text-[13px] font-medium text-tinta-2">Motor de IA</span>
-          <span className="block text-sm text-tinta">
-            {info.nome} <span className="text-tinta-3">({info.empresa})</span>
-            {!pronto && <span className="text-atencao">, sem chave</span>}
-          </span>
-        </span>
-        <ChevronDown className="size-4 text-tinta-3 transition-transform group-open:rotate-180" />
-      </summary>
-
-      <div className="space-y-4 pt-3">
+    <div className="space-y-5">
+      <div>
+        <p className="mb-1.5 text-[13px] font-medium text-tinta-2">Motor de IA</p>
         <div role="radiogroup" aria-label="Motor de IA" className="grid grid-cols-3 rounded-md border border-linha-forte p-0.5">
           {MOTORES.map((m) => (
             <button
@@ -56,59 +45,61 @@ export const EngineSettings: React.FC<Props> = ({ config, onConfig, chaves, onCh
             </button>
           ))}
         </div>
-
-        {temChaveNoServidor && (
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-tinta-2">
-            <input type="checkbox" checked={config.usarChaveDoServidor} onChange={(e) => onConfig({ ...config, usarChaveDoServidor: e.target.checked })} />
-            Usar a chave do servidor
-          </label>
-        )}
-
-        {!usandoServidor && (
-          <div>
-            <Rotulo htmlFor="api-key">Chave de API</Rotulo>
-            <div className="relative">
-              <input
-                id="api-key"
-                type={mostrar ? 'text' : 'password'}
-                autoComplete="off"
-                spellCheck={false}
-                value={chaves[p] ?? ''}
-                onChange={(e) => onChaves({ ...chaves, [p]: e.target.value.trim() })}
-                placeholder={info.onde}
-                className={`${campo} pr-9`}
-              />
-              <button
-                type="button"
-                onClick={() => setMostrar((v) => !v)}
-                aria-label={mostrar ? 'Ocultar chave' : 'Mostrar chave'}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-tinta-3 hover:text-tinta"
-              >
-                {mostrar ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-            </div>
-            <label className="mt-2 flex cursor-pointer items-center gap-2 text-[13px] text-tinta-2">
-              <input type="checkbox" checked={config.lembrarChaves} onChange={(e) => onConfig({ ...config, lembrarChaves: e.target.checked })} />
-              Lembrar neste navegador
-            </label>
-          </div>
-        )}
-
-        <div>
-          <Rotulo htmlFor="modelo" dica="opcional">
-            Modelo
-          </Rotulo>
-          <input
-            id="modelo"
-            type="text"
-            value={config.model[p]}
-            onChange={(e) => onConfig({ ...config, model: { ...config.model, [p]: e.target.value.trim() } })}
-            placeholder={servidor?.modelosPadrao[p] ?? 'modelo padrão'}
-            className={campo}
-          />
-          <Ajuda>A chave só é repassada à {info.empresa} nesta análise; não é gravada nem registrada.</Ajuda>
-        </div>
       </div>
-    </details>
+
+      {temChaveNoServidor && (
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-tinta-2">
+          <input type="checkbox" checked={config.usarChaveDoServidor} onChange={(e) => onConfig({ ...config, usarChaveDoServidor: e.target.checked })} />
+          Usar a chave do servidor
+        </label>
+      )}
+
+      {!usandoServidor && (
+        <div>
+          <Rotulo htmlFor="api-key">Chave de API da {info.empresa}</Rotulo>
+          <div className="relative">
+            <input
+              id="api-key"
+              type={mostrar ? 'text' : 'password'}
+              autoComplete="off"
+              spellCheck={false}
+              value={chaves[p] ?? ''}
+              onChange={(e) => onChaves({ ...chaves, [p]: e.target.value.trim() })}
+              placeholder={info.onde}
+              className={`${campo} pr-9`}
+            />
+            <button
+              type="button"
+              onClick={() => setMostrar((v) => !v)}
+              aria-label={mostrar ? 'Ocultar chave' : 'Mostrar chave'}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-tinta-3 hover:text-tinta"
+            >
+              {mostrar ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+          <label className="mt-2 flex cursor-pointer items-center gap-2 text-[13px] text-tinta-2">
+            <input type="checkbox" checked={config.lembrarChaves} onChange={(e) => onConfig({ ...config, lembrarChaves: e.target.checked })} />
+            Lembrar neste navegador
+          </label>
+        </div>
+      )}
+
+      <div>
+        <Rotulo htmlFor="modelo" dica="opcional">
+          Modelo
+        </Rotulo>
+        <input
+          id="modelo"
+          type="text"
+          value={config.model[p]}
+          onChange={(e) => onConfig({ ...config, model: { ...config.model, [p]: e.target.value.trim() } })}
+          placeholder={servidor?.modelosPadrao[p] ?? 'modelo padrão'}
+          className={campo}
+        />
+        <Ajuda>{pronto ? 'Pronto para analisar.' : 'Sem chave: informe uma para poder analisar.'} A chave só é repassada à {info.empresa} na análise; não é gravada nem registrada.</Ajuda>
+      </div>
+    </div>
   );
 };
+
+export const nomeMotor = (p: Provedor) => MOTORES.find((m) => m.id === p)!;

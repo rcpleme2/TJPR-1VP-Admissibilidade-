@@ -1,6 +1,7 @@
 import { verificarPrazos } from '../shared/prazos';
 import { verificarResultado } from '../shared/precedentes';
 import { sobrestamentoInicial } from '../shared/sobrestamento';
+import { preparoInicial } from '../shared/preparo';
 import {
   LIMITES,
   ModelOutputSchema,
@@ -58,7 +59,8 @@ const ROTULO_PAPEL: Record<string, string> = {
   acordao_embargos: 'acórdão dos embargos de declaração',
   recurso_especial: 'recurso especial',
   recurso_extraordinario: 'recurso extraordinário',
-  outro: 'outra peça',
+  guia_preparo: 'guia ou comprovante de preparo (custas e porte)',
+  outro: 'outro documento dos autos',
 };
 
 export function montarPartes(req: AnalyzeRequest): { partes: ParteEntrada[]; avisos: string[] } {
@@ -122,7 +124,7 @@ export function interpretarSaida(texto: string): { ok: true; data: ModelOutput }
 /** Acrescenta cálculos determinísticos e a verificação automática de precedentes. */
 export function enriquecer(out: ModelOutput, meta: AdmissibilityAnalysisResult['meta'], entradas?: Partial<EntradasPrazo>): AdmissibilityAnalysisResult {
   const entradasPrazo = EntradasPrazoSchema.parse(entradas ?? {});
-  return { ...out, entradasPrazo, verificacoes: verificarPrazos(out, entradasPrazo), precedentes: verificarResultado(out), sobrestamento: sobrestamentoInicial(out), meta };
+  return { ...out, entradasPrazo, verificacoes: verificarPrazos(out, entradasPrazo), precedentes: verificarResultado(out), sobrestamento: sobrestamentoInicial(out), preparo: preparoInicial(out), meta };
 }
 
 export interface ResultadoAnalise {

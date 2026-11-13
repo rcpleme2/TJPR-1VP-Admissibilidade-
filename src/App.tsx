@@ -8,7 +8,8 @@ import { PrecedentsView } from './components/PrecedentsView';
 import { SobrestamentoView } from './components/SobrestamentoView';
 import { avisosSobrestamento, obterSobrestamento } from '../shared/sobrestamento';
 import { ConsultaPrecedentes } from './components/ConsultaPrecedentes';
-import { EngineSettings } from './components/EngineSettings';
+import { EngineSettings, nomeMotor } from './components/EngineSettings';
+import { ConfiguracoesModal } from './components/ConfiguracoesModal';
 import { ENTRADAS_VAZIAS, PrazoForm } from './components/PrazoForm';
 import { TechnicalGuideModal } from './components/TechnicalGuideModal';
 import { PDFExportModal } from './components/PDFExportModal';
@@ -57,7 +58,7 @@ export default function App() {
   const [servidor, setServidor] = useState<ConfigServidor | null>(null);
   const [config, setConfig] = useState<ConfigMotor>(lerConfig);
   const [chaves, setChaves] = useState<Partial<Record<Provedor, string>>>(lerChaves);
-  const [consent, setConsent] = useState(false);
+  const [configAberta, setConfigAberta] = useState(false);
   const [prazo, setPrazo] = useState<EntradasPrazo>(ENTRADAS_VAZIAS);
   const [baseCustom, setBaseCustom] = useState<EntradaBase[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -271,8 +272,7 @@ export default function App() {
     !temRecurso && 'Anexar ao menos um recurso',
     !prazo.dataIntimacaoAcordao && 'Informar a intimação do acórdão',
     !prazo.feriadosRespondido && 'Responder sobre feriados e suspensões',
-    !temChave && `Informar a chave de API do ${provider === 'gpt' ? 'GPT' : provider[0].toUpperCase() + provider.slice(1)}`,
-    !consent && 'Marcar a declaração de uso autorizado',
+    !temChave && 'Configurar a chave de API do motor de IA',
     extraindo && 'Aguardar a leitura dos PDFs',
     bytesPdf > LIMITES.maxBytesTotal &&
       `Reduzir os PDFs enviados como arquivo: somam ${(bytesPdf / 1048576).toFixed(0)} MB (limite de ${(LIMITES.maxBytesTotal / 1048576).toFixed(0)} MB). Envie como texto os que têm camada de texto.`,
@@ -368,7 +368,6 @@ export default function App() {
     setNotes('');
     setErrorMessage(null);
     setSecurityWarnings([]);
-    setConsent(false);
     setPrazo(ENTRADAS_VAZIAS);
     setRegistro(null);
     setSalvamento({ estado: 'novo' });
@@ -457,6 +456,7 @@ export default function App() {
       <Header
         onOpenGuide={() => setIsGuideOpen(true)}
         onOpenConsulta={() => setConsultaAberta(true)}
+        onOpenConfig={() => setConfigAberta(true)}
         onHome={() => setConsultaAberta(false)}
         usuarioNome={usuario?.nome}
         onConta={() => setContaAberta(true)}
@@ -503,8 +503,6 @@ export default function App() {
             onError={setErrorMessage}
             stageMessage={stage}
             onCancel={() => abortRef.current?.abort()}
-            consent={consent}
-            setConsent={setConsent}
             canAnalyze={!faltando}
             pendencias={pendencias}
             casos={casos}
@@ -513,13 +511,9 @@ export default function App() {
             onOpenCaso={abrirCasoDaLista}
             onDeleteCaso={excluirCaso}
             podeExcluir={(c) => usuario?.papel === 'admin' || c.criadoPor.id === usuario?.id}
-            onClearLocal={() => {
-              apagarDadosLocais();
-              setChaves({});
-              setConfig(lerConfig());
-            }}
             prazoForm={<PrazoForm value={prazo} onChange={setPrazo} idPrefix="pre" />}
-            engineSettings={<EngineSettings config={config} onConfig={setConfig} chaves={chaves} onChaves={setChaves} servidor={servidor} />}
+            motor={{ nome: `${nomeMotor(provider).nome} (${nomeMotor(provider).empresa})`, pronto: temChave }}
+            onConfigurar={() => setConfigAberta(true)}
           />
         ) : (
           <div>
@@ -564,6 +558,7 @@ export default function App() {
                   onNavigateToChecklist={() => setActiveTab('checklist')}
                   onNavigateToMinuta={() => setActiveTab('minuta')}
                   onNavigateToSobrestamento={() => setActiveTab('sobrestamento')}
+                  onChangePreparo={(preparo) => updateResult((r) => ({ ...r, preparo }))}
                 />
               )}
 
@@ -607,6 +602,19 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {configAberta && (
+        <ConfiguracoesModal
+          onClose={() => setConfigAberta(false)}
+          onEsquecerChaves={() => {
+            apagarDadosLocais();
+            setChaves({});
+            setConfig(lerConfig());
+          }}
+        >
+          <EngineSettings config={config} onConfig={setConfig} chaves={chaves} onChaves={setChaves} servidor={servidor} />
+        </ConfiguracoesModal>
+      )}
 
       {contaAberta && <ContaModal usuario={usuario} onClose={() => setContaAberta(false)} />}
       {histAberto && registro && <HistoricoModal casoId={registro.id} versaoAtual={registro.versao} onClose={() => setHistAberto(false)} onRestaurar={restaurarVersao} />}

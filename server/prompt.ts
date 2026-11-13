@@ -49,6 +49,11 @@ MARCOS LEGISLATIVOS E REGIMENTAIS MANDATÓRIOS (ATUALIZADO NOV/2026):
    - Só informe o número do tema se o conhecer com segurança; caso contrário, deixe "numero" vazio e descreva a questão. Nunca invente número de tema.
    - Se nenhum tema for pertinente, devolva lista vazia.
    - Tema afetado, com suspensão determinada e mérito pendente, em que a matéria se insere: a saída do capítulo é o sobrestamento (art. 1.030, III), e não a inadmissão.
+8. Preparo (CPC, art. 1.007; Lei 11.636/2007 e Res. STJ/STF de custas):
+   - Em "preparoRecursos", informe um item por recurso interposto: se as custas e o porte de remessa e retorno foram recolhidos (guia e comprovante juntados, com página), se o recorrente é beneficiário da justiça gratuita (indique a decisão que a deferiu, com movimento e data, e se alcança o recurso) ou se há isenção legal (Fazenda Pública, Ministério Público, Defensoria; art. 1.007, § 1º).
+   - Em autos eletrônicos, o porte de remessa e retorno é dispensado (art. 1.007, § 3º).
+   - Ausência de comprovação não gera deserção imediata: o recorrente deve ser intimado para recolher em dobro (art. 1.007, § 4º). Recolhimento a menor: complementação em 5 dias (art. 1.007, § 2º).
+   - Se as guias ou a decisão de gratuidade não estiverem nos documentos, use "desconhecido" e diga o que falta.
 
 Preencha todas as 10 seções do checklist (A a J) de modo fático e objetivo.
 

@@ -100,6 +100,18 @@ export const TemaCandidatoSchema = z.object({
   situacao: z.enum(['afetado_pendente', 'julgado', 'desconhecida']).describe('Mérito do tema pendente de julgamento ou já julgado'),
 });
 
+export const SituacaoPreparoIASchema = z.enum(['recolhido', 'gratuidade', 'isencao', 'nao_comprovado', 'insuficiente', 'desconhecido']);
+
+/** Preparo (custas e porte de remessa e retorno) de cada recurso, segundo a IA. */
+export const PreparoIASchema = z.object({
+  recurso: z.string().describe('Tipo do recurso, igual ao campo "tipo" de recursosAnalisados (REsp ou RE)'),
+  situacao: SituacaoPreparoIASchema.describe(
+    'recolhido (guia e comprovante juntados), gratuidade (justiça gratuita deferida ao recorrente), isencao (Fazenda Pública, MP etc.), nao_comprovado, insuficiente (recolhido a menor) ou desconhecido',
+  ),
+  fundamento: z.string().describe('Onde está a prova: guia e comprovante (página), decisão de gratuidade (mov. e data) ou dispositivo da isenção'),
+  valorRecolhido: z.string().optional().describe('Valor recolhido, se constar do comprovante'),
+});
+
 /** O que o modelo de IA deve devolver. */
 export const ModelOutputSchema = z.object({
   processo: ProcessoInfoSchema,
@@ -111,6 +123,7 @@ export const ModelOutputSchema = z.object({
     .array(TemaCandidatoSchema)
     .optional()
     .describe('Temas repetitivos, de repercussão geral ou de relevância que versem sobre a mesma questão de direito do recurso. Lista vazia se nenhum.'),
+  preparoRecursos: z.array(PreparoIASchema).optional().describe('Preparo de cada recurso interposto (um item por recurso)'),
 });
 
 // --- Campos calculados pelo sistema (nunca pelo modelo) -------------------
@@ -226,6 +239,20 @@ export const TemaSobrestamentoSchema = z.object({
   observacao: z.string().max(2000).optional(),
 });
 
+export const SituacaoPreparoSchema = z.enum(['recolhido', 'gratuidade', 'isencao', 'nao_comprovado', 'insuficiente', 'a_verificar']);
+
+/** Preparo de um recurso, conferido pelo assessor. */
+export const PreparoItemSchema = z.object({
+  id: z.string(),
+  recurso: z.string(),
+  situacao: SituacaoPreparoSchema.default('a_verificar'),
+  fundamento: z.string().max(1000).default(''),
+  valorRecolhido: z.string().max(60).optional(),
+  observacao: z.string().max(1000).optional(),
+  conferido: z.boolean().default(false),
+  origem: z.enum(['ia', 'assessor']).default('ia'),
+});
+
 export const ConclusaoSobrestamentoSchema = z.enum(['nao_verificado', 'sobrestar', 'tema_sem_suspensao', 'nao_ha_tema']);
 
 export const SobrestamentoSchema = z.object({
@@ -242,6 +269,7 @@ export const AdmissibilityAnalysisResultSchema = ModelOutputSchema.extend({
   verificacoes: VerificacoesSchema.optional(),
   precedentes: z.array(CitacaoPrecedenteSchema).optional(),
   sobrestamento: SobrestamentoSchema.optional(),
+  preparo: z.array(PreparoItemSchema).optional(),
   meta: MetaAnaliseSchema.optional(),
 });
 
@@ -262,6 +290,8 @@ export type TemaCandidato = z.infer<typeof TemaCandidatoSchema>;
 export type TemaSobrestamento = z.infer<typeof TemaSobrestamentoSchema>;
 export type ConclusaoSobrestamento = z.infer<typeof ConclusaoSobrestamentoSchema>;
 export type Sobrestamento = z.infer<typeof SobrestamentoSchema>;
+export type PreparoItem = z.infer<typeof PreparoItemSchema>;
+export type SituacaoPreparo = z.infer<typeof SituacaoPreparoSchema>;
 export type AdmissibilityAnalysisResult = z.infer<typeof AdmissibilityAnalysisResultSchema>;
 
 /** JSON Schema (sem a chave "$schema") para enviar aos provedores de IA. */
@@ -276,11 +306,11 @@ export function modelOutputJsonSchema(): Record<string, unknown> {
 export const PROVEDORES = ['gemini', 'claude', 'gpt'] as const;
 export type Provedor = (typeof PROVEDORES)[number];
 
-export const FILE_ROLES = ['acordao', 'acordao_embargos', 'recurso_especial', 'recurso_extraordinario', 'outro'] as const;
+export const FILE_ROLES = ['acordao', 'acordao_embargos', 'recurso_especial', 'recurso_extraordinario', 'guia_preparo', 'outro'] as const;
 export type FileRole = (typeof FILE_ROLES)[number];
 
 export const LIMITES = {
-  maxArquivos: 8,
+  maxArquivos: 12,
   /** Soma dos PDFs (bytes reais). O Cloud Run recusa requisições acima de 32 MiB; base64 infla ~33%. */
   maxBytesTotal: 22 * 1024 * 1024,
   maxTextoPorArquivo: 1_500_000,
@@ -296,7 +326,6 @@ export const AnalyzeRequestSchema = z.object({
     .optional(),
   appealType: z.enum(['auto', 'resp', 're', 'ambos']).default('auto'),
   notes: z.string().max(LIMITES.maxNotas).optional().default(''),
-  confirmaUsoAutorizado: z.literal(true, { error: 'É necessário confirmar o uso autorizado dos autos.' }),
   prazo: EntradasPrazoSchema.optional(),
   files: z
     .array(
