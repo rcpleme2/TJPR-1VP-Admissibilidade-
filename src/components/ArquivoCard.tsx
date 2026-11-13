@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, FileText, Loader2, Trash2 } from 'lucide-react';
+import { ChevronDown, FileText, Loader2, X } from 'lucide-react';
 import { estimarTokensPdf, estimarTokensTexto } from '../../shared/textoPdf';
 import { movimentoCompativel } from '../../shared/protocolo';
 import type { UploadedFileItem } from '../types/admissibility';
+import { campoArea } from './ui';
 
 interface Props {
   file: UploadedFileItem;
@@ -12,40 +13,57 @@ interface Props {
   onUpdate: (id: string, patch: Partial<UploadedFileItem>) => void;
 }
 
-const tamanho = (b: number) => (b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB');
-const mil = (n: number) => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + ' mil' : String(n));
+const tamanho = (b: number) => (b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1).replace('.', ',') + ' MB');
+const mil = (n: number) => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.', ',') + ' mil' : String(n));
 
 export const ArquivoCard: React.FC<Props> = ({ file, papeis, onUpdateRole, onRemove, onUpdate }) => {
   const [aberto, setAberto] = useState(false);
   const tokTexto = file.caracteres ? estimarTokensTexto(file.caracteres) : 0;
   const tokPdf = file.paginas ? estimarTokensPdf(file.paginas) : 0;
   const economia = tokPdf > 0 && tokTexto > 0 ? Math.max(0, Math.round((1 - tokTexto / tokPdf) * 100)) : 0;
+  const ehRecurso = file.role === 'recurso_especial' || file.role === 'recurso_extraordinario';
+  const divergente = file.protocolo && ehRecurso && movimentoCompativel(file.role as 'recurso_especial' | 'recurso_extraordinario', file.protocolo.movimento) === false;
+
+  const meta = [
+    tamanho(file.size),
+    file.extraindo ? 'lendo o texto…' : file.paginas ? `${file.paginas} páginas` : '',
+    !file.extraindo && file.modo === 'texto' && tokTexto > 0 ? `≈ ${mil(tokTexto)} tokens${economia ? ` (${economia}% a menos que o PDF)` : ''}` : '',
+    !file.extraindo && file.modo === 'pdf' && tokPdf > 0 ? `enviado como PDF, ≈ ${mil(tokPdf)} tokens` : '',
+  ].filter(Boolean);
 
   return (
-    <div className="rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition shadow-xs">
-      <div className="flex items-center justify-between p-3 gap-3">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
-            {file.extraindo ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-slate-800 truncate">{file.name}</p>
-            <p className="text-[11px] text-slate-500">
-              {tamanho(file.size)}
-              {file.extraindo && ' · extraindo texto…'}
-              {!file.extraindo && file.paginas ? ` · ${file.paginas} pág.` : ''}
-              {!file.extraindo && file.modo === 'texto' && tokTexto > 0 && ` · ≈ ${mil(tokTexto)} tokens como texto (PDF: ≈ ${mil(tokPdf)}${economia ? `, economia ≈ ${economia}%` : ''})`}
-              {!file.extraindo && file.modo === 'pdf' && tokPdf > 0 && ` · enviado como PDF (≈ ${mil(tokPdf)} tokens)`}
+    <li className="py-3.5">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 text-tinta-3">{file.extraindo ? <Loader2 className="size-[18px] animate-spin" /> : <FileText className="size-[18px]" />}</span>
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-tinta" title={file.name}>
+            {file.name}
+          </p>
+          <p className="num mt-0.5 text-[13px] text-tinta-3">{meta.join(', ')}</p>
+
+          {file.protocolo && (
+            <p className="mt-1 text-[13px] text-ok">
+              Protocolado em <span className="num font-medium">{file.protocolo.data}</span> (p. {file.protocolo.pagina}
+              {file.protocolo.sistema === 'projudi' ? ', carimbo do Projudi' : ''})
+              {file.protocolo.movimento && <span className="text-tinta-3">, {file.protocolo.movimento}</span>}
             </p>
-          </div>
+          )}
+          {file.protocolo?.referencia && <p className="text-[13px] text-tinta-3">{file.protocolo.referencia}</p>}
+          {divergente && (
+            <p className="mt-1 text-[13px] text-atencao">
+              O carimbo diz “{file.protocolo!.movimento}”, mas o arquivo está como {file.role === 'recurso_especial' ? 'recurso especial' : 'recurso extraordinário'}. Confira a classificação.
+            </p>
+          )}
+          {file.avisoExtracao && <p className="mt-1 text-[13px] text-atencao">{file.avisoExtracao}</p>}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex shrink-0 items-center gap-1">
           <select
-            aria-label={`Papel de ${file.name}`}
+            aria-label={`Tipo de peça de ${file.name}`}
             value={file.role}
             onChange={(e) => onUpdateRole(file.id, e.target.value as UploadedFileItem['role'])}
-            className="bg-slate-50 text-[11px] text-slate-700 border border-slate-300 rounded-lg px-2 py-1 outline-none focus:border-slate-500"
+            className="h-8 max-w-[11rem] rounded-md border border-transparent bg-transparent pl-2 pr-7 text-[13px] text-tinta-2 hover:border-linha-forte focus:border-toga focus:outline-none"
           >
             {papeis.map((p) => (
               <option key={p.v} value={p.v}>
@@ -53,69 +71,44 @@ export const ArquivoCard: React.FC<Props> = ({ file, papeis, onUpdateRole, onRem
               </option>
             ))}
           </select>
-          {file.textPreview && (
+          {file.textPreview !== undefined && (
             <button
+              type="button"
               onClick={() => setAberto((v) => !v)}
               aria-expanded={aberto}
               aria-label="Ver e editar o texto extraído"
-              className="p-1 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100"
-              title="Ver/editar o texto extraído"
+              title="Texto extraído"
+              className="rounded-md p-1.5 text-tinta-3 hover:bg-papel hover:text-tinta"
             >
-              {aberto ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              <ChevronDown className={`size-4 transition-transform ${aberto ? 'rotate-180' : ''}`} />
             </button>
           )}
-          <button onClick={() => onRemove(file.id)} className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition" aria-label="Remover arquivo" title="Remover arquivo">
-            <Trash2 className="w-4 h-4" />
+          <button type="button" onClick={() => onRemove(file.id)} aria-label={`Remover ${file.name}`} title="Remover" className="rounded-md p-1.5 text-tinta-3 hover:bg-obice-fundo hover:text-obice">
+            <X className="size-4" />
           </button>
         </div>
       </div>
 
-      {file.avisoExtracao && <p className="px-3 pb-2 text-[11px] text-amber-800">{file.avisoExtracao}</p>}
-      {file.protocolo && (
-        <div className="px-3 pb-2 text-[11px] space-y-0.5">
-          <p className="text-emerald-800">
-            Protocolo detectado no PDF: <strong>{file.protocolo.data}</strong> (p. {file.protocolo.pagina}
-            {file.protocolo.sistema === 'projudi' ? ', carimbo Projudi' : ''})
-            {file.protocolo.movimento ? ` · movimento: ${file.protocolo.movimento}` : ''}
-          </p>
-          {file.protocolo.referencia && <p className="text-slate-500">{file.protocolo.referencia}</p>}
-          {(file.role === 'recurso_especial' || file.role === 'recurso_extraordinario') &&
-            movimentoCompativel(file.role, file.protocolo.movimento) === false && (
-              <p className="text-amber-800">
-                O carimbo indica "{file.protocolo.movimento}", mas o arquivo está classificado como {file.role === 'recurso_especial' ? 'Recurso Especial' : 'Recurso Extraordinário'}. Confira o papel do arquivo.
-              </p>
-            )}
-        </div>
-      )}
-
-      {!file.extraindo && file.arquivo && (
-        <div className="px-3 pb-2.5 flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
-          <label className="inline-flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={file.modo === 'pdf'}
-              disabled={false}
-              onChange={(e) => onUpdate(file.id, { modo: e.target.checked || !file.textPreview ? 'pdf' : 'texto' })}
-            />
-            Enviar o PDF original (mais tokens; use para escaneados ou se o texto saiu truncado)
-          </label>
-        </div>
-      )}
-
       {aberto && file.textPreview !== undefined && (
-        <div className="px-3 pb-3">
-          <label htmlFor={`txt-${file.id}`} className="block text-[11px] font-semibold text-slate-600 mb-1">
-            Texto que será enviado (Markdown). Edite para corrigir a extração ou tarjar dados pessoais:
+        <div className="ml-[30px] mt-3 space-y-2">
+          <label htmlFor={`txt-${file.id}`} className="block text-[13px] text-tinta-3">
+            Texto que será enviado. Edite para corrigir a extração ou tarjar dados pessoais.
           </label>
           <textarea
             id={`txt-${file.id}`}
             value={file.textPreview}
             rows={12}
             onChange={(e) => onUpdate(file.id, { textPreview: e.target.value, caracteres: e.target.value.length })}
-            className="w-full text-[11px] font-mono text-slate-800 bg-slate-50 border border-slate-300 rounded-lg p-2 outline-none focus:border-slate-500"
+            className={`${campoArea} font-serif text-[13px]`}
           />
+          {file.arquivo && (
+            <label className="flex cursor-pointer items-center gap-2 text-[13px] text-tinta-2">
+              <input type="checkbox" checked={file.modo === 'pdf'} onChange={(e) => onUpdate(file.id, { modo: e.target.checked || !file.textPreview ? 'pdf' : 'texto' })} />
+              Enviar o PDF original em vez do texto (use se a extração saiu truncada)
+            </label>
+          )}
         </div>
       )}
-    </div>
+    </li>
   );
 };

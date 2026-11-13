@@ -1,23 +1,10 @@
 import React, { useRef, useState } from 'react';
-import {
-  AlertTriangle,
-  BookMarked,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Download,
-  ExternalLink,
-  HelpCircle,
-  Plus,
-  RefreshCw,
-  Trash2,
-  Upload,
-  XCircle,
-} from 'lucide-react';
+import { ChevronDown, Download, ExternalLink, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { criarCitacaoManual, resumoPrecedentes } from '../../shared/precedentes';
 import type { EntradaBase } from '../../shared/precedentesBase';
 import type { CitacaoPrecedente } from '../types/admissibility';
 import { exportarBase, importarBase } from '../lib/baseIO';
+import { Abas, Botao, campo, campoArea, Folha, Marca, type Tom } from './ui';
 
 interface Props {
   citacoes: CitacaoPrecedente[];
@@ -29,21 +16,23 @@ interface Props {
 
 type StatusV = CitacaoPrecedente['verificacao']['status'];
 
-const STATUS: Record<StatusV, { rotulo: string; classe: string; Icon: typeof CheckCircle2 }> = {
-  confirmada: { rotulo: 'Confirmada na base', classe: 'bg-emerald-50 text-emerald-800 border-emerald-200', Icon: CheckCircle2 },
-  nao_encontrada_na_base: { rotulo: 'Fora da base – conferir', classe: 'bg-amber-50 text-amber-800 border-amber-200', Icon: HelpCircle },
-  requer_conferencia: { rotulo: 'Conferir no portal', classe: 'bg-amber-50 text-amber-800 border-amber-200', Icon: HelpCircle },
-  tribunal_indefinido: { rotulo: 'Tribunal indefinido', classe: 'bg-amber-50 text-amber-800 border-amber-200', Icon: HelpCircle },
-  cancelada_ou_superada: { rotulo: 'Cancelada / superada', classe: 'bg-rose-50 text-rose-800 border-rose-200', Icon: AlertTriangle },
-  inexistente: { rotulo: 'Inexistente (provável)', classe: 'bg-rose-50 text-rose-800 border-rose-200', Icon: XCircle },
+const STATUS: Record<StatusV, { rotulo: string; tom: Tom }> = {
+  confirmada: { rotulo: 'Confirmada na base', tom: 'ok' },
+  nao_encontrada_na_base: { rotulo: 'Fora da base', tom: 'atencao' },
+  requer_conferencia: { rotulo: 'Conferir no portal', tom: 'atencao' },
+  tribunal_indefinido: { rotulo: 'Tribunal indefinido', tom: 'atencao' },
+  cancelada_ou_superada: { rotulo: 'Cancelada ou superada', tom: 'obice' },
+  inexistente: { rotulo: 'Provavelmente inexistente', tom: 'obice' },
 };
 
 const SITUACOES: Array<{ v: CitacaoPrecedente['conferencia']['situacao']; r: string }> = [
   { v: 'pendente', r: 'Pendente' },
-  { v: 'conferido', r: 'Conferido por mim' },
-  { v: 'divergente', r: 'Divergente – corrigir minuta' },
+  { v: 'conferido', r: 'Conferido' },
+  { v: 'divergente', r: 'Divergente' },
   { v: 'descartado', r: 'Descartado' },
 ];
+
+const mini = 'h-8 rounded-md border border-linha-forte bg-folha px-2 text-[13px] text-tinta focus:border-toga focus:outline-none';
 
 export const PrecedentsView: React.FC<Props> = ({ citacoes, baseCustom, onChange, onReverificar, onBaseChange }) => {
   const [filtro, setFiltro] = useState<'todos' | 'alertas' | 'pendentes'>('todos');
@@ -56,13 +45,11 @@ export const PrecedentsView: React.FC<Props> = ({ citacoes, baseCustom, onChange
   const atualizar = (id: string, parcial: Partial<CitacaoPrecedente['conferencia']>) =>
     onChange(citacoes.map((c) => (c.id === id ? { ...c, conferencia: { ...c.conferencia, ...parcial } } : c)));
 
-  const visiveis = citacoes.filter((c) => {
-    if (filtro === 'alertas') return ['inexistente', 'cancelada_ou_superada', 'tribunal_indefinido'].includes(c.verificacao.status) || c.verificacao.coerencia === 'verificar';
-    if (filtro === 'pendentes') return c.conferencia.situacao === 'pendente';
-    return true;
-  });
+  const ehAlerta = (c: CitacaoPrecedente) => ['inexistente', 'cancelada_ou_superada', 'tribunal_indefinido'].includes(c.verificacao.status) || c.verificacao.coerencia === 'verificar';
+  const visiveis = citacoes.filter((c) => (filtro === 'alertas' ? ehAlerta(c) : filtro === 'pendentes' ? c.conferencia.situacao === 'pendente' : true));
 
-  const adicionar = () => {
+  const adicionar = (e: React.FormEvent) => {
+    e.preventDefault();
     if (!/^[\w .\-/]{1,40}$/.test(novo.numero.trim())) return setMsg('Informe um número válido.');
     const c = criarCitacaoManual(novo.tipo, novo.tipo === 'sumula_vinculante' ? 'STF' : novo.tribunal, novo.numero, baseCustom);
     if (citacoes.some((x) => x.id === c.id)) return setMsg('Esse precedente já está na lista.');
@@ -73,15 +60,11 @@ export const PrecedentsView: React.FC<Props> = ({ citacoes, baseCustom, onChange
 
   const cadastrarNaBase = (c: CitacaoPrecedente, situacao: EntradaBase['situacao']) => {
     const enunciado = (c.conferencia.enunciadoConferido ?? '').trim();
-    if (!enunciado || c.tipo === 'acordao' || !c.tribunal) {
-      return setMsg('Preencha o enunciado/tese conferido (e o tribunal) para cadastrar na base.');
-    }
+    if (!enunciado || c.tipo === 'acordao' || !c.tribunal) return setMsg('Preencha o enunciado conferido (e o tribunal) para cadastrar na base.');
     const entrada: EntradaBase = { tipo: c.tipo, tribunal: c.tribunal, numero: c.numero, enunciado, situacao, palavrasChave: [], fonte: 'usuario' };
     onBaseChange([...baseCustom.filter((b) => !(b.tipo === entrada.tipo && b.tribunal === entrada.tribunal && b.numero === entrada.numero)), entrada]);
-    setMsg(`${c.rotulo} cadastrado na sua base. Clique em "Reverificar" para aplicar.`);
+    setMsg(`${c.rotulo} cadastrado na base. Use “Reverificar” para aplicar.`);
   };
-
-  const exportar = () => exportarBase(baseCustom);
 
   const importar = async (f: File | undefined) => {
     if (!f) return;
@@ -94,147 +77,181 @@ export const PrecedentsView: React.FC<Props> = ({ citacoes, baseCustom, onChange
     }
   };
 
+  const partes = [
+    `${resumo.confirmadas} confirmadas na base`,
+    resumo.alertas ? `${resumo.alertas} com alerta` : '',
+    resumo.aConferir ? `${resumo.aConferir} a conferir` : '',
+    `${resumo.conferidasPeloUsuario} conferidas por você`,
+  ].filter(Boolean);
+
   return (
-    <div className="space-y-5">
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <BookMarked className="w-4 h-4 text-slate-600" /> Verificação de súmulas, temas e precedentes (STJ / STF)
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5 max-w-3xl">
-              O sistema extrai as citações da minuta e do checklist e as confronta com a base local. A base é inicial e não
-              exaustiva: o que não consta dela exige conferência no portal oficial. Marque cada item como conferido ou divergente;
-              suas marcações são salvas com a análise.
-            </p>
-          </div>
-          <button onClick={onReverificar} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-white shrink-0">
-            <RefreshCw className="w-3.5 h-3.5" /> Reverificar minuta editada
-          </button>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-2xl">
+          <p className="num text-[15px] text-tinta">
+            <span className="font-semibold">{resumo.total} citações</span> extraídas da minuta e do checklist: {partes.join(', ')}.
+          </p>
+          <p className="mt-1 text-[13px] text-tinta-3">A base local é parcial. O que não constar dela deve ser conferido no portal oficial do tribunal.</p>
         </div>
+        <Botao tamanho="sm" onClick={onReverificar} className="shrink-0">
+          <RefreshCw className="size-3.5" /> Reverificar
+        </Botao>
+      </div>
 
-        <div className="flex flex-wrap gap-2 text-[11px]">
-          <span className="px-2 py-1 rounded-lg bg-slate-100 border border-slate-200">Total: <b>{resumo.total}</b></span>
-          <span className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800">Confirmadas na base: <b>{resumo.confirmadas}</b></span>
-          <span className="px-2 py-1 rounded-lg bg-rose-50 border border-rose-200 text-rose-800">Alertas: <b>{resumo.alertas}</b></span>
-          <span className="px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">A conferir: <b>{resumo.aConferir}</b></span>
-          <span className="px-2 py-1 rounded-lg bg-slate-50 border border-slate-200">Conferidas por você: <b>{resumo.conferidasPeloUsuario}</b></span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
-          <select aria-label="Filtro" value={filtro} onChange={(e) => setFiltro(e.target.value as typeof filtro)} className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5">
-            <option value="todos">Todos</option>
-            <option value="alertas">Somente alertas</option>
-            <option value="pendentes">Somente pendentes</option>
-          </select>
-          <span className="text-slate-300">|</span>
-          <select aria-label="Tipo" value={novo.tipo} onChange={(e) => setNovo({ ...novo, tipo: e.target.value as typeof novo.tipo })} className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5">
+      <div className="flex flex-col gap-3 border-b border-linha lg:flex-row lg:items-end lg:justify-between">
+        <Abas
+          rotulo="Filtrar citações"
+          ativa={filtro}
+          onChange={setFiltro}
+          itens={[
+            { id: 'todos', rotulo: 'Todas', contagem: citacoes.length },
+            { id: 'alertas', rotulo: 'Com alerta', contagem: citacoes.filter(ehAlerta).length, alerta: citacoes.some(ehAlerta) },
+            { id: 'pendentes', rotulo: 'Pendentes', contagem: citacoes.filter((c) => c.conferencia.situacao === 'pendente').length },
+          ]}
+        />
+        <form onSubmit={adicionar} className="flex flex-wrap items-center gap-1.5 pb-2">
+          <select aria-label="Tipo" value={novo.tipo} onChange={(e) => setNovo({ ...novo, tipo: e.target.value as typeof novo.tipo })} className={mini}>
             <option value="sumula">Súmula</option>
-            <option value="sumula_vinculante">Súmula Vinculante</option>
+            <option value="sumula_vinculante">Súmula vinculante</option>
             <option value="tema">Tema</option>
           </select>
           {novo.tipo !== 'sumula_vinculante' && (
-            <select aria-label="Tribunal" value={novo.tribunal} onChange={(e) => setNovo({ ...novo, tribunal: e.target.value as 'STJ' | 'STF' })} className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5">
+            <select aria-label="Tribunal" value={novo.tribunal} onChange={(e) => setNovo({ ...novo, tribunal: e.target.value as 'STJ' | 'STF' })} className={mini}>
               <option>STJ</option>
               <option>STF</option>
             </select>
           )}
-          <input aria-label="Número" value={novo.numero} onChange={(e) => setNovo({ ...novo, numero: e.target.value })} placeholder="nº" className="w-20 text-xs bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5" />
-          <button onClick={adicionar} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50">
-            <Plus className="w-3.5 h-3.5" /> Adicionar à lista
-          </button>
-          <span className="flex-1" />
-          <button onClick={exportar} disabled={baseCustom.length === 0} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40">
-            <Download className="w-3.5 h-3.5" /> Exportar minha base ({baseCustom.length})
-          </button>
-          <button onClick={() => arquivo.current?.click()} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white hover:bg-slate-50">
-            <Upload className="w-3.5 h-3.5" /> Importar
-          </button>
-          <input ref={arquivo} type="file" accept="application/json" className="hidden" onChange={(e) => { importar(e.target.files?.[0]); e.target.value = ''; }} />
-        </div>
-        {msg && <p role="status" className="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{msg}</p>}
+          <input aria-label="Número" value={novo.numero} onChange={(e) => setNovo({ ...novo, numero: e.target.value })} placeholder="nº" className={`${mini} w-16`} />
+          <Botao type="submit" tamanho="sm">
+            <Plus className="size-3.5" /> Adicionar
+          </Botao>
+        </form>
       </div>
 
-      {visiveis.length === 0 && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-500">Nenhuma citação para exibir neste filtro.</div>
+      {msg && (
+        <p role="status" className="text-sm text-tinta-2">
+          {msg}
+        </p>
       )}
 
-      <div className="space-y-3">
-        {visiveis.map((c) => {
-          const st = STATUS[c.verificacao.status];
-          const aberto = abertos[c.id];
-          return (
-            <article key={c.id} className={`bg-white border rounded-2xl p-4 shadow-xs ${c.conferencia.situacao === 'descartado' ? 'opacity-60' : ''} border-slate-200`}>
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="text-sm font-bold text-slate-900">{c.rotulo}</h4>
-                  <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${st.classe}`}>
-                    <st.Icon className="w-3 h-3" /> {st.rotulo}
-                  </span>
-                  {c.verificacao.coerencia === 'verificar' && (
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-200">Pertinência a verificar</span>
-                  )}
-                  {c.manual && <span className="text-[11px] px-2 py-0.5 rounded-full border bg-slate-50 text-slate-600 border-slate-200">adicionada por você</span>}
-                </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    aria-label={`Situação da conferência de ${c.rotulo}`}
-                    value={c.conferencia.situacao}
-                    onChange={(e) => atualizar(c.id, { situacao: e.target.value as CitacaoPrecedente['conferencia']['situacao'] })}
-                    className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5"
-                  >
-                    {SITUACOES.map((s) => <option key={s.v} value={s.v}>{s.r}</option>)}
-                  </select>
-                  <a href={c.linkOficial} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50">
-                    <ExternalLink className="w-3.5 h-3.5" /> Portal oficial
-                  </a>
-                  <button onClick={() => setAbertos({ ...abertos, [c.id]: !aberto })} aria-expanded={!!aberto} aria-label="Detalhes" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
-                    {aberto ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs text-slate-600 mt-2">{c.verificacao.mensagem}</p>
+      {visiveis.length === 0 ? (
+        <p className="py-10 text-center text-sm text-tinta-3">Nenhuma citação neste filtro.</p>
+      ) : (
+        <Folha as="div">
+          <ul className="divide-y divide-linha">
+            {visiveis.map((c) => {
+              const st = STATUS[c.verificacao.status];
+              const aberto = abertos[c.id];
+              return (
+                <li key={c.id} className={`px-5 py-4 sm:px-6 ${c.conferencia.situacao === 'descartado' ? 'opacity-55' : ''}`}>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <button type="button" onClick={() => setAbertos({ ...abertos, [c.id]: !aberto })} aria-expanded={!!aberto} className="min-w-0 flex-1 text-left">
+                      <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <span className="font-serif text-[17px] font-semibold text-tinta">{c.rotulo}</span>
+                        <Marca tom={st.tom}>{st.rotulo}</Marca>
+                        {c.verificacao.coerencia === 'verificar' && <Marca tom="atencao">Pertinência a verificar</Marca>}
+                        {c.manual && <span className="text-[13px] text-tinta-3">adicionada por você</span>}
+                      </span>
+                      <span className="mt-1 flex items-start gap-2 text-[13px] leading-snug text-tinta-3">
+                        <span className="flex-1">{c.verificacao.mensagem}</span>
+                        <ChevronDown className={`mt-px size-4 shrink-0 transition-transform ${aberto ? 'rotate-180' : ''}`} />
+                      </span>
+                    </button>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <select
+                        aria-label={`Conferência de ${c.rotulo}`}
+                        value={c.conferencia.situacao}
+                        onChange={(e) => atualizar(c.id, { situacao: e.target.value as CitacaoPrecedente['conferencia']['situacao'] })}
+                        className={`${mini} pr-7 ${c.conferencia.situacao === 'conferido' ? 'text-ok' : c.conferencia.situacao === 'divergente' ? 'text-obice' : ''}`}
+                      >
+                        {SITUACOES.map((s) => (
+                          <option key={s.v} value={s.v} className="text-tinta">
+                            {s.r}
+                          </option>
+                        ))}
+                      </select>
+                      <a href={c.linkOficial} target="_blank" rel="noopener noreferrer" aria-label={`Abrir ${c.rotulo} no portal oficial`} title="Portal oficial" className="rounded-md p-2 text-tinta-3 hover:bg-papel hover:text-toga">
+                        <ExternalLink className="size-4" />
+                      </a>
+                    </div>
+                  </div>
 
-              {aberto && (
-                <div className="mt-3 pt-3 border-t border-slate-100 grid md:grid-cols-2 gap-4 text-xs">
-                  <div className="space-y-2">
-                    <h5 className="font-semibold text-slate-700">Onde foi citada</h5>
-                    {c.ocorrencias.length === 0 && <p className="text-slate-400">Sem ocorrência no texto (adicionada manualmente).</p>}
-                    {c.ocorrencias.map((o, i) => (
-                      <blockquote key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-2">
-                        <span className="block text-[11px] font-semibold text-slate-500">{o.origem}</span>
-                        <span className="font-serif text-slate-700">{o.contexto}</span>
-                      </blockquote>
-                    ))}
-                  </div>
-                  <div className="space-y-2">
-                    {c.verificacao.enunciadoOficial && (
-                      <>
-                        <h5 className="font-semibold text-slate-700">Enunciado na base local</h5>
-                        <p className="bg-emerald-50/60 border border-emerald-200 rounded-lg p-2 font-serif text-slate-800">{c.verificacao.enunciadoOficial}</p>
-                      </>
-                    )}
-                    <label className="block font-semibold text-slate-700" htmlFor={`enc-${c.id}`}>Enunciado/tese conferido por você no portal</label>
-                    <textarea id={`enc-${c.id}`} rows={3} value={c.conferencia.enunciadoConferido ?? ''} onChange={(e) => atualizar(c.id, { enunciadoConferido: e.target.value })} className="w-full bg-white border border-slate-300 rounded-lg p-2 outline-none focus:border-slate-500" />
-                    <label className="block font-semibold text-slate-700" htmlFor={`obs-${c.id}`}>Observação</label>
-                    <input id={`obs-${c.id}`} value={c.conferencia.observacao ?? ''} onChange={(e) => atualizar(c.id, { observacao: e.target.value })} className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 outline-none focus:border-slate-500" />
-                    {c.tipo !== 'acordao' && (
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        <button onClick={() => cadastrarNaBase(c, 'vigente')} className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">Cadastrar na minha base (vigente)</button>
-                        <button onClick={() => cadastrarNaBase(c, 'cancelada')} className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">Cadastrar como cancelada/superada</button>
+                  {aberto && (
+                    <div className="mt-4 grid gap-6 text-sm md:grid-cols-2">
+                      <div className="space-y-3">
+                        <p className="text-[13px] font-medium text-tinta-2">Onde foi citada</p>
+                        {c.ocorrencias.length === 0 && <p className="text-tinta-3">Adicionada manualmente, sem ocorrência no texto.</p>}
+                        {c.ocorrencias.map((o, i) => (
+                          <blockquote key={i} className="border-l-2 border-linha-forte pl-3">
+                            <span className="block text-[12px] text-tinta-3">{o.origem}</span>
+                            <span className="font-serif leading-relaxed text-tinta-2">{o.contexto}</span>
+                          </blockquote>
+                        ))}
                       </div>
-                    )}
-                    {c.manual && (
-                      <button onClick={() => onChange(citacoes.filter((x) => x.id !== c.id))} className="inline-flex items-center gap-1 text-rose-700 hover:underline pt-1">
-                        <Trash2 className="w-3.5 h-3.5" /> Remover da lista
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </article>
-          );
-        })}
+                      <div className="space-y-3">
+                        {c.verificacao.enunciadoOficial && (
+                          <div>
+                            <p className="text-[13px] font-medium text-tinta-2">Enunciado na base</p>
+                            <p className="mt-1 border-l-2 border-ok pl-3 font-serif leading-relaxed text-tinta">{c.verificacao.enunciadoOficial}</p>
+                          </div>
+                        )}
+                        <div>
+                          <label className="mb-1 block text-[13px] font-medium text-tinta-2" htmlFor={`enc-${c.id}`}>
+                            Enunciado conferido no portal
+                          </label>
+                          <textarea id={`enc-${c.id}`} rows={3} value={c.conferencia.enunciadoConferido ?? ''} onChange={(e) => atualizar(c.id, { enunciadoConferido: e.target.value })} className={campoArea} />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-[13px] font-medium text-tinta-2" htmlFor={`obs-${c.id}`}>
+                            Observação
+                          </label>
+                          <input id={`obs-${c.id}`} value={c.conferencia.observacao ?? ''} onChange={(e) => atualizar(c.id, { observacao: e.target.value })} className={campo} />
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {c.tipo !== 'acordao' && (
+                            <>
+                              <Botao tamanho="sm" onClick={() => cadastrarNaBase(c, 'vigente')}>
+                                Cadastrar como vigente
+                              </Botao>
+                              <Botao tamanho="sm" variante="discreto" onClick={() => cadastrarNaBase(c, 'cancelada')}>
+                                Cadastrar como cancelada
+                              </Botao>
+                            </>
+                          )}
+                          {c.manual && (
+                            <Botao tamanho="sm" variante="perigo" onClick={() => onChange(citacoes.filter((x) => x.id !== c.id))}>
+                              <Trash2 className="size-3.5" /> Remover
+                            </Botao>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </Folha>
+      )}
+
+      <div className="flex flex-wrap items-center gap-1 text-[13px] text-tinta-3">
+        <span className="mr-1">Base de precedentes da equipe:</span>
+        <Botao tamanho="sm" variante="discreto" onClick={() => exportarBase(baseCustom)} disabled={baseCustom.length === 0}>
+          <Download className="size-3.5" /> Exportar ({baseCustom.length})
+        </Botao>
+        <Botao tamanho="sm" variante="discreto" onClick={() => arquivo.current?.click()}>
+          <Upload className="size-3.5" /> Importar
+        </Botao>
+        <input
+          ref={arquivo}
+          type="file"
+          accept="application/json"
+          className="hidden"
+          onChange={(e) => {
+            importar(e.target.files?.[0]);
+            e.target.value = '';
+          }}
+        />
       </div>
     </div>
   );

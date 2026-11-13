@@ -1,8 +1,9 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, BookOpen, Check, Copy, Download, ExternalLink, Pencil, Search, Upload } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Download, ExternalLink, Pencil, Plus, Search, Upload } from 'lucide-react';
 import { consultarBase, type FiltroTipo, type FiltroTribunal } from '../../shared/consulta';
 import type { EntradaBase } from '../../shared/precedentesBase';
 import { exportarBase, importarBase } from '../lib/baseIO';
+import { Botao, campo, campoArea, campoSelect, Folha, Marca, TituloSecao, type Tom } from './ui';
 
 interface Props {
   baseCustom: EntradaBase[];
@@ -10,11 +11,11 @@ interface Props {
   onClose: () => void;
 }
 
-const SIT = {
-  vigente: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  cancelada: 'bg-rose-50 text-rose-800 border-rose-200',
-  superada: 'bg-amber-50 text-amber-800 border-amber-200',
-} as const;
+const SIT: Record<EntradaBase['situacao'], { r: string; tom: Tom }> = {
+  vigente: { r: 'Vigente', tom: 'ok' },
+  cancelada: { r: 'Cancelada', tom: 'obice' },
+  superada: { r: 'Superada', tom: 'atencao' },
+};
 
 const VAZIO: EntradaBase = { tipo: 'sumula', tribunal: 'STJ', numero: '', enunciado: '', situacao: 'vigente', palavrasChave: [], fonte: 'usuario' };
 
@@ -39,73 +40,64 @@ export const ConsultaPrecedentes: React.FC<Props> = ({ baseCustom, onBaseChange,
     }
   };
 
-  const salvar = () => {
+  const salvar = (ev: React.FormEvent) => {
+    ev.preventDefault();
     if (!form) return;
-    if (!/^\d{1,4}$/.test(form.numero.trim()) || form.enunciado.trim().length < 5) return setMsg('Informe o número e o enunciado/tese.');
+    if (!/^\d{1,4}$/.test(form.numero.trim()) || form.enunciado.trim().length < 5) return setMsg('Informe o número e o enunciado.');
     const e: EntradaBase = { ...form, numero: form.numero.trim(), tribunal: form.tipo === 'sumula_vinculante' ? 'STF' : form.tribunal, enunciado: form.enunciado.trim(), fonte: 'usuario' };
     onBaseChange([...baseCustom.filter((b) => !(b.tipo === e.tipo && b.tribunal === e.tribunal && b.numero === e.numero)), e]);
     setForm(null);
-    setMsg('Salvo na sua base (fica apenas neste navegador; use Exportar para guardar ou compartilhar).');
+    setMsg('Salvo na base da equipe.');
   };
 
-  const campo = 'bg-slate-50 text-xs text-slate-800 border border-slate-300 rounded-lg px-2.5 py-2 outline-none focus:border-slate-500';
-
   return (
-    <div className="space-y-5">
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-slate-600" /> Consulta de súmulas e precedentes vinculantes
-            </h2>
-            <p className="text-xs text-slate-500 mt-1 max-w-3xl">
-              Consulta direta à base local, sem IA e sem enviar nada a terceiros. A base inicial é parcial: o que não constar dela deve ser
-              conferido no portal oficial (STJ/STF), e você pode cadastrar na sua própria base o que conferir.
-            </p>
-          </div>
-          <button onClick={onClose} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 shrink-0">
-            <ArrowLeft className="w-3.5 h-3.5" /> Voltar
-          </button>
-        </div>
+    <div className="space-y-8">
+      <div>
+        <button type="button" onClick={onClose} className="-ml-1 inline-flex items-center gap-1.5 rounded px-1 text-[13px] text-tinta-3 hover:text-tinta">
+          <ArrowLeft className="size-3.5" /> Voltar
+        </button>
+        <h1 className="mt-3 font-serif text-[32px] font-semibold leading-[1.1] tracking-[-0.015em] text-tinta">Súmulas e precedentes</h1>
+        <p className="mt-2 max-w-2xl text-[15px] text-tinta-2">Consulta direta à base local, sem IA e sem envio a terceiros. O que não constar dela deve ser conferido no portal do STJ ou do STF.</p>
+      </div>
 
+      <div className="space-y-3">
         <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-[18px] -translate-y-1/2 text-tinta-3" />
           <input
             autoFocus
             type="search"
             aria-label="Buscar súmula, súmula vinculante ou tema"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Ex.: súmula 7 stj · SV 10 · 283 · reexame de prova · prequestionamento"
-            className="w-full bg-slate-50 text-sm text-slate-900 border border-slate-300 rounded-xl pl-10 pr-3 py-2.5 outline-none focus:border-slate-600"
+            placeholder="Súmula 7 STJ, SV 10, reexame de prova, prequestionamento…"
+            className={`${campo} h-12 pl-11 text-[15px]`}
           />
         </div>
-
         <div className="flex flex-wrap items-center gap-2">
-          <select aria-label="Tribunal" value={tribunal} onChange={(e) => setTribunal(e.target.value as FiltroTribunal)} className={campo}>
+          <select aria-label="Tribunal" value={tribunal} onChange={(e) => setTribunal(e.target.value as FiltroTribunal)} className={`${campoSelect} h-8 w-auto text-[13px]`}>
             <option value="todos">STJ e STF</option>
-            <option value="STJ">Somente STJ</option>
-            <option value="STF">Somente STF</option>
+            <option value="STJ">STJ</option>
+            <option value="STF">STF</option>
           </select>
-          <select aria-label="Tipo" value={tipo} onChange={(e) => setTipo(e.target.value as FiltroTipo)} className={campo}>
+          <select aria-label="Tipo" value={tipo} onChange={(e) => setTipo(e.target.value as FiltroTipo)} className={`${campoSelect} h-8 w-auto text-[13px]`}>
             <option value="todos">Todos os tipos</option>
             <option value="sumula">Súmulas</option>
             <option value="sumula_vinculante">Súmulas vinculantes</option>
-            <option value="tema">Temas / teses</option>
+            <option value="tema">Temas</option>
           </select>
-          <span className="text-xs text-slate-500" role="status">
-            {r.resultados.length} resultado(s)
+          <span className="num text-[13px] text-tinta-3" role="status">
+            {r.resultados.length === 1 ? '1 resultado' : `${r.resultados.length} resultados`}
           </span>
           <span className="flex-1" />
-          <button onClick={() => setForm({ ...VAZIO })} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50">
-            <Pencil className="w-3.5 h-3.5" /> Cadastrar na minha base
-          </button>
-          <button onClick={() => exportarBase(baseCustom)} disabled={baseCustom.length === 0} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40">
-            <Download className="w-3.5 h-3.5" /> Exportar ({baseCustom.length})
-          </button>
-          <button onClick={() => arquivo.current?.click()} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white hover:bg-slate-50">
-            <Upload className="w-3.5 h-3.5" /> Importar
-          </button>
+          <Botao tamanho="sm" variante="discreto" onClick={() => setForm({ ...VAZIO })}>
+            <Plus className="size-3.5" /> Cadastrar
+          </Botao>
+          <Botao tamanho="sm" variante="discreto" onClick={() => exportarBase(baseCustom)} disabled={baseCustom.length === 0}>
+            <Download className="size-3.5" /> Exportar
+          </Botao>
+          <Botao tamanho="sm" variante="discreto" onClick={() => arquivo.current?.click()}>
+            <Upload className="size-3.5" /> Importar
+          </Botao>
           <input
             ref={arquivo}
             type="file"
@@ -126,106 +118,121 @@ export const ConsultaPrecedentes: React.FC<Props> = ({ baseCustom, onBaseChange,
           />
         </div>
         {msg && (
-          <p role="status" className="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+          <p role="status" className="text-sm text-tinta-2">
             {msg}
           </p>
         )}
       </div>
 
       {form && (
-        <div className="bg-white border border-amber-300 rounded-2xl p-5 shadow-xs space-y-3">
-          <h3 className="text-sm font-bold text-slate-900">Cadastrar / corrigir na minha base</h3>
-          <div className="flex flex-wrap gap-2">
-            <select aria-label="Tipo" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value as EntradaBase['tipo'] })} className={campo}>
-              <option value="sumula">Súmula</option>
-              <option value="sumula_vinculante">Súmula vinculante</option>
-              <option value="tema">Tema</option>
-            </select>
-            {form.tipo !== 'sumula_vinculante' && (
-              <select aria-label="Tribunal" value={form.tribunal} onChange={(e) => setForm({ ...form, tribunal: e.target.value as 'STJ' | 'STF' })} className={campo}>
-                <option>STJ</option>
-                <option>STF</option>
+        <Folha as="div" className="p-6">
+          <form onSubmit={salvar} className="space-y-4">
+            <TituloSecao as="h2" className="!text-[17px]">
+              Cadastrar ou corrigir na base
+            </TituloSecao>
+            <div className="flex flex-wrap gap-2">
+              <select aria-label="Tipo" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value as EntradaBase['tipo'] })} className={`${campoSelect} w-auto`}>
+                <option value="sumula">Súmula</option>
+                <option value="sumula_vinculante">Súmula vinculante</option>
+                <option value="tema">Tema</option>
               </select>
-            )}
-            <input aria-label="Número" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} placeholder="nº" className={`${campo} w-24`} />
-            <select aria-label="Situação" value={form.situacao} onChange={(e) => setForm({ ...form, situacao: e.target.value as EntradaBase['situacao'] })} className={campo}>
-              <option value="vigente">Vigente</option>
-              <option value="cancelada">Cancelada</option>
-              <option value="superada">Superada</option>
-            </select>
-          </div>
-          <textarea aria-label="Enunciado ou tese" rows={3} value={form.enunciado} onChange={(e) => setForm({ ...form, enunciado: e.target.value })} placeholder="Enunciado/tese, copiado do portal oficial" className={`${campo} w-full`} />
-          <input
-            aria-label="Palavras-chave"
-            value={form.palavrasChave.join(', ')}
-            onChange={(e) => setForm({ ...form, palavrasChave: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })}
-            placeholder="Palavras-chave (opcional, separadas por vírgula) – ajudam a checar a pertinência das citações"
-            className={`${campo} w-full`}
-          />
-          <div className="flex gap-2">
-            <button onClick={salvar} className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-900 text-white hover:bg-slate-800">
-              Salvar
-            </button>
-            <button onClick={() => setForm(null)} className="px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-300 bg-white hover:bg-slate-50">
-              Cancelar
-            </button>
-          </div>
-        </div>
+              {form.tipo !== 'sumula_vinculante' && (
+                <select aria-label="Tribunal" value={form.tribunal} onChange={(e) => setForm({ ...form, tribunal: e.target.value as 'STJ' | 'STF' })} className={`${campoSelect} w-auto`}>
+                  <option>STJ</option>
+                  <option>STF</option>
+                </select>
+              )}
+              <input aria-label="Número" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} placeholder="nº" className={`${campo} w-24`} />
+              <select aria-label="Situação" value={form.situacao} onChange={(e) => setForm({ ...form, situacao: e.target.value as EntradaBase['situacao'] })} className={`${campoSelect} w-auto`}>
+                <option value="vigente">Vigente</option>
+                <option value="cancelada">Cancelada</option>
+                <option value="superada">Superada</option>
+              </select>
+            </div>
+            <textarea aria-label="Enunciado ou tese" rows={3} value={form.enunciado} onChange={(e) => setForm({ ...form, enunciado: e.target.value })} placeholder="Enunciado ou tese, copiado do portal oficial" className={`${campoArea} font-serif`} />
+            <input
+              aria-label="Palavras-chave"
+              value={form.palavrasChave.join(', ')}
+              onChange={(e) => setForm({ ...form, palavrasChave: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })}
+              placeholder="Palavras-chave separadas por vírgula (opcional)"
+              className={campo}
+            />
+            <div className="flex gap-2">
+              <Botao type="submit" variante="primario">
+                Salvar
+              </Botao>
+              <Botao variante="discreto" onClick={() => setForm(null)}>
+                Cancelar
+              </Botao>
+            </div>
+          </form>
+        </Folha>
       )}
 
       {r.naoEncontrados.map((n) => (
-        <div key={n.rotulo} className="bg-amber-50/60 border border-amber-200 rounded-2xl p-4 text-xs space-y-2">
-          <p className="font-bold text-slate-900 text-sm">{n.rotulo}</p>
-          <p className="text-slate-700">{n.verificacao.mensagem}</p>
-          <div className="flex gap-2">
-            <a href={n.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">
-              <ExternalLink className="w-3.5 h-3.5" /> Abrir no portal oficial
+        <div key={n.rotulo} className="border-l-2 border-atencao pl-4">
+          <p className="font-serif text-[17px] font-semibold text-tinta">{n.rotulo}</p>
+          <p className="mt-1 text-sm text-tinta-2">{n.verificacao.mensagem}</p>
+          <div className="mt-2 flex gap-1.5">
+            <a href={n.link} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-linha-forte bg-folha px-2.5 text-[13px] font-medium text-tinta hover:border-tinta-3">
+              <ExternalLink className="size-3.5" /> Abrir no portal
             </a>
             {n.verificacao.status !== 'inexistente' && (
-              <button onClick={() => setForm({ ...VAZIO, tipo: n.tipo, tribunal: n.tribunal ?? 'STJ', numero: n.numero })} className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">
+              <Botao tamanho="sm" variante="discreto" onClick={() => setForm({ ...VAZIO, tipo: n.tipo, tribunal: n.tribunal ?? 'STJ', numero: n.numero })}>
                 Cadastrar após conferir
-              </button>
+              </Botao>
             )}
           </div>
         </div>
       ))}
 
       {r.resultados.length === 0 && r.naoEncontrados.length === 0 && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-500">
-          Nada encontrado na base local para esta busca. Tente outras palavras ou consulte o portal oficial do{' '}
-          <a className="underline" href="https://scon.stj.jus.br/SCON/sumanot/" target="_blank" rel="noopener noreferrer">STJ</a> e do{' '}
-          <a className="underline" href="https://jurisprudencia.stf.jus.br/pages/search?base=sumulas" target="_blank" rel="noopener noreferrer">STF</a>.
-        </div>
+        <p className="py-6 text-sm text-tinta-3">
+          Nada na base local para esta busca. Tente outras palavras ou consulte o portal do{' '}
+          <a className="text-toga underline underline-offset-2" href="https://scon.stj.jus.br/SCON/sumanot/" target="_blank" rel="noopener noreferrer">
+            STJ
+          </a>{' '}
+          e do{' '}
+          <a className="text-toga underline underline-offset-2" href="https://jurisprudencia.stf.jus.br/pages/search?base=sumulas" target="_blank" rel="noopener noreferrer">
+            STF
+          </a>
+          .
+        </p>
       )}
 
-      <div className="space-y-3">
-        {r.resultados.map(({ entrada: e, rotulo, link, noUsuario }) => {
-          const id = `${e.tipo}-${e.tribunal}-${e.numero}`;
-          return (
-            <article key={id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-sm font-bold text-slate-900">{rotulo}</h3>
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${SIT[e.situacao]}`}>{e.situacao}</span>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full border bg-slate-50 text-slate-600 border-slate-200">{noUsuario ? 'sua base' : 'base inicial'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => copiar(id, `${rotulo}: ${e.enunciado}`)} className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50">
-                    {copiado === id ? <Check className="w-3.5 h-3.5 text-emerald-700" /> : <Copy className="w-3.5 h-3.5" />} {copiado === id ? 'Copiado' : 'Copiar'}
-                  </button>
-                  <button onClick={() => setForm({ ...e })} className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50">
-                    <Pencil className="w-3.5 h-3.5" /> Corrigir
-                  </button>
-                  <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50">
-                    <ExternalLink className="w-3.5 h-3.5" /> Portal oficial
-                  </a>
-                </div>
-              </div>
-              <p className="mt-2 text-sm text-slate-800 font-serif leading-relaxed">{e.enunciado}</p>
-            </article>
-          );
-        })}
-      </div>
+      {r.resultados.length > 0 && (
+        <Folha as="div">
+          <ul className="divide-y divide-linha">
+            {r.resultados.map(({ entrada: e, rotulo, link, noUsuario }) => {
+              const id = `${e.tipo}-${e.tribunal}-${e.numero}`;
+              const sit = SIT[e.situacao];
+              return (
+                <li key={id} className="group px-5 py-5 sm:px-6">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <h3 className="font-serif text-[18px] font-semibold text-tinta">{rotulo}</h3>
+                      <Marca tom={sit.tom}>{sit.r}</Marca>
+                      {noUsuario && <span className="text-[13px] text-tinta-3">cadastrada pela equipe</span>}
+                    </div>
+                    <div className="flex items-center gap-0.5 text-tinta-3">
+                      <button type="button" onClick={() => copiar(id, `${rotulo}: ${e.enunciado}`)} aria-label={`Copiar ${rotulo}`} title="Copiar" className="rounded-md p-1.5 hover:bg-papel hover:text-tinta">
+                        {copiado === id ? <Check className="size-4 text-ok" /> : <Copy className="size-4" />}
+                      </button>
+                      <button type="button" onClick={() => setForm({ ...e })} aria-label={`Corrigir ${rotulo}`} title="Corrigir" className="rounded-md p-1.5 hover:bg-papel hover:text-tinta">
+                        <Pencil className="size-4" />
+                      </button>
+                      <a href={link} target="_blank" rel="noopener noreferrer" aria-label={`Abrir ${rotulo} no portal oficial`} title="Portal oficial" className="rounded-md p-1.5 hover:bg-papel hover:text-toga">
+                        <ExternalLink className="size-4" />
+                      </a>
+                    </div>
+                  </div>
+                  <p className="mt-2 max-w-[75ch] font-serif text-[16px] leading-[1.65] text-tinta">{e.enunciado}</p>
+                </li>
+              );
+            })}
+          </ul>
+        </Folha>
+      )}
     </div>
   );
 };

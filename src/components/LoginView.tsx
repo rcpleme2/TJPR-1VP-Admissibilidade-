@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Scale } from 'lucide-react';
 import { ErroApi, nuvem, type UsuarioNuvem } from '../lib/nuvem';
+import { Botao, campo, Rotulo } from './ui';
 
 export const LoginView: React.FC<{ onLogin: (u: UsuarioNuvem) => void }> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
@@ -21,37 +21,32 @@ export const LoginView: React.FC<{ onLogin: (u: UsuarioNuvem) => void }> = ({ on
     }
   };
 
-  const campo = 'w-full bg-slate-50 text-sm text-slate-800 border border-slate-300 rounded-xl px-3 py-2.5 outline-none focus:border-slate-600';
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <form onSubmit={entrar} className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl p-7 shadow-sm space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center">
-            <Scale className="w-6 h-6" />
+    <main className="flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="w-full max-w-[22rem]">
+        <h1 className="font-serif text-[34px] font-semibold leading-none tracking-[-0.015em] text-toga">Admissibilidade</h1>
+        <p className="mt-2.5 text-sm text-tinta-3">Recursos especiais e extraordinários, 1ª Vice-Presidência do TJPR</p>
+
+        <form onSubmit={entrar} className="mt-8 space-y-4 rounded-lg border border-linha bg-folha p-6">
+          <div>
+            <Rotulo htmlFor="login-email">E-mail</Rotulo>
+            <input id="login-email" type="email" autoComplete="username" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} className={campo} />
           </div>
           <div>
-            <h1 className="text-base font-bold text-slate-900">Admissibilidade Recursal</h1>
-            <p className="text-xs text-slate-500">TJPR • 1ª Vice-Presidência</p>
+            <Rotulo htmlFor="login-senha">Senha</Rotulo>
+            <input id="login-senha" type="password" autoComplete="current-password" required value={senha} onChange={(e) => setSenha(e.target.value)} className={campo} />
           </div>
-        </div>
-        <div>
-          <label htmlFor="login-email" className="block text-xs font-medium text-slate-600 mb-1">E-mail</label>
-          <input id="login-email" type="email" autoComplete="username" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} className={campo} />
-        </div>
-        <div>
-          <label htmlFor="login-senha" className="block text-xs font-medium text-slate-600 mb-1">Senha</label>
-          <input id="login-senha" type="password" autoComplete="current-password" required value={senha} onChange={(e) => setSenha(e.target.value)} className={campo} />
-        </div>
-        {erro && (
-          <p role="alert" className="text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
-            {erro}
-          </p>
-        )}
-        <button disabled={enviando} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-60">
-          {enviando ? 'Entrando…' : 'Entrar'}
-        </button>
-        <p className="text-[11px] text-slate-500">Acesso restrito. Os registros guardam apenas os dados extraídos e cadastrados, nunca os arquivos anexados.</p>
-      </form>
-    </div>
+          {erro && (
+            <p role="alert" className="text-sm text-obice">
+              {erro}
+            </p>
+          )}
+          <Botao type="submit" variante="primario" disabled={enviando} className="w-full">
+            {enviando ? 'Entrando…' : 'Entrar'}
+          </Botao>
+        </form>
+        <p className="mt-4 text-[13px] text-tinta-3">Acesso restrito à equipe da Vice-Presidência.</p>
+      </div>
+    </main>
   );
 };

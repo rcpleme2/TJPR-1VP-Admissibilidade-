@@ -1,19 +1,7 @@
 import React, { useState } from 'react';
-import {
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  MinusCircle,
-  Filter,
-  Search,
-  Sparkles,
-  ChevronDown,
-  ChevronUp,
-  FileText,
-  Bookmark,
-  Edit3,
-} from 'lucide-react';
-import { ChecklistItem, ChecklistSecao, ChecklistStatus } from '../types/admissibility';
+import { ChevronDown, Search } from 'lucide-react';
+import { ChecklistSecao, ChecklistStatus } from '../types/admissibility';
+import { Abas, campo, Folha, type Tom } from './ui';
 
 interface ChecklistViewProps {
   sections: ChecklistSecao[];
@@ -21,334 +9,154 @@ interface ChecklistViewProps {
   onUpdateItemNote?: (sectionCode: string, itemId: string, note: string) => void;
 }
 
-export const ChecklistView: React.FC<ChecklistViewProps> = ({
-  sections,
-  onUpdateItemStatus,
-  onUpdateItemNote,
-}) => {
-  const [statusFilter, setStatusFilter] = useState<'all' | 'nao_conforme' | 'atencao' | 'conforme' | 'novidade2026'>('all');
+type Filtro = 'all' | 'nao_conforme' | 'atencao' | 'conforme' | 'novidade2026';
+
+const STATUS: Record<ChecklistStatus, { rotulo: string; tom: Tom }> = {
+  conforme: { rotulo: 'Conforme', tom: 'ok' },
+  nao_conforme: { rotulo: 'Óbice', tom: 'obice' },
+  atencao: { rotulo: 'Verificar', tom: 'atencao' },
+  nao_aplicavel: { rotulo: 'Não se aplica', tom: 'neutro' },
+};
+
+const COR: Record<Tom, string> = { ok: 'text-ok', obice: 'text-obice', atencao: 'text-atencao', neutro: 'text-tinta-3' };
+const FUNDO: Record<Tom, string> = { ok: 'bg-ok', obice: 'bg-obice', atencao: 'bg-atencao', neutro: 'bg-linha-forte' };
+
+export const ChecklistView: React.FC<ChecklistViewProps> = ({ sections, onUpdateItemStatus, onUpdateItemNote }) => {
+  const [statusFilter, setStatusFilter] = useState<Filtro>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
 
-  const toggleExpand = (id: string) => {
-    setExpandedItems((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+  const todos = sections.flatMap((s) => s.itens);
+  const contar = (f: (i: (typeof todos)[number]) => boolean) => todos.filter(f).length;
 
-  const getStatusIcon = (status: ChecklistStatus) => {
-    switch (status) {
-      case 'conforme':
-        return <CheckCircle2 className="w-4 h-4 text-emerald-700" />;
-      case 'nao_conforme':
-        return <XCircle className="w-4 h-4 text-rose-700" />;
-      case 'atencao':
-        return <AlertTriangle className="w-4 h-4 text-amber-700" />;
-      case 'nao_aplicavel':
-      default:
-        return <MinusCircle className="w-4 h-4 text-slate-400" />;
-    }
-  };
-
-  const getStatusBadge = (status: ChecklistStatus) => {
-    switch (status) {
-      case 'conforme':
-        return (
-          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-            Conforme
-          </span>
-        );
-      case 'nao_conforme':
-        return (
-          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-800 border border-rose-200">
-            Não Conforme / Óbice
-          </span>
-        );
-      case 'atencao':
-        return (
-          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-            Atenção / Verificar
-          </span>
-        );
-      case 'nao_aplicavel':
-      default:
-        return (
-          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-            Não Aplicável
-          </span>
-        );
-    }
-  };
-
-  // Filter sections and items
   const filteredSections = sections
-    .map((sec) => {
-      const filteredItems = sec.itens.filter((item) => {
-        if (statusFilter === 'nao_conforme' && item.status !== 'nao_conforme') return false;
-        if (statusFilter === 'atencao' && item.status !== 'atencao') return false;
-        if (statusFilter === 'conforme' && item.status !== 'conforme') return false;
+    .map((sec) => ({
+      ...sec,
+      itens: sec.itens.filter((item) => {
         if (statusFilter === 'novidade2026' && !item.novidade2026) return false;
-
-        if (searchQuery.trim() !== '') {
-          const q = searchQuery.toLowerCase();
-          const matchTitle = item.titulo.toLowerCase().includes(q);
-          const matchAnalysis = (item.analiseTecnica || '').toLowerCase().includes(q);
-          const matchFund = (item.fundamentoLegal || '').toLowerCase().includes(q);
-          const matchId = item.id.toLowerCase().includes(q);
-          return matchTitle || matchAnalysis || matchFund || matchId;
-        }
-
-        return true;
-      });
-
-      return {
-        ...sec,
-        itens: filteredItems,
-      };
-    })
+        if (statusFilter !== 'all' && statusFilter !== 'novidade2026' && item.status !== statusFilter) return false;
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return true;
+        return [item.titulo, item.analiseTecnica, item.fundamentoLegal, item.id].some((t) => (t || '').toLowerCase().includes(q));
+      }),
+    }))
     .filter((sec) => sec.itens.length > 0);
 
-  // Stats
-  let totalItems = 0;
-  let conformes = 0;
-  let naoConformes = 0;
-  let atencoes = 0;
-  let novidades2026 = 0;
-
-  sections.forEach((sec) => {
-    sec.itens.forEach((it) => {
-      totalItems++;
-      if (it.status === 'conforme') conformes++;
-      if (it.status === 'nao_conforme') naoConformes++;
-      if (it.status === 'atencao') atencoes++;
-      if (it.novidade2026) novidades2026++;
-    });
-  });
+  const abas: Array<{ id: Filtro; rotulo: string; contagem: number; alerta?: boolean }> = [
+    { id: 'all', rotulo: 'Todos', contagem: todos.length },
+    { id: 'nao_conforme', rotulo: 'Óbices', contagem: contar((i) => i.status === 'nao_conforme'), alerta: true },
+    { id: 'atencao', rotulo: 'A verificar', contagem: contar((i) => i.status === 'atencao') },
+    { id: 'conforme', rotulo: 'Conformes', contagem: contar((i) => i.status === 'conforme') },
+    { id: 'novidade2026', rotulo: 'Reforma de 2026', contagem: contar((i) => Boolean(i.novidade2026)) },
+  ];
+  abas[1]!.alerta = abas[1]!.contagem > 0;
 
   return (
     <div className="space-y-6">
-      {/* Control Bar: Filters & Search */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-              statusFilter === 'all'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
-            }`}
-          >
-            Todos ({totalItems})
-          </button>
-
-          <button
-            onClick={() => setStatusFilter('nao_conforme')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition ${
-              statusFilter === 'nao_conforme'
-                ? 'bg-rose-800 text-white shadow-xs'
-                : 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200'
-            }`}
-          >
-            <XCircle className="w-3.5 h-3.5" />
-            <span>Óbices ({naoConformes})</span>
-          </button>
-
-          <button
-            onClick={() => setStatusFilter('atencao')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition ${
-              statusFilter === 'atencao'
-                ? 'bg-amber-800 text-white shadow-xs'
-                : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
-            }`}
-          >
-            <AlertTriangle className="w-3.5 h-3.5" />
-            <span>Atenção ({atencoes})</span>
-          </button>
-
-          <button
-            onClick={() => setStatusFilter('conforme')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition ${
-              statusFilter === 'conforme'
-                ? 'bg-emerald-800 text-white shadow-xs'
-                : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
-            }`}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Conformes ({conformes})</span>
-          </button>
-
-          <button
-            onClick={() => setStatusFilter('novidade2026')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition ${
-              statusFilter === 'novidade2026'
-                ? 'bg-slate-800 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-            <span>Reforma 2026 ({novidades2026})</span>
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="relative min-w-[260px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+      <div className="flex flex-col gap-3 border-b border-linha md:flex-row md:items-end md:justify-between">
+        <Abas rotulo="Filtrar itens" itens={abas} ativa={statusFilter} onChange={setStatusFilter} />
+        <div className="relative pb-2 md:w-72">
+          <Search className="pointer-events-none absolute left-2.5 top-[18px] size-4 -translate-y-1/2 text-tinta-3" />
           <input
-            type="text"
+            type="search"
+            aria-label="Buscar no checklist"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por súmula, artigo ou tese..."
-            className="w-full bg-slate-50 text-xs text-slate-800 pl-9 pr-3 py-2 rounded-xl border border-slate-300 outline-none focus:border-slate-500 placeholder:text-slate-400"
+            placeholder="Súmula, artigo ou tese"
+            className={`${campo} pl-8`}
           />
         </div>
       </div>
 
-      {/* Sections List */}
-      <div className="space-y-5">
-        {filteredSections.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-500 shadow-xs">
-            Nenhum item encontrado para o filtro selecionado.
-          </div>
-        ) : (
-          filteredSections.map((sec) => (
-            <div
-              key={sec.secaoCodigo}
-              className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs"
-            >
-              {/* Section Header */}
-              <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-6 h-6 rounded-lg bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center">
-                    {sec.secaoCodigo}
-                  </span>
-                  <h3 className="text-xs font-bold text-slate-800 tracking-wide uppercase">
-                    {sec.secaoTitulo}
-                  </h3>
-                </div>
-                <span className="text-xs text-slate-500 font-mono">
-                  {sec.itens.length} {sec.itens.length === 1 ? 'item' : 'itens'}
-                </span>
-              </div>
+      {filteredSections.length === 0 ? (
+        <p className="py-10 text-center text-sm text-tinta-3">Nenhum item neste filtro.</p>
+      ) : (
+        filteredSections.map((sec) => (
+          <Folha key={sec.secaoCodigo} aria-labelledby={`sec-${sec.secaoCodigo}`}>
+            <div className="flex items-baseline gap-3 border-b border-linha px-5 py-4 sm:px-6">
+              <span className="font-serif text-[22px] font-semibold leading-none text-toga">{sec.secaoCodigo}</span>
+              <h3 id={`sec-${sec.secaoCodigo}`} className="font-serif text-[18px] font-semibold leading-tight text-tinta">
+                {sec.secaoTitulo.replace(new RegExp(`^${sec.secaoCodigo}[.)\\s–-]+`), '')}
+              </h3>
+            </div>
 
-              {/* Items List */}
-              <div className="divide-y divide-slate-100">
-                {sec.itens.map((item) => {
-                  const isExpanded = expandedItems[item.id] !== false;
+            <ul className="divide-y divide-linha">
+              {sec.itens.map((item) => {
+                const st = STATUS[item.status];
+                const aberto = expandedItems[item.id] ?? (item.status === 'nao_conforme' || item.status === 'atencao');
+                return (
+                  <li key={item.id} className="relative px-5 py-4 sm:px-6">
+                    <span aria-hidden className={`absolute bottom-0 left-0 top-0 w-[3px] ${item.status === 'nao_conforme' || item.status === 'atencao' ? FUNDO[st.tom] : ''}`} />
+                    <div className="flex items-start gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedItems((prev) => ({ ...prev, [item.id]: !aberto }))}
+                        aria-expanded={aberto}
+                        className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                      >
+                        <span className="num mt-px w-9 shrink-0 text-[13px] text-tinta-3">{item.id}</span>
+                        <span className="min-w-0">
+                          <span className="block text-[15px] font-medium leading-snug text-tinta">{item.titulo}</span>
+                          {item.novidade2026 && <span className="mt-0.5 block text-[13px] text-tinta-3">Lei 15.484/2026</span>}
+                        </span>
+                        <ChevronDown className={`ml-auto mt-0.5 size-4 shrink-0 text-tinta-3 transition-transform ${aberto ? 'rotate-180' : ''}`} />
+                      </button>
 
-                  return (
-                    <div
-                      key={item.id}
-                      className={`p-4 transition ${
-                        item.status === 'nao_conforme'
-                          ? 'bg-rose-50/30 hover:bg-rose-50/50'
-                          : item.status === 'atencao'
-                          ? 'bg-amber-50/30 hover:bg-amber-50/50'
-                          : 'hover:bg-slate-50/60'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 shrink-0">{getStatusIcon(item.status)}</div>
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-xs font-mono font-bold text-slate-500">{item.id}</span>
-                              <h4 className="text-xs sm:text-sm font-semibold text-slate-800">{item.titulo}</h4>
-                              {item.novidade2026 && (
-                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1">
-                                  <Sparkles className="w-3 h-3 text-amber-700" />
-                                  Lei 15.484/2026
-                                </span>
-                              )}
-                            </div>
-                            <div className="mt-1.5 flex items-center gap-2">{getStatusBadge(item.status)}</div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {/* Manual Override Status Picker */}
-                          {onUpdateItemStatus && (
-                            <select
-                              value={item.status}
-                              onChange={(e) =>
-                                onUpdateItemStatus(sec.secaoCodigo, item.id, e.target.value as ChecklistStatus)
-                              }
-                              className="text-[11px] bg-slate-50 text-slate-700 border border-slate-300 rounded-lg px-2 py-1 outline-none focus:border-slate-500"
-                              title="Alterar status manualmente"
-                            >
-                              <option value="conforme">Conforme</option>
-                              <option value="nao_conforme">Não Conforme</option>
-                              <option value="atencao">Atenção</option>
-                              <option value="nao_aplicavel">Não Aplicável</option>
-                            </select>
-                          )}
-
-                          <button
-                            onClick={() => toggleExpand(item.id)}
-                            className="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition"
-                            title={isExpanded ? 'Recolher detalhes' : 'Expandir detalhes'}
-                          >
-                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Expanded Technical Details */}
-                      {isExpanded && (
-                        <div className="mt-3.5 pt-3 border-t border-slate-100 text-xs space-y-3 pl-7">
-                          {/* Análise Técnica */}
-                          <div>
-                            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                              Análise Técnica da Assessoria:
-                            </span>
-                            <p className="text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200">
-                              {item.analiseTecnica}
-                            </p>
-                          </div>
-
-                          {/* Fundamento Legal */}
-                          {item.fundamentoLegal && (
-                            <div className="flex items-start gap-2 text-slate-700 bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
-                              <Bookmark className="w-3.5 h-3.5 text-slate-500 mt-0.5 shrink-0" />
-                              <span className="text-[11px]">
-                                <strong>Fundamento Normativo / Súmula:</strong> {item.fundamentoLegal}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Trecho Relevante Extraído */}
-                          {item.trechoRelevante && (
-                            <div className="flex items-start gap-2 text-slate-600 bg-slate-50 border border-slate-200 p-2.5 rounded-xl italic font-serif">
-                              <FileText className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0 not-italic" />
-                              <span className="text-[11px]">"{item.trechoRelevante}"</span>
-                            </div>
-                          )}
-
-                          {/* Assessor Notes Box */}
-                          {onUpdateItemNote && (
-                            <div className="pt-1">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
-                                  <Edit3 className="w-3 h-3 text-slate-500" />
-                                  Anotação / Ressalva do Assessor para este Item:
-                                </span>
-                              </div>
-                              <input
-                                type="text"
-                                defaultValue={item.observacaoAssessor || ''}
-                                placeholder="Digite sua ressalva pessoal que constará no relatório PDF..."
-                                onBlur={(e) => onUpdateItemNote(sec.secaoCodigo, item.id, e.target.value)}
-                                className="w-full bg-white text-xs text-slate-800 px-3 py-1.5 rounded-lg border border-slate-300 outline-none focus:border-slate-500 placeholder:text-slate-400"
-                              />
-                            </div>
-                          )}
-                        </div>
+                      {onUpdateItemStatus ? (
+                        <select
+                          aria-label={`Situação do item ${item.id}`}
+                          value={item.status}
+                          onChange={(e) => onUpdateItemStatus(sec.secaoCodigo, item.id, e.target.value as ChecklistStatus)}
+                          className={`h-8 w-[9.5rem] shrink-0 rounded-md border border-linha bg-folha pl-2.5 pr-7 text-[13px] font-medium hover:border-linha-forte focus:border-toga focus:outline-none ${COR[st.tom]}`}
+                        >
+                          {(Object.keys(STATUS) as ChecklistStatus[]).map((s) => (
+                            <option key={s} value={s} className="text-tinta">
+                              {STATUS[s].rotulo}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className={`text-[13px] font-medium ${COR[st.tom]}`}>{st.rotulo}</span>
                       )}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+
+                    {aberto && (
+                      <div className="mt-3 space-y-3 pl-12">
+                        <p className="max-w-[72ch] text-sm leading-relaxed text-tinta-2">{item.analiseTecnica}</p>
+                        {item.fundamentoLegal && (
+                          <p className="text-[13px] text-tinta-3">
+                            <span className="text-tinta-2">Fundamento:</span> {item.fundamentoLegal}
+                          </p>
+                        )}
+                        {item.trechoRelevante && (
+                          <blockquote className="max-w-[72ch] border-l-2 border-linha-forte pl-3.5 font-serif text-[14px] italic leading-relaxed text-tinta-2">
+                            {item.trechoRelevante}
+                          </blockquote>
+                        )}
+                        {onUpdateItemNote && (
+                          <div>
+                            <label htmlFor={`nota-${item.id}`} className="sr-only">
+                              Ressalva do assessor para o item {item.id}
+                            </label>
+                            <input
+                              id={`nota-${item.id}`}
+                              type="text"
+                              defaultValue={item.observacaoAssessor || ''}
+                              placeholder="Ressalva do assessor (vai para o relatório em PDF)"
+                              onBlur={(e) => onUpdateItemNote(sec.secaoCodigo, item.id, e.target.value)}
+                              className={`${campo} h-8 border-dashed text-[13px] focus:border-solid`}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </Folha>
+        ))
+      )}
     </div>
   );
 };

@@ -1,121 +1,57 @@
 import React from 'react';
-import { Scale, BookOpen, Search, Sparkles, RefreshCw, FileText, ShieldCheck, LogOut, UserCog } from 'lucide-react';
+import { BookOpen, LogOut, Search } from 'lucide-react';
 
 interface HeaderProps {
   onOpenGuide: () => void;
   onOpenConsulta: () => void;
-  onLoadSample: () => void;
-  onReset: () => void;
-  hasResult: boolean;
-  onDownloadPDF?: () => void;
+  onHome: () => void;
   usuarioNome?: string;
   onConta?: () => void;
   onLogout?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({
-  onOpenGuide,
-  onOpenConsulta,
-  onLoadSample,
-  onReset,
-  hasResult,
-  onDownloadPDF,
-  usuarioNome,
-  onConta,
-  onLogout,
-}) => {
-  return (
-    <header className="bg-white border-b border-slate-200 shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
-              <Scale className="w-6 h-6 text-slate-100" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-bold tracking-wider text-slate-800 uppercase bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                  TJPR • 1ª Vice-Presidência
-                </span>
-                <span className="text-[11px] font-medium text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1">
-                  <span>Marco Lei 15.484/2026</span>
-                </span>
-                <span className="text-[11px] font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                  <span>Rascunho assistido por IA</span>
-                </span>
-              </div>
-              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 mt-0.5">
-                Admissibilidade de Recursos Especiais e Extraordinários
-              </h1>
-              <p className="text-xs text-slate-500">
-                Triagem técnica preliminar, conformidade da relevância e emissão de parecer (CPC, art. 1.030)
-              </p>
-            </div>
+const iniciais = (nome: string) =>
+  nome
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]!.toUpperCase())
+    .join('');
+
+const link = 'inline-flex h-9 items-center gap-2 rounded-md px-2.5 text-sm text-tinta-2 transition-colors hover:bg-tinta/[0.05] hover:text-tinta';
+
+export const Header: React.FC<HeaderProps> = ({ onOpenGuide, onOpenConsulta, onHome, usuarioNome, onConta, onLogout }) => (
+  <header className="border-b border-linha bg-folha">
+    <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-8">
+      <button type="button" onClick={onHome} className="flex min-w-0 items-baseline gap-3 text-left" title="Voltar ao início">
+        <span className="font-serif text-[21px] font-semibold tracking-[-0.01em] text-toga">Admissibilidade</span>
+        <span className="hidden truncate text-[13px] text-tinta-3 md:inline">1ª Vice-Presidência do TJPR</span>
+      </button>
+
+      <nav className="flex items-center gap-0.5" aria-label="Principal">
+        <button type="button" onClick={onOpenGuide} className={link} aria-label="Orientações técnicas">
+          <BookOpen className="size-4" />
+          <span className="hidden sm:inline">Orientações</span>
+        </button>
+        <button type="button" onClick={onOpenConsulta} className={link} aria-label="Consultar súmulas">
+          <Search className="size-4" />
+          <span className="hidden sm:inline">Súmulas</span>
+        </button>
+
+        {usuarioNome && (
+          <div className="ml-2 flex items-center gap-0.5 border-l border-linha pl-3">
+            <button type="button" onClick={onConta} className={`${link} pl-1`} title="Conta e usuários">
+              <span aria-hidden className="flex size-7 items-center justify-center rounded-full bg-toga-claro text-[11px] font-semibold text-toga">
+                {iniciais(usuarioNome)}
+              </span>
+              <span className="hidden max-w-[9rem] truncate lg:inline">{usuarioNome}</span>
+            </button>
+            <button type="button" onClick={onLogout} aria-label="Sair" title="Sair" className={`${link} px-2`}>
+              <LogOut className="size-4" />
+            </button>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={onOpenGuide}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition shadow-xs"
-              title="Consultar diretrizes técnicas da 1ª Vice-Presidência"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-slate-500" />
-              <span>Orientações Técnicas</span>
-            </button>
-
-            <button
-              onClick={onOpenConsulta}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition shadow-xs"
-              title="Consultar súmulas e precedentes vinculantes (sem IA)"
-            >
-              <Search className="w-3.5 h-3.5 text-slate-500" />
-              <span>Consultar Súmulas</span>
-            </button>
-
-            <button
-              onClick={onLoadSample}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200/80 text-slate-800 border border-slate-300 transition shadow-xs"
-              title="Carregar caso simulado com REsp e RE"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-              <span>Carregar Exemplo</span>
-            </button>
-
-            {hasResult && onDownloadPDF && (
-              <button
-                onClick={onDownloadPDF}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Baixar PDF</span>
-              </button>
-            )}
-
-            {hasResult && (
-              <button
-                onClick={onReset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white hover:bg-slate-100 text-slate-600 border border-slate-300 transition"
-                title="Reiniciar análise e carregar novos arquivos"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Novo Caso</span>
-              </button>
-            )}
-            {usuarioNome && (
-              <div className="flex items-center gap-1 pl-2 ml-1 border-l border-slate-200">
-                <button onClick={onConta} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg hover:bg-slate-100 text-slate-700" title="Conta e usuários">
-                  <UserCog className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="max-w-[10rem] truncate">{usuarioNome}</span>
-                </button>
-                <button onClick={onLogout} aria-label="Sair" title="Sair" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
-                  <LogOut className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </header>
-  );
-};
+        )}
+      </nav>
+    </div>
+  </header>
+);

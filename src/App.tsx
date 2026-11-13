@@ -29,10 +29,11 @@ import { apagarDadosLocais, lerChaves, lerConfig, salvarChaves, salvarConfig, ty
 import { ErroApi, nuvem, type UsuarioNuvem } from './lib/nuvem';
 import type { Caso, CasoResumo, StatusCaso } from '../shared/registro';
 import { LoginView } from './components/LoginView';
-import { SaveBar, type EstadoSalvamento } from './components/SaveBar';
+import { CasoCabecalho, type EstadoSalvamento } from './components/CasoCabecalho';
+import { Abas, Botao } from './components/ui';
 import { HistoricoModal } from './components/HistoricoModal';
 import { ContaModal } from './components/ContaModal';
-import { LayoutDashboard, CheckSquare, FileText, AlertCircle, ArrowLeft, Download, ShieldAlert, BookMarked } from 'lucide-react';
+import { Download, Plus, X } from 'lucide-react';
 
 type Aba = 'dashboard' | 'checklist' | 'minuta' | 'precedentes';
 const TIMEOUT_CLIENTE_MS = 6 * 60_000;
@@ -423,55 +424,45 @@ export default function App() {
     [analysisResult?.precedentes],
   );
 
-  const abas: Array<{ id: Aba; rotulo: string; Icon: typeof FileText; badge?: number }> = [
-    { id: 'dashboard', rotulo: 'Painel Geral & Diagnóstico', Icon: LayoutDashboard },
-    { id: 'checklist', rotulo: 'Checklist Técnico (A a J)', Icon: CheckSquare },
-    { id: 'minuta', rotulo: 'Minuta da Decisão (1VP)', Icon: FileText },
-    { id: 'precedentes', rotulo: 'Precedentes', Icon: BookMarked, badge: alertasPrecedentes },
+  const abas: Array<{ id: Aba; rotulo: string; contagem?: number; alerta?: boolean }> = [
+    { id: 'dashboard', rotulo: 'Diagnóstico' },
+    { id: 'checklist', rotulo: 'Checklist' },
+    { id: 'minuta', rotulo: 'Minuta' },
+    { id: 'precedentes', rotulo: 'Precedentes', contagem: alertasPrecedentes || undefined, alerta: alertasPrecedentes > 0 },
   ];
 
-  if (autenticando) return <div className="min-h-screen bg-slate-50" aria-busy="true" />;
+  if (autenticando) return <div className="min-h-screen" aria-busy="true" />;
   if (!usuario) return <LoginView onLogin={setUsuario} />;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-slate-200">
+    <div className="flex min-h-screen flex-col">
       <Header
         onOpenGuide={() => setIsGuideOpen(true)}
         onOpenConsulta={() => setConsultaAberta(true)}
-        onLoadSample={handleLoadSample}
-        onReset={handleReset}
-        hasResult={Boolean(analysisResult)}
-        onDownloadPDF={() => setIsPdfModalOpen(true)}
+        onHome={() => setConsultaAberta(false)}
         usuarioNome={usuario?.nome}
         onConta={() => setContaAberta(true)}
         onLogout={sair}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-7">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-10 sm:px-8">
         {errorMessage && (
-          <div role="alert" className="mb-5 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-start justify-between gap-3 shadow-xs">
-            <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-rose-700 mt-0.5 shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-            <button onClick={() => setErrorMessage(null)} className="text-rose-700 hover:text-rose-900 text-xs font-semibold underline shrink-0">
-              Fechar
+          <div role="alert" className="mb-8 flex items-start justify-between gap-4 border-l-2 border-obice bg-folha py-3 pl-4 pr-2 text-sm text-tinta">
+            <span>{errorMessage}</span>
+            <button type="button" onClick={() => setErrorMessage(null)} aria-label="Dispensar mensagem" className="rounded p-0.5 text-tinta-3 hover:text-tinta">
+              <X className="size-4" />
             </button>
           </div>
         )}
 
         {securityWarnings.length > 0 && (
-          <div role="alert" className="mb-5 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs space-y-1 shadow-xs">
-            <div className="flex items-center gap-2 font-semibold">
-              <ShieldAlert className="w-4 h-4 text-amber-700" />
-              <span>Atenção: padrões suspeitos de manipulação foram sinalizados nas notas/peças</span>
-            </div>
-            <ul className="list-disc pl-10 text-[11px] text-amber-800">
+          <div role="alert" className="mb-8 border-l-2 border-atencao bg-folha py-3 pl-4 pr-4 text-sm">
+            <p className="font-medium text-tinta">Trechos com aparência de instrução à IA foram encontrados nas peças ou notas. Revise a análise com atenção redobrada.</p>
+            <ul className="mt-1.5 space-y-0.5 text-[13px] text-tinta-2">
               {securityWarnings.map((w, i) => (
                 <li key={i}>{w}</li>
               ))}
             </ul>
-            <p className="text-[11px] text-amber-800 pl-6">O sistema trata o conteúdo dos autos como dado, mas isso não é garantia: revise a análise com atenção redobrada.</p>
           </div>
         )}
 
@@ -510,31 +501,13 @@ export default function App() {
               setConfig(lerConfig());
             }}
             prazoForm={<PrazoForm value={prazo} onChange={setPrazo} idPrefix="pre" />}
-            engineSettings={
-              <EngineSettings
-                config={config}
-                onConfig={setConfig}
-                chaves={chaves}
-                onChaves={setChaves}
-                servidor={servidor}
-              />
-            }
+            engineSettings={<EngineSettings config={config} onConfig={setConfig} chaves={chaves} onChaves={setChaves} servidor={servidor} />}
           />
         ) : (
-          <div className="space-y-6">
-            <div role="note" className="text-xs text-rose-900 bg-rose-50 border border-rose-200 rounded-xl px-4 py-2.5">
-              <strong>Rascunho de apoio, não é decisão.</strong>{' '}
-              {analysisResult.meta && analysisResult.meta.provedor !== 'exemplo'
-                ? `Gerado por ${analysisResult.meta.provedor.toUpperCase()} (${analysisResult.meta.modelo}) em ${new Date(analysisResult.meta.geradoEm).toLocaleString('pt-BR')}. `
-                : analysisResult.meta?.provedor === 'exemplo'
-                  ? 'Caso simulado para demonstração. '
-                  : ''}
-              A IA pode errar fatos, datas e citações: confira os autos, os prazos calculados e os precedentes antes de qualquer uso.
-            </div>
-
-            <SaveBar
+          <div>
+            <CasoCabecalho
+              dados={analysisResult}
               estado={analysisResult.meta?.provedor === 'exemplo' ? 'exemplo' : salvamento.estado}
-              numero={analysisResult.processo.numero}
               onNumero={alterarNumero}
               versao={registro?.versao}
               atualizadoPor={registro?.atualizadoPor}
@@ -549,91 +522,63 @@ export default function App() {
               onSobrescrever={() => gravar(salvamento.conflito?.versao)}
             />
 
-            <div className="flex flex-col lg:flex-row items-center justify-between gap-4 bg-white border border-slate-200 p-2 rounded-2xl shadow-xs">
-              <div role="tablist" className="flex flex-wrap items-center gap-1.5 w-full lg:w-auto">
-                {abas.map(({ id, rotulo, Icon, badge }) => (
-                  <button
-                    key={id}
-                    role="tab"
-                    aria-selected={activeTab === id}
-                    onClick={() => setActiveTab(id)}
-                    className={`flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
-                      activeTab === id ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{rotulo}</span>
-                    {badge ? <span className="ml-0.5 bg-rose-600 text-white rounded-full px-1.5 text-[11px]">{badge}</span> : null}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
-                <button
-                  onClick={() => setIsPdfModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Baixar PDF</span>
-                </button>
-                <button
-                  onClick={handleReset}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition"
-                  title="Voltar ao início (a análise fica salva neste navegador)"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Voltar</span>
-                </button>
+            <div className="sticky top-0 z-30 -mx-4 mb-8 mt-4 border-b border-linha bg-papel/95 px-4 backdrop-blur-sm sm:-mx-8 sm:px-8">
+              <div className="flex items-center justify-between gap-4">
+                <Abas rotulo="Seções da análise" itens={abas} ativa={activeTab} onChange={setActiveTab} />
+                <div className="flex shrink-0 items-center gap-1">
+                  <Botao tamanho="sm" variante="discreto" onClick={() => setIsPdfModalOpen(true)}>
+                    <Download className="size-4" />
+                    <span className="hidden sm:inline">Exportar</span>
+                  </Botao>
+                  <Botao tamanho="sm" variante="discreto" onClick={handleReset} title="Começar outro exame (este fica gravado nos registros)">
+                    <Plus className="size-4" />
+                    <span className="hidden sm:inline">Novo exame</span>
+                  </Botao>
+                </div>
               </div>
             </div>
 
-            {activeTab === 'dashboard' && (
-              <DashboardOverview
-                data={analysisResult}
-                onChangePrazo={atualizarPrazo}
-                onNavigateToChecklist={() => setActiveTab('checklist')}
-                onNavigateToMinuta={() => setActiveTab('minuta')}
-                onDownloadPDF={() => setIsPdfModalOpen(true)}
-              />
-            )}
+            <div role="tabpanel">
+              {activeTab === 'dashboard' && (
+                <DashboardOverview
+                  data={analysisResult}
+                  onChangePrazo={atualizarPrazo}
+                  onNavigateToChecklist={() => setActiveTab('checklist')}
+                  onNavigateToMinuta={() => setActiveTab('minuta')}
+                />
+              )}
 
-            {activeTab === 'checklist' && (
-              <ChecklistView
-                sections={analysisResult.checklistSecoes}
-                onUpdateItemStatus={(sec, id, status) => mapItem(sec, id, { status })}
-                onUpdateItemNote={(sec, id, note) => mapItem(sec, id, { observacaoAssessor: note })}
-              />
-            )}
+              {activeTab === 'checklist' && (
+                <ChecklistView
+                  sections={analysisResult.checklistSecoes}
+                  onUpdateItemStatus={(sec, id, status) => mapItem(sec, id, { status })}
+                  onUpdateItemNote={(sec, id, note) => mapItem(sec, id, { observacaoAssessor: note })}
+                />
+              )}
 
-            {activeTab === 'minuta' && (
-              <DecisionDraftView
-                minuta={analysisResult.minutaDecisao1VP}
-                isMista={analysisResult.diagnosticoGeral.isDecisaoMista}
-                onChange={(m: MinutaDecisao1VP) => updateResult((r) => ({ ...r, minutaDecisao1VP: m }))}
-                onDownloadPDF={() => setIsPdfModalOpen(true)}
-                onDownloadWord={() => baixarMinutaWord(analysisResult.minutaDecisao1VP, analysisResult.processo.numero)}
-              />
-            )}
+              {activeTab === 'minuta' && (
+                <DecisionDraftView
+                  minuta={analysisResult.minutaDecisao1VP}
+                  isMista={analysisResult.diagnosticoGeral.isDecisaoMista}
+                  onChange={(m: MinutaDecisao1VP) => updateResult((r) => ({ ...r, minutaDecisao1VP: m }))}
+                  onDownloadPDF={() => setIsPdfModalOpen(true)}
+                  onDownloadWord={() => baixarMinutaWord(analysisResult.minutaDecisao1VP, analysisResult.processo.numero)}
+                />
+              )}
 
-            {activeTab === 'precedentes' && (
-              <PrecedentsView
-                citacoes={analysisResult.precedentes ?? []}
-                baseCustom={baseCustom}
-                onChange={(c) => updateResult((r) => ({ ...r, precedentes: c }))}
-                onReverificar={reverificar}
-                onBaseChange={handleBaseChange}
-              />
-            )}
+              {activeTab === 'precedentes' && (
+                <PrecedentsView
+                  citacoes={analysisResult.precedentes ?? []}
+                  baseCustom={baseCustom}
+                  onChange={(c) => updateResult((r) => ({ ...r, precedentes: c }))}
+                  onReverificar={reverificar}
+                  onBaseChange={handleBaseChange}
+                />
+              )}
+            </div>
           </div>
         )}
       </main>
-
-      <footer className="border-t border-slate-200 bg-white py-5 text-center text-xs text-slate-500">
-        <p>Tribunal de Justiça do Estado do Paraná • 1ª Vice-Presidência • Sistema de Admissibilidade Recursal</p>
-        <p className="text-[11px] text-slate-400 mt-0.5">
-          Conforme Lei 15.484/2026, Emenda Regimental STJ 55/2026 e Código de Processo Civil (art. 1.030)
-        </p>
-      </footer>
 
       {contaAberta && <ContaModal usuario={usuario} onClose={() => setContaAberta(false)} />}
       {histAberto && registro && <HistoricoModal casoId={registro.id} versaoAtual={registro.versao} onClose={() => setHistAberto(false)} onRestaurar={restaurarVersao} />}
