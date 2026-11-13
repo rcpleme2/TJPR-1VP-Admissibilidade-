@@ -1,15 +1,7 @@
 import React, { useState } from 'react';
-import {
-  FileText,
-  Copy,
-  Check,
-  Download,
-  Scale,
-  ShieldAlert,
-  Pencil,
-  FileDown,
-} from 'lucide-react';
+import { Check, Copy, Download, FileDown, Pencil } from 'lucide-react';
 import { MinutaDecisao1VP } from '../types/admissibility';
+import { Botao } from './ui';
 
 interface DecisionDraftViewProps {
   minuta: MinutaDecisao1VP;
@@ -33,19 +25,17 @@ const Texto: React.FC<{
       value={value}
       rows={rows}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full text-xs text-slate-900 bg-amber-50/40 border border-amber-300 rounded-lg p-2.5 outline-none focus:border-slate-600 leading-relaxed"
+      className="-mx-3 block w-[calc(100%+1.5rem)] resize-y rounded-md border border-linha-forte bg-toga-claro/40 px-3 py-2 font-serif text-[15px] leading-[1.7] text-tinta focus:border-toga focus:bg-folha focus:outline-none"
     />
   ) : (
     <p className={className}>{value}</p>
   );
 
-export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({
-  minuta,
-  isMista,
-  onChange,
-  onDownloadPDF,
-  onDownloadWord,
-}) => {
+const Titulo: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <h3 className="mb-3 text-center text-[13px] font-semibold uppercase tracking-[0.12em] text-tinta">{children}</h3>
+);
+
+export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({ minuta, isMista, onChange, onDownloadPDF, onDownloadWord }) => {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const set = (parcial: Partial<MinutaDecisao1VP>) => onChange({ ...minuta, ...parcial });
@@ -58,9 +48,7 @@ export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({
     full += `II. FUNDAMENTAÇÃO\n`;
     minuta.capitulosFundamentacao.forEach((cap) => {
       full += `\n${cap.tituloCapitulo}\n${cap.conteudo}\n`;
-      if (cap.recursoCabivel) {
-        full += `[Recurso cabível deste capítulo: ${cap.recursoCabivel}]\n`;
-      }
+      if (cap.recursoCabivel) full += `[Recurso cabível deste capítulo: ${cap.recursoCabivel}]\n`;
     });
     full += `\nIII. DISPOSITIVO\n${minuta.dispositivoFinal}\n\n`;
     full += `${minuta.advertenciaRecursual ?? ''}\n`;
@@ -73,155 +61,81 @@ export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({
     setTimeout(() => setCopied(false), 2500);
   };
 
+  const corpo = 'whitespace-pre-line text-justify font-serif text-[15px] leading-[1.75] text-tinta [hyphens:auto]';
+
   return (
     <div className="space-y-6">
-      {/* Top Action Bar */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
-        <div>
-          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <Scale className="w-4 h-4 text-slate-600" />
-            Minuta da Decisão de Admissibilidade (1ª Vice-Presidência TJPR)
-          </h3>
-          <p className="text-xs text-slate-500">
-            Estruturada em capítulos autônomos conforme as saídas do art. 1.030 do CPC
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setEditing((v) => !v)}
-            aria-pressed={editing}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition ${
-              editing ? 'bg-amber-100 border-amber-400 text-amber-900' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            <span>{editing ? 'Concluir edição' : 'Editar minuta'}</span>
-          </button>
-
-          <button
-            onClick={handleCopy}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-300 transition"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-700" />
-                <span className="text-emerald-800">Copiado!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" />
-                <span>Copiar Texto</span>
-              </>
-            )}
-          </button>
-
-          <button
-            onClick={onDownloadWord}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 transition"
-          >
-            <FileDown className="w-3.5 h-3.5" />
-            <span>Word (.doc)</span>
-          </button>
-
-          <button
-            onClick={onDownloadPDF}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Exportar PDF Completo</span>
-          </button>
+      <div className="mx-auto flex max-w-[50rem] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-[13px] text-tinta-3">{editing ? 'Editando. As alterações são gravadas e seguem para o PDF e o Word.' : 'Texto pronto para revisão.'}</p>
+        <div className="flex flex-wrap gap-1.5">
+          <Botao tamanho="sm" variante={editing ? 'primario' : 'secundario'} onClick={() => setEditing((v) => !v)} aria-pressed={editing}>
+            {editing ? <Check className="size-4" /> : <Pencil className="size-3.5" />}
+            {editing ? 'Concluir edição' : 'Editar'}
+          </Botao>
+          <Botao tamanho="sm" variante="discreto" onClick={handleCopy}>
+            {copied ? <Check className="size-4 text-ok" /> : <Copy className="size-3.5" />}
+            {copied ? 'Copiado' : 'Copiar'}
+          </Botao>
+          <Botao tamanho="sm" variante="discreto" onClick={onDownloadWord}>
+            <FileDown className="size-4" /> Word
+          </Botao>
+          <Botao tamanho="sm" variante="discreto" onClick={onDownloadPDF}>
+            <Download className="size-4" /> PDF
+          </Botao>
         </div>
       </div>
 
-      <div role="note" className="max-w-4xl mx-auto text-center text-xs font-semibold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
-        RASCUNHO GERADO COM AUXÍLIO DE IA — as alterações feitas aqui são salvas e seguem para o PDF/Word. Revise o texto e os precedentes antes de assinar.
-      </div>
+      <article className="mx-auto max-w-[50rem] rounded-sm bg-folha px-6 py-12 shadow-[0_1px_2px_rgba(24,32,44,0.06),0_12px_32px_-16px_rgba(24,32,44,0.18)] sm:px-16 sm:py-16">
+        <header className="text-center">
+          <p className="font-serif text-[13px] uppercase tracking-[0.14em] text-tinta-2">Tribunal de Justiça do Estado do Paraná</p>
+          <p className="mt-1 font-serif text-[17px] font-semibold text-tinta">1ª Vice-Presidência</p>
+        </header>
 
-      {/* Decision Paper Canvas */}
-      <div className="bg-white text-slate-900 rounded-2xl p-8 sm:p-12 shadow-sm border border-slate-200 font-serif leading-relaxed space-y-6 max-w-4xl mx-auto">
-        {/* Judicial Letterhead */}
-        <div className="text-center pb-6 border-b border-slate-300">
-          <p className="text-xs tracking-widest uppercase font-bold text-slate-600 font-sans">
-            Poder Judiciário do Estado do Paraná
-          </p>
-          <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 mt-0.5 font-sans">
-            1ª Vice-Presidência
-          </h2>
-          <p className="text-[11px] text-slate-500 mt-1 font-sans">
-            Juízo de Admissibilidade de Recursos aos Tribunais Superiores (REsp / RE)
-          </p>
+        <div className="mt-10 border-y border-linha py-4">
+          <Texto editing={editing} label="Cabeçalho" rows={4} value={minuta.cabecalho} onChange={(v) => set({ cabecalho: v })} className="whitespace-pre-line font-serif text-[14px] leading-relaxed text-tinta-2" />
         </div>
 
-        {/* Process Header */}
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs font-sans space-y-1">
-          <Texto editing={editing} label="Cabeçalho" rows={4} value={minuta.cabecalho} onChange={(v) => set({ cabecalho: v })} className="font-semibold text-slate-800 whitespace-pre-line" />
-        </div>
+        <section className="mt-10">
+          <Titulo>I. Relatório</Titulo>
+          <Texto editing={editing} label="Relatório" rows={10} value={minuta.relatorio} onChange={(v) => set({ relatorio: v })} className={corpo} />
+        </section>
 
-        {/* Relatório */}
-        <div className="space-y-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 font-sans border-b border-slate-200 pb-1">
-            I. RELATÓRIO
-          </h4>
-          <Texto editing={editing} label="Relatório" rows={10} value={minuta.relatorio} onChange={(v) => set({ relatorio: v })} className="text-xs text-slate-800 text-justify whitespace-pre-line leading-relaxed" />
-        </div>
-
-        {/* Capítulos da Fundamentação */}
-        <div className="space-y-5">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 font-sans border-b border-slate-200 pb-1">
-            II. FUNDAMENTAÇÃO EM CAPÍTULOS AUTÔNOMOS (CPC, ART. 1.030)
-          </h4>
-
-          {minuta.capitulosFundamentacao.map((cap, idx) => (
-            <div key={idx} className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h5 className="text-xs font-bold text-slate-900 font-sans uppercase">
-                  {cap.tituloCapitulo}
-                </h5>
-                <span className="text-[11px] font-sans font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                  {cap.incisoArt1030}
-                </span>
+        <section className="mt-10">
+          <Titulo>II. Fundamentação</Titulo>
+          <div className="space-y-8">
+            {minuta.capitulosFundamentacao.map((cap, idx) => (
+              <div key={idx}>
+                <h4 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <span className="font-serif text-[15px] font-semibold text-tinta">{cap.tituloCapitulo}</span>
+                  {cap.incisoArt1030 && <span className="text-[12px] text-tinta-3">{cap.incisoArt1030}</span>}
+                </h4>
+                <Texto editing={editing} label={`Conteúdo do capítulo ${idx + 1}`} rows={10} value={cap.conteudo} onChange={(v) => setCap(idx, { conteudo: v })} className={corpo} />
+                {cap.recursoCabivel && (
+                  <p className="mt-2 font-serif text-[14px] italic text-tinta-2">Recurso cabível deste capítulo: {cap.recursoCabivel}</p>
+                )}
               </div>
-              <Texto editing={editing} label={`Conteúdo do capítulo ${idx + 1}`} rows={10} value={cap.conteudo} onChange={(v) => setCap(idx, { conteudo: v })} className="text-xs text-slate-800 text-justify whitespace-pre-line leading-relaxed" />
-              {cap.recursoCabivel && (
-                <div className="text-[11px] font-sans text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                  <strong>Recurso cabível deste capítulo:</strong> {cap.recursoCabivel}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Dispositivo */}
-        <div className="space-y-2 pt-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 font-sans border-b border-slate-200 pb-1">
-            III. DISPOSITIVO
-          </h4>
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-            <Texto editing={editing} label="Dispositivo" rows={8} value={minuta.dispositivoFinal} onChange={(v) => set({ dispositivoFinal: v })} className="text-xs font-medium text-slate-900 text-justify whitespace-pre-line leading-relaxed" />
+            ))}
           </div>
-        </div>
+        </section>
 
-        {/* Advertência Recursal (Decisão Mista) */}
-        <div className="p-4 bg-rose-50/70 border border-rose-300 rounded-xl space-y-1 font-sans">
-          <div className="flex items-center gap-1.5 text-rose-900 font-bold text-xs">
-            <ShieldAlert className="w-4 h-4 text-rose-700" />
-            <span>ADVERTÊNCIA RECURSAL OBRIGATÓRIA (SISTEMA DE DECISÃO MISTA)</span>
-          </div>
-          <Texto editing={editing} label="Advertência recursal" rows={8} value={minuta.advertenciaRecursual ?? ''} onChange={(v) => set({ advertenciaRecursual: v })} className="text-xs text-rose-950 text-justify whitespace-pre-line leading-relaxed font-sans" />
-        </div>
+        <section className="mt-10">
+          <Titulo>III. Dispositivo</Titulo>
+          <Texto editing={editing} label="Dispositivo" rows={8} value={minuta.dispositivoFinal} onChange={(v) => set({ dispositivoFinal: v })} className={`${corpo} font-medium`} />
+        </section>
 
-        {/* Signature Placeholder */}
-        <div className="pt-8 text-center font-sans space-y-1">
-          <div className="w-64 h-px bg-slate-300 mx-auto"></div>
-          <p className="text-xs font-bold text-slate-800">
-            Desembargador 1º Vice-Presidente do Tribunal de Justiça do Estado do Paraná
-          </p>
-          <p className="text-[11px] text-slate-500">
-            Competência delegada pela Presidência (RITJPR, art. 15, § 3º)
-          </p>
-        </div>
-      </div>
+        {(minuta.advertenciaRecursual || editing) && (
+          <section className={`mt-10 border-l-2 pl-5 ${isMista ? 'border-obice' : 'border-linha-forte'}`}>
+            <p className={`mb-2 text-[13px] font-medium ${isMista ? 'text-obice' : 'text-tinta-2'}`}>Advertência recursal{isMista ? ' (decisão mista)' : ''}</p>
+            <Texto editing={editing} label="Advertência recursal" rows={8} value={minuta.advertenciaRecursual ?? ''} onChange={(v) => set({ advertenciaRecursual: v })} className={corpo} />
+          </section>
+        )}
+
+        <footer className="mt-20 text-center">
+          <div className="mx-auto h-px w-64 bg-tinta-3/50" />
+          <p className="mt-2 font-serif text-[14px] text-tinta">Desembargador 1º Vice-Presidente</p>
+          <p className="mt-0.5 text-[12px] text-tinta-3">Competência delegada pela Presidência (RITJPR, art. 15, § 3º)</p>
+        </footer>
+      </article>
     </div>
   );
 };

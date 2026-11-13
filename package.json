@@ -21,6 +21,8 @@
     "zod": "^4.1.0"
   },
   "devDependencies": {
+    "@fontsource-variable/source-serif-4": "^5.3.1",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
