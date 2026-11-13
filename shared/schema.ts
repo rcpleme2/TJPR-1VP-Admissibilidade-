@@ -48,6 +48,7 @@ export const ChecklistItemSchema = z.object({
   titulo: z.string(),
   status: ChecklistStatusSchema,
   novidade2026: z.boolean().optional(),
+  recurso: z.enum(['REsp', 'RE', 'ambos']).optional().describe('A qual recurso o item se aplica'),
   analiseTecnica: z.string(),
   fundamentoLegal: z.string().optional(),
   trechoRelevante: z.string().optional().describe('Transcrição literal, com indicação de página/evento'),
@@ -120,6 +121,14 @@ export const ModelOutputSchema = z.object({
     .optional()
     .describe('Temas repetitivos, de repercussão geral ou de relevância que versem sobre a mesma questão de direito do recurso. Lista vazia se nenhum.'),
   preparoRecursos: z.array(PreparoIASchema).optional().describe('Preparo de cada recurso interposto (um item por recurso)'),
+  notaTecnica: z
+    .object({
+      recursoEspecial: z.string().optional().describe('Exame do recurso especial em 2 a 4 frases: requisitos específicos e óbices, com os fundamentos (art. 1.030). Vazio se não houver REsp.'),
+      recursoExtraordinario: z.string().optional().describe('Exame do recurso extraordinário em 2 a 4 frases. Vazio se não houver RE.'),
+      proposta: z.string().describe('Proposta de decisão em uma frase, com os incisos do art. 1.030'),
+    })
+    .optional()
+    .describe('Texto curto e objetivo para a nota técnica da assessoria'),
 });
 
 // --- Campos calculados pelo sistema (nunca pelo modelo) -------------------

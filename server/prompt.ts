@@ -71,6 +71,7 @@ REGRAS ADICIONAIS DE CONFIABILIDADE (OBRIGATÓRIAS):
 - DATAS: extraia as datas literalmente dos autos, no formato dd/mm/aaaa (publicação do acórdão, publicação do acórdão dos embargos). NÃO calcule prazos nem decida a tempestividade por conta própria; o sistema recalcula os prazos em código. Se a data não constar dos autos, deixe o campo vazio e explique no item do checklist.
 - PRECEDENTES: cite somente súmulas, súmulas vinculantes e temas cujo número e teor você conhece com segurança. Sempre indique o tribunal (ex.: "Súmula 7/STJ"). Se não tiver certeza do número, do tema ou do acórdão, escreva "[conferir precedente]" em vez de inventar. NUNCA invente números de processos ou de acórdãos.
 - TRECHOS: em "trechoRelevante" transcreva literalmente o trecho dos autos, indicando página ou evento; se não houver trecho, deixe vazio.
+- NOTA TÉCNICA: preencha "notaTecnica" com texto curto, objetivo e em linguagem de parecer (2 a 4 frases por recurso; proposta em uma frase). Em cada item do checklist, informe em "recurso" se ele se aplica ao REsp, ao RE ou a ambos.
 - RECURSOS CABÍVEIS: não indique, na análise nem na minuta, quais recursos cabem contra a decisão, nem faça advertências sobre o sistema recursal ou sobre decisão mista; isso cabe às partes, não ao tribunal.
 - A minuta é apenas um RASCUNHO para revisão do assessor e do Desembargador; não afirme certeza onde os autos forem ilegíveis ou incompletos.
 `.trim();

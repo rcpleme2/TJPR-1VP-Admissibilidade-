@@ -1,23 +1,12 @@
 import { jsPDF } from 'jspdf';
 import autoTable, { type CellHookData, type RowInput, type UserOptions } from 'jspdf-autotable';
-import { AdmissibilityAnalysisResult, ChecklistStatus } from '../types/admissibility';
-import { MARCO_RELEVANCIA_BR } from '../../shared/regras';
-import {
-  avisosSobrestamento,
-  obterSobrestamento,
-  ROTULO_CONCLUSAO,
-  ROTULO_ENQUADRAMENTO,
-  ROTULO_ESPECIE,
-  ROTULO_SITUACAO_TEMA,
-  ROTULO_SUSPENSAO,
-  rotuloTema,
-} from '../../shared/sobrestamento';
+import type { AdmissibilityAnalysisResult } from '../types/admissibility';
 import { cabecalhoSemTimbre } from '../../shared/minuta';
-import { avisosPreparo, obterPreparo, ROTULO_PREPARO } from '../../shared/preparo';
+import { montarNotaTecnica, type Tom as NotaTom } from '../../shared/notaTecnica';
 
 export interface PDFExportOptions {
   includeMinuta?: boolean;
-  includeAssessorNotes?: boolean;
+  includeQuadro?: boolean;
   assessorName?: string;
 }
 
@@ -33,34 +22,13 @@ const OK: RGB = [43, 100, 73];
 const ATENCAO: RGB = [133, 89, 11];
 const OBICE: RGB = [140, 42, 42];
 
-const STATUS_ITEM: Record<ChecklistStatus, { t: string; c: RGB }> = {
-  conforme: { t: 'Conforme', c: OK },
-  nao_conforme: { t: 'Óbice', c: OBICE },
-  atencao: { t: 'Verificar', c: ATENCAO },
-  nao_aplicavel: { t: 'Não se aplica', c: TINTA_3 },
-};
 
-const STATUS_PRAZO: Record<string, { t: string; c: RGB }> = {
-  tempestivo: { t: 'Tempestivo', c: OK },
-  intempestivo: { t: 'Intempestivo', c: OBICE },
-  tempestivo_se_prazo_dobro: { t: 'Só com prazo em dobro', c: ATENCAO },
-  indeterminado: { t: 'Indeterminado', c: TINTA_3 },
-};
 
-const STATUS_PRECEDENTE: Record<string, string> = {
-  confirmada: 'Confirmada na base',
-  nao_encontrada_na_base: 'Fora da base',
-  requer_conferencia: 'Conferir no portal',
-  tribunal_indefinido: 'Tribunal indefinido',
-  cancelada_ou_superada: 'Cancelada ou superada',
-  inexistente: 'Provavelmente inexistente',
-};
 
-const CONFERENCIA: Record<string, string> = { pendente: 'Pendente', conferido: 'Conferido', divergente: 'Divergente', descartado: 'Descartado' };
 
 const M = { esq: 22, dir: 22, topo: 24, base: 22 };
 
-export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, options: PDFExportOptions = { includeMinuta: true, includeAssessorNotes: true }) {
+export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, options: PDFExportOptions = { includeMinuta: true, includeQuadro: true }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
@@ -107,25 +75,7 @@ export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, opti
     }
   };
 
-  const titulo = (t: string, minimo = 28) => {
-    garantir(minimo);
-    y += 6;
-    fonte('times', 'bold', 13.5);
-    doc.text(t, M.esq, y);
-    y += 2.6;
-    filete(y, LINHA_FORTE);
-    y += 6;
-  };
 
-  const rotuloValor = (rotulo: string, valor: string, cor: RGB = TINTA, corRotulo: RGB = TINTA_3) => {
-    garantir(10);
-    fonte('helvetica', 'normal', 7.5, corRotulo);
-    doc.text(rotulo, M.esq, y);
-    y += 4;
-    fonte('helvetica', 'normal', 9.5, cor);
-    texto(valor, { entrelinha: 4.4 });
-    y += 1.2;
-  };
 
   /** Tabela sóbria: sem fundo, cabeçalho em cinza e filetes horizontais. */
   const tabela = (head: string[], body: RowInput[], extra: Partial<UserOptions> = {}) => {
@@ -147,229 +97,132 @@ export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, opti
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4;
   };
 
-  const nota = (t: string, cor: RGB = TINTA_2) => {
-    fonte('helvetica', 'normal', 8.5, cor);
-    texto(t, { entrelinha: 4 });
-  };
 
-  const { processo, diagnosticoGeral: dg, minutaDecisao1VP: minuta } = data;
+  const { processo, minutaDecisao1VP: minuta } = data;
 
-  // --- Identificação -------------------------------------------------------------------------------
+  const nt = montarNotaTecnica(data);
+  const cor: Record<NotaTom, RGB> = { ok: OK, atencao: ATENCAO, obice: OBICE, neutro: TINTA_3 };
+  const hoje = new Date();
+  const dataExtenso = hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  // --- Cabeçalho -----------------------------------------------------------------------------------
   fonte('helvetica', 'normal', 8, TINTA_2);
   doc.text('Tribunal de Justiça do Estado do Paraná', M.esq, y);
-  doc.text('Relatório de admissibilidade', W - M.dir, y, { align: 'right' });
+  doc.text('Nota técnica de admissibilidade', W - M.dir, y, { align: 'right' });
   fonte('helvetica', 'normal', 8, TINTA_3);
   doc.text('1ª Vice-Presidência', M.esq, y + 4);
-  doc.text(new Date().toLocaleDateString('pt-BR'), W - M.dir, y + 4, { align: 'right' });
+  doc.text(hoje.toLocaleDateString('pt-BR'), W - M.dir, y + 4, { align: 'right' });
   y += 8;
   filete(y);
   y += 11;
 
-  if (processo.classe) {
-    fonte('helvetica', 'normal', 8.5, TINTA_3);
-    doc.text(processo.classe, M.esq, y);
-    y += 6.5;
-  }
-  fonte('times', 'bold', 19);
-  for (const l of doc.splitTextToSize(processo.materia || 'Matéria não identificada', larg) as string[]) {
-    doc.text(l, M.esq, y);
-    y += 7.6;
-  }
-  fonte('helvetica', 'normal', 10, TINTA_2);
-  doc.text(processo.numero || 'Número do processo não informado', M.esq, y);
-  y += 9;
-
-  const meta: Array<[string, string]> = [
-    ['Órgão julgador', processo.origemOrgao || 'Não identificado'],
-    ['Publicação do acórdão', processo.dataPublicacaoAcordao || 'Não identificada'],
-    ['Embargos de declaração', processo.houveEmbargosDeclaracao ? `Opostos${processo.dataPublicacaoEmbargos ? `, publicados em ${processo.dataPublicacaoEmbargos}` : ''}` : 'Não opostos'],
-    ['Valor da causa', processo.valorCausa || 'Não informado'],
-    ['Recorrente', (processo.recorrentes || []).join('; ') || 'Não identificado'],
+  // --- Identificação -------------------------------------------------------------------------------
+  const recursos = [nt.temREsp && 'especial', nt.temRE && 'extraordinário'].filter(Boolean).join(' e ');
+  const ident: Array<[string, string]> = [
+    ['Processo', processo.numero || 'Não informado'],
+    ['Matéria', processo.materia || 'Não identificada'],
+    ['Recorrente', (processo.recorrentes || []).join('; ') || data.recursosAnalisados.map((r) => r.recorrente).filter(Boolean).join('; ') || 'Não identificado'],
     ['Recorrido', (processo.recorridos || []).join('; ') || 'Não identificado'],
+    ['Órgão julgador', processo.origemOrgao || 'Não identificado'],
+    [nt.temREsp && nt.temRE ? 'Recursos' : 'Recurso', recursos || 'Não identificado'],
   ];
-  filete(y);
-  y += 5.5;
-  const colW = (larg - 8) / 2;
-  for (let i = 0; i < meta.length; i += 2) {
-    let alt = 0;
-    [meta[i], meta[i + 1]].forEach((par, k) => {
-      if (!par) return;
-      const x = M.esq + k * (colW + 8);
-      fonte('helvetica', 'normal', 7.5, TINTA_3);
-      doc.text(par[0], x, y);
-      fonte('helvetica', 'normal', 9);
-      const ls = (doc.splitTextToSize(par[1], colW) as string[]).slice(0, 2);
-      doc.text(ls, x, y + 4.2);
-      alt = Math.max(alt, 4.2 + ls.length * 4);
+  const colRot = 33;
+  for (const [r, v] of ident) {
+    fonte('times', 'bold', 11);
+    doc.text(r, M.esq, y);
+    fonte('times', 'normal', 11);
+    const ls = doc.splitTextToSize(v, larg - colRot) as string[];
+    doc.text(ls, M.esq + colRot, y);
+    y += ls.length * 5 + 1;
+  }
+  y += 3;
+
+  // --- Exame, na ordem: preliminar, extrínsecos, recursos, proposta ---------------------------------
+  nt.secoes.forEach((sec, k) => {
+    garantir(22);
+    y += 5;
+    fonte('times', 'bold', 12);
+    doc.text(`${k + 1}. ${sec.titulo}`, M.esq, y);
+    y += 6;
+    fonte('times', 'normal', 11.5);
+    texto(sec.texto, { entrelinha: 5.5, justificar: true });
+  });
+
+  if (nt.pendencias.length) {
+    garantir(16);
+    y += 4;
+    fonte('times', 'bold', 12);
+    doc.text('Pendências', M.esq, y);
+    y += 6;
+    fonte('helvetica', 'normal', 9.5, TINTA);
+    for (const pz of nt.pendencias) {
+      const ls = doc.splitTextToSize(pz, larg - 4.5) as string[];
+      garantir(ls.length * 4.6);
+      doc.setFillColor(...ATENCAO);
+      doc.rect(M.esq, y - 2.3, 1.3, 1.3, 'F');
+      fonte('helvetica', 'normal', 9.5, TINTA);
+      doc.text(ls, M.esq + 4.5, y);
+      y += ls.length * 4.6 + 1;
+    }
+  }
+
+  garantir(24);
+  y += 9;
+  fonte('times', 'normal', 11.5);
+  doc.text(`Curitiba, ${dataExtenso}.`, M.esq, y);
+  y += 12;
+  if (options.assessorName?.trim()) {
+    doc.text(options.assessorName.trim(), M.esq, y);
+    y += 5;
+  }
+  fonte('helvetica', 'normal', 8.5, TINTA_3);
+  doc.text('Assessoria da 1ª Vice-Presidência', M.esq, y);
+
+  // --- Anexo I: quadro de requisitos ---------------------------------------------------------------
+  if (options.includeQuadro !== false && nt.quadro.length) {
+    novaPagina();
+    fonte('times', 'bold', 13.5);
+    doc.text('Anexo I. Quadro de requisitos', M.esq, y);
+    y += 6;
+    const head = ['Requisito', ...(nt.temREsp ? ['Recurso especial'] : []), ...(nt.temRE ? ['Recurso extraordinário'] : [])];
+    const ncol = head.length;
+    const celula = (c: { texto: string; tom: NotaTom } | null) => ({ content: c?.texto ?? '—', styles: { textColor: c ? cor[c.tom] : TINTA_3 } });
+    // Agrupa as linhas: cada grupo (título + requisitos) é desenhado junto, sem título órfão no pé da página.
+    const grupos: Array<{ titulo: string; linhas: typeof nt.quadro }> = [];
+    for (const l of nt.quadro) {
+      if (l.grupo || grupos.length === 0) grupos.push({ titulo: l.grupo, linhas: [] });
+      grupos.at(-1)!.linhas.push(l);
+    }
+    const colStatus = 30;
+    grupos.forEach((g, k) => {
+      const altura = 9 + g.linhas.length * 6.2;
+      const quebra = y + altura > limite && altura < limite - M.topo;
+      if (quebra) novaPagina();
+      const body: RowInput[] = [
+        ...(g.titulo ? [[{ content: g.titulo, colSpan: ncol, styles: { font: 'times' as const, fontStyle: 'bold' as const, fontSize: 10, cellPadding: { top: 3, bottom: 1.6, left: 0, right: 0 } } }]] : []),
+        ...g.linhas.map((l) => [
+          { content: l.ressalva ? `${l.requisito}\nRessalva: ${l.ressalva}` : l.requisito },
+          ...(nt.temREsp ? [celula(l.resp)] : []),
+          ...(nt.temRE ? [celula(l.re)] : []),
+        ]),
+      ];
+      tabela(head, body, {
+        showHead: k === 0 || quebra ? 'firstPage' : 'never',
+        styles: { font: 'helvetica', fontSize: 8.5, textColor: TINTA, cellPadding: { top: 1.9, bottom: 2.1, left: 0, right: 3 }, valign: 'top', overflow: 'linebreak' },
+        columnStyles: { 1: { cellWidth: colStatus }, 2: { cellWidth: colStatus } },
+        rowPageBreak: 'avoid',
+      });
+      y -= 3;
     });
-    y += alt + 3;
   }
-  filete(y - 1);
-  y += 2;
-
-  // --- Sobrestamento -------------------------------------------------------------------------------
-  const sob = obterSobrestamento(data);
-  titulo('Preliminar: sobrestamento');
-  rotuloValor('Conclusão', ROTULO_CONCLUSAO[sob.conclusao], sob.conclusao === 'nao_verificado' || sob.conclusao === 'sobrestar' ? ATENCAO : TINTA);
-  if (sob.verificadoPor && sob.verificadoEm && sob.conclusao !== 'nao_verificado') {
-    nota(`Registrado por ${sob.verificadoPor} em ${new Date(sob.verificadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}.`, TINTA_3);
-  }
-  if (sob.fundamentacao?.trim()) {
-    y += 1;
-    fonte('times', 'normal', 10.5);
-    texto(sob.fundamentacao, { entrelinha: 5, justificar: true });
-  }
-  if (sob.temas.length) {
-    y += 1;
-    tabela(
-      ['Tema', 'Questão', 'Enquadramento', 'Suspensão'],
-      sob.temas.map((t) => [
-        `${rotuloTema(t)}\n${ROTULO_ESPECIE[t.especie]}${t.origem === 'ia' ? ', indicado pela IA' : ''}`,
-        [t.questao, t.decisaoAfetacao && `Afetação: ${t.decisaoAfetacao}`, t.abrangencia && `Abrangência: ${t.abrangencia}`, t.observacao].filter(Boolean).join('\n') || '—',
-        { content: ROTULO_ENQUADRAMENTO[t.enquadramento], styles: { textColor: t.enquadramento === 'se_insere' ? ATENCAO : TINTA_2 } },
-        { content: `${ROTULO_SUSPENSAO[t.suspensao]}\n${ROTULO_SITUACAO_TEMA[t.situacao]}`, styles: { textColor: t.suspensao === 'determinada' ? ATENCAO : TINTA_2 } },
-      ]),
-      { columnStyles: { 0: { cellWidth: 34 }, 2: { cellWidth: 30 }, 3: { cellWidth: 32 } } },
-    );
-  } else {
-    nota('Nenhum tema registrado.', TINTA_3);
-  }
-  avisosSobrestamento(data).forEach((a) => nota(a, ATENCAO));
-
-  // --- Diagnóstico ---------------------------------------------------------------------------------
-  titulo('Admissibilidade');
-  fonte('times', 'bold', 12.5);
-  texto(dg.probabilidadeAdmissao, { entrelinha: 5.4 });
-  y += 1.5;
-
-  const exigeTopico = data.verificacoes?.relevancia.exigeTopicoCalculado ?? processo.exigeTopicoRelevancia;
-  rotuloValor('Enquadramento no art. 1.030 do CPC', dg.incisoArt1030Principal);
-  rotuloValor('Tópico de relevância', exigeTopico ? 'Exigido (Lei 15.484/2026)' : `Não exigido, acórdão anterior a ${MARCO_RELEVANCIA_BR}`);
-
-  const obices = dg.principaisObicesIdentificados ?? [];
-  if (obices.length) {
-    garantir(10);
-    fonte('helvetica', 'normal', 7.5, TINTA_3);
-    doc.text('Óbices identificados', M.esq, y);
-    y += 4.2;
-    fonte('helvetica', 'normal', 9.5);
-    for (const o of obices) {
-      const ls = doc.splitTextToSize(o, larg - 4) as string[];
-      garantir(ls.length * 4.4);
-      doc.setFillColor(...OBICE);
-      doc.rect(M.esq, y - 2.2, 1.2, 1.2, 'F');
-      doc.text(ls, M.esq + 4, y);
-      y += ls.length * 4.4 + 0.8;
-    }
-    y += 1;
-  }
-
-  garantir(14);
-  y += 2;
-  fonte('helvetica', 'normal', 7.5, TINTA_3);
-  doc.text('Parecer', M.esq, y);
-  y += 5;
-  fonte('times', 'normal', 11);
-  texto(dg.resumoParecer, { entrelinha: 5.2, justificar: true });
-
-  // --- Recursos ------------------------------------------------------------------------------------
-  if (data.recursosAnalisados.length) {
-    titulo('Recursos em exame');
-    tabela(
-      ['Recurso', 'Recorrente', 'Alíneas', 'Dispositivos invocados'],
-      data.recursosAnalisados.map((r) => [r.tipo, r.recorrente, (r.alineasConstitucionais || []).join(', ') || '—', (r.dispositivosInvocados || []).join('; ') || '—']),
-      { columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 36 }, 2: { cellWidth: 28 } } },
-    );
-  }
-
-  // --- Tempestividade ------------------------------------------------------------------------------
-  if (data.verificacoes?.prazos.length) {
-    titulo('Tempestividade');
-    nota('Calculada pelo sistema, não pela IA: 15 dias úteis (CPC, arts. 219 e 1.003, § 5º), com feriados e recesso forense.', TINTA_3);
-    y += 1;
-    tabela(
-      ['Recurso', 'Contagem desde', 'Prazo final', 'Interposição', 'Resultado'],
-      data.verificacoes.prazos.map((p) => [
-        p.recursoTipo,
-        p.dataBase ?? '—',
-        `${p.dataLimite ?? '—'}${p.dataLimiteDobro ? `\nem dobro: ${p.dataLimiteDobro}` : ''}`,
-        p.dataInterposicao ?? '—',
-        { content: `${STATUS_PRAZO[p.status]?.t ?? p.status}${p.observacao ? `\n${p.observacao}` : ''}`, styles: { textColor: STATUS_PRAZO[p.status]?.c ?? TINTA } },
-      ]),
-      { columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 26 }, 2: { cellWidth: 28 }, 3: { cellWidth: 24 } } },
-    );
-    nota(`Relevância. ${data.verificacoes.relevancia.observacao}`);
-    data.verificacoes.avisos.forEach((a) => nota(a, ATENCAO));
-  }
-
-  // --- Preparo -------------------------------------------------------------------------------------
-  const preparo = obterPreparo(data);
-  if (preparo.length) {
-    titulo('Preparo');
-    const corPrep = (st: string): RGB => (st === 'nao_comprovado' ? OBICE : st === 'insuficiente' ? ATENCAO : st === 'a_verificar' ? TINTA_3 : OK);
-    tabela(
-      ['Recurso', 'Situação', 'Comprovação', 'Conferido'],
-      preparo.map((p) => [
-        p.recurso,
-        { content: `${ROTULO_PREPARO[p.situacao]}${p.valorRecolhido ? `\n${p.valorRecolhido}` : ''}`, styles: { textColor: corPrep(p.situacao) } },
-        [p.fundamento, p.observacao].filter(Boolean).join('\n') || '—',
-        p.conferido ? 'Sim' : 'Não',
-      ]),
-      { columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 30 }, 3: { cellWidth: 18 } } },
-    );
-    avisosPreparo(preparo).forEach((a) => nota(a, ATENCAO));
-  }
-
-  // --- Checklist -----------------------------------------------------------------------------------
-  titulo('Checklist', 70);
-  const corpo: RowInput[] = [];
-  for (const sec of data.checklistSecoes) {
-    const tituloSec = sec.secaoTitulo.replace(new RegExp(`^${sec.secaoCodigo}[.)\\s–-]+`), '');
-    corpo.push([{ content: `${sec.secaoCodigo}   ${tituloSec}`, colSpan: 4, styles: { font: 'times', fontStyle: 'bold', fontSize: 10.5, cellPadding: { top: 5, bottom: 2, left: 0, right: 0 } } }]);
-    for (const it of sec.itens) {
-      const st = STATUS_ITEM[it.status];
-      const detalhe = [
-        it.analiseTecnica,
-        it.fundamentoLegal && `Fundamento: ${it.fundamentoLegal}`,
-        it.trechoRelevante && `Trecho: “${it.trechoRelevante}”`,
-        options.includeAssessorNotes && it.observacaoAssessor && `Ressalva do assessor: ${it.observacaoAssessor}`,
-      ]
-        .filter(Boolean)
-        .join('\n');
-      corpo.push([
-        { content: it.id, styles: { textColor: TINTA_3 } },
-        `${it.titulo}${it.novidade2026 ? '\nLei 15.484/2026' : ''}`,
-        { content: st.t, styles: { textColor: st.c } },
-        { content: detalhe, styles: { textColor: TINTA_2 } },
-      ]);
-    }
-  }
-  tabela(['Item', 'Requisito', 'Situação', 'Análise'], corpo, { columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 44 }, 2: { cellWidth: 21 } } });
-
-  // --- Precedentes ---------------------------------------------------------------------------------
-  if (data.precedentes?.length) {
-    titulo('Precedentes citados');
-    tabela(
-      ['Precedente', 'Verificação automática', 'Conferência do assessor'],
-      data.precedentes.map((c) => [
-        c.rotulo,
-        `${STATUS_PRECEDENTE[c.verificacao.status] ?? c.verificacao.status}${c.verificacao.coerencia === 'verificar' ? '; pertinência a verificar' : ''}`,
-        { content: `${CONFERENCIA[c.conferencia.situacao]}${c.conferencia.observacao ? `. ${c.conferencia.observacao}` : ''}`, styles: { textColor: c.conferencia.situacao === 'divergente' ? OBICE : c.conferencia.situacao === 'conferido' ? OK : TINTA_2 } },
-      ]),
-      { columnStyles: { 0: { cellWidth: 46 }, 1: { cellWidth: 58 } } },
-    );
-  }
-
-  // --- Responsável ---------------------------------------------------------------------------------
-  garantir(18);
-  y += 8;
-  fonte('helvetica', 'normal', 8.5, TINTA_2);
-  doc.text(`${options.assessorName?.trim() ? `Análise de ${options.assessorName.trim()}, ` : ''}em ${new Date().toLocaleDateString('pt-BR')}.`, M.esq, y);
 
   // --- Minuta --------------------------------------------------------------------------------------
   if (options.includeMinuta && minuta) {
     novaPagina();
     const meio = W / 2;
+    fonte('helvetica', 'normal', 8, TINTA_3);
+    doc.text('Anexo II. Minuta da decisão', M.esq, y);
+    y += 9;
     fonte('helvetica', 'normal', 8, TINTA_2);
     doc.text('TRIBUNAL DE JUSTIÇA DO ESTADO DO PARANÁ', meio, y, { align: 'center', charSpace: 0.35 });
     y += 5.5;
@@ -426,7 +279,7 @@ export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, opti
     doc.setPage(i);
     if (i > 1) {
       fonte('helvetica', 'normal', 7.5, TINTA_3);
-      doc.text('Relatório de admissibilidade', M.esq, 13);
+      doc.text('Nota técnica de admissibilidade', M.esq, 13);
       doc.text(processo.numero || '', W - M.dir, 13, { align: 'right' });
       filete(15);
     }
@@ -441,5 +294,5 @@ export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, opti
 export function downloadAdmissibilityPDF(data: AdmissibilityAnalysisResult, fileName?: string, options?: PDFExportOptions) {
   const doc = generateAdmissibilityPDF(data, options);
   const num = (data.processo.numero || 'sem-numero').replace(/[^a-zA-Z0-9_-]/g, '_');
-  doc.save(fileName || `Admissibilidade_${num}.pdf`);
+  doc.save(fileName || `Nota_tecnica_${num}.pdf`);
 }

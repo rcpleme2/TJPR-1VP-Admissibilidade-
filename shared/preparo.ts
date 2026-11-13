@@ -14,8 +14,8 @@ export const ROTULO_PREPARO: Record<SituacaoPreparo, string> = {
   a_verificar: 'A verificar',
 };
 
-type Especie = 'REsp' | 'RE' | null;
-const especie = (t: string): Especie => (/especial|resp/i.test(t) ? 'REsp' : /extraordin|\bre\b/i.test(t) ? 'RE' : null);
+export type Especie = 'REsp' | 'RE' | null;
+export const especie = (t: string): Especie => (/especial|resp/i.test(t) ? 'REsp' : /extraordin|\bre\b/i.test(t) ? 'RE' : null);
 
 /** Um item por recurso em exame, com o que a IA apontou; o que ela não apontou fica "a verificar". */
 export function preparoInicial(out: Pick<ModelOutput, 'recursosAnalisados' | 'preparoRecursos'>): PreparoItem[] {

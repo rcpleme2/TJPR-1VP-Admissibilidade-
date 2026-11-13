@@ -13,7 +13,7 @@ interface PDFExportModalProps {
 
 export const PDFExportModal: React.FC<PDFExportModalProps> = ({ isOpen, onClose, data, responsavel }) => {
   const [includeMinuta, setIncludeMinuta] = useState(true);
-  const [includeAssessorNotes, setIncludeAssessorNotes] = useState(true);
+  const [includeQuadro, setIncludeQuadro] = useState(true);
   const [assessorName, setAssessorName] = useState(responsavel || '');
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -23,7 +23,7 @@ export const PDFExportModal: React.FC<PDFExportModalProps> = ({ isOpen, onClose,
     setIsGenerating(true);
     setTimeout(() => {
       try {
-        downloadAdmissibilityPDF(data, undefined, { includeMinuta, includeAssessorNotes, assessorName });
+        downloadAdmissibilityPDF(data, undefined, { includeMinuta, includeQuadro, assessorName });
       } finally {
         setIsGenerating(false);
         onClose();
@@ -33,7 +33,7 @@ export const PDFExportModal: React.FC<PDFExportModalProps> = ({ isOpen, onClose,
 
   return (
     <Modal
-      titulo="Exportar relatório"
+      titulo="Exportar nota técnica"
       subtitulo={<span className="num">{data.processo.numero || 'Processo sem número'}</span>}
       onClose={onClose}
       rodape={
@@ -49,19 +49,19 @@ export const PDFExportModal: React.FC<PDFExportModalProps> = ({ isOpen, onClose,
       }
     >
       <div className="space-y-5 text-sm">
-        <p className="text-tinta-2">Checklist completo de A a J, com análise e fundamentos de cada item.</p>
+        <p className="text-tinta-2">Nota técnica com a preliminar de sobrestamento, os pressupostos, o exame de cada recurso e a proposta.</p>
         <div>
-          <Rotulo htmlFor="assessor">Responsável pela análise</Rotulo>
+          <Rotulo htmlFor="assessor">Assina a nota</Rotulo>
           <input id="assessor" type="text" value={assessorName} onChange={(e) => setAssessorName(e.target.value)} className={campo} />
         </div>
         <div className="space-y-2.5">
           <label className="flex cursor-pointer items-center gap-2.5 text-tinta">
             <input type="checkbox" checked={includeMinuta} onChange={(e) => setIncludeMinuta(e.target.checked)} />
-            Incluir a minuta da decisão
+            Anexar a minuta da decisão
           </label>
           <label className="flex cursor-pointer items-center gap-2.5 text-tinta">
-            <input type="checkbox" checked={includeAssessorNotes} onChange={(e) => setIncludeAssessorNotes(e.target.checked)} />
-            Incluir as ressalvas do assessor
+            <input type="checkbox" checked={includeQuadro} onChange={(e) => setIncludeQuadro(e.target.checked)} />
+            Anexar o quadro de requisitos por recurso
           </label>
         </div>
       </div>
