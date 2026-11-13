@@ -21,6 +21,8 @@ import { criarAuth, semearAdmin } from './auth';
 import { criarRotasCasos } from './casos';
 import { criarStore, type Store } from './store';
 import { ProviderError } from './providers/types';
+import { listarModelos } from './providers/modelos';
+import { INSTRUCOES_PADRAO } from './prompt';
 import { redigirSegredos } from './sanitize';
 
 dotenv.config();
@@ -50,6 +52,8 @@ export function createApp(store: Store) {
               imgSrc: ["'self'", 'data:'],
               connectSrc: ["'self'"],
               objectSrc: ["'none'"],
+              // pré-visualização dos PDFs anexados (blob: gerado no próprio navegador)
+              frameSrc: ["'self'", 'blob:'],
               frameAncestors: ["'none'"],
             },
           }
@@ -84,6 +88,24 @@ export function createApp(store: Store) {
   app.get('/api/sample-case', autenticar, (_req, res) => {
     const fixture = JSON.parse(readFileSync(path.resolve(__dirname, IS_PROD ? '../server/fixtures/sample-case.json' : 'fixtures/sample-case.json'), 'utf8')) as ModelOutput;
     res.json({ success: true, data: enriquecer(fixture, { provedor: 'exemplo', modelo: 'caso-simulado', geradoEm: new Date().toISOString() }) });
+  });
+
+  const limiteModelos = rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Muitas consultas seguidas. Aguarde um minuto.' } });
+
+  app.get('/api/instrucoes-padrao', autenticar, (_req, res) => res.json({ instrucoes: INSTRUCOES_PADRAO }));
+
+  app.post('/api/modelos', autenticar, limiteModelos, async (req: Request, res: Response) => {
+    const provider = req.body?.provider;
+    if (!PROVEDORES.includes(provider)) return res.status(400).json({ error: 'Motor de IA inválido.' });
+    const apiKey = req.header('x-llm-api-key')?.trim() || chaveDoServidor(provider);
+    if (!apiKey) return res.status(400).json({ error: 'Informe a chave de API para consultar os modelos.' });
+    if (apiKey.length < 8 || apiKey.length > 400 || /\s/.test(apiKey)) return res.status(400).json({ error: 'Chave de API em formato inválido.' });
+    try {
+      res.json({ modelos: await listarModelos(provider, apiKey) });
+    } catch (err) {
+      const status = err instanceof ProviderError ? (err.status === 401 || err.status === 403 ? 400 : 502) : 500;
+      res.status(status).json({ error: err instanceof ProviderError ? err.message : 'Erro ao consultar os modelos.' });
+    }
   });
 
   const limiter = rateLimit({

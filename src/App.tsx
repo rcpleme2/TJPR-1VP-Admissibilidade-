@@ -26,9 +26,9 @@ import { verificarResultado } from '../shared/precedentes';
 import { verificarPrazos } from '../shared/prazos';
 import { LIMITES } from '../shared/schema';
 import type { EntradaBase } from '../shared/precedentesBase';
-import { analisar, buscarConfig, carregarExemplo, type ConfigServidor } from './lib/api';
+import { analisar, buscarConfig, buscarInstrucoesPadrao, carregarExemplo, type ConfigServidor } from './lib/api';
 import { baixarMinutaWord } from './lib/exportWord';
-import { apagarDadosLocais, lerChaves, lerConfig, salvarChaves, salvarConfig, type ConfigMotor } from './lib/storage';
+import { apagarDadosLocais, lerChaves, lerConfig, lerInstrucoes, salvarChaves, salvarConfig, salvarInstrucoes, type ConfigMotor } from './lib/storage';
 import { ErroApi, nuvem, type UsuarioNuvem } from './lib/nuvem';
 import type { Caso, CasoResumo, StatusCaso } from '../shared/registro';
 import { LoginView } from './components/LoginView';
@@ -38,7 +38,7 @@ import { HistoricoModal } from './components/HistoricoModal';
 import { ContaModal } from './components/ContaModal';
 import { Download, Plus, X } from 'lucide-react';
 
-type Aba = 'dashboard' | 'checklist' | 'sobrestamento' | 'minuta' | 'precedentes';
+type Aba = 'dashboard' | 'sobrestamento' | 'checklist' | 'minuta' | 'precedentes';
 const TIMEOUT_CLIENTE_MS = 6 * 60_000;
 
 export default function App() {
@@ -59,6 +59,8 @@ export default function App() {
   const [config, setConfig] = useState<ConfigMotor>(lerConfig);
   const [chaves, setChaves] = useState<Partial<Record<Provedor, string>>>(lerChaves);
   const [configAberta, setConfigAberta] = useState(false);
+  const [instrucoes, setInstrucoes] = useState(lerInstrucoes);
+  const [instrucoesPadrao, setInstrucoesPadrao] = useState<string>();
   const [prazo, setPrazo] = useState<EntradasPrazo>(ENTRADAS_VAZIAS);
   const [baseCustom, setBaseCustom] = useState<EntradaBase[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -93,6 +95,7 @@ export default function App() {
     if (errorMessage) alertaRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [errorMessage]);
   useEffect(() => salvarConfig(config), [config]);
+  useEffect(() => salvarInstrucoes(instrucoes), [instrucoes]);
   useEffect(() => salvarChaves(chaves, config.lembrarChaves), [chaves, config.lembrarChaves]);
 
   useEffect(() => {
@@ -122,7 +125,9 @@ export default function App() {
   }, [usuario, buscaCasos, atualizarLista]);
 
   useEffect(() => {
-    if (usuario) nuvem.base.listar().then(setBaseCustom).catch(sessaoExpirada);
+    if (!usuario) return;
+    nuvem.base.listar().then(setBaseCustom).catch(sessaoExpirada);
+    buscarInstrucoesPadrao().then(setInstrucoesPadrao).catch(() => {});
   }, [usuario]);
 
   /** Base compartilhada: grava na nuvem só o que foi incluído/alterado (sem apagar o que outros cadastraram). */
@@ -327,6 +332,7 @@ export default function App() {
         files,
         appealType,
         notes,
+        instrucoes,
         prazo: { ...prazo, protocolos: protocolosDetectados },
         signal: controller.signal,
         onStage: setStage,
@@ -442,8 +448,8 @@ export default function App() {
 
   const abas: Array<{ id: Aba; rotulo: string; contagem?: number; alerta?: boolean }> = [
     { id: 'dashboard', rotulo: 'Diagnóstico' },
-    { id: 'checklist', rotulo: 'Checklist' },
     { id: 'sobrestamento', rotulo: 'Sobrestamento', contagem: avisosSob.length || undefined, alerta: avisosSob.length > 0 },
+    { id: 'checklist', rotulo: 'Checklist' },
     { id: 'minuta', rotulo: 'Minuta' },
     { id: 'precedentes', rotulo: 'Precedentes', contagem: alertasPrecedentes || undefined, alerta: alertasPrecedentes > 0 },
   ];
@@ -611,9 +617,11 @@ export default function App() {
             setChaves({});
             setConfig(lerConfig());
           }}
-        >
-          <EngineSettings config={config} onConfig={setConfig} chaves={chaves} onChaves={setChaves} servidor={servidor} />
-        </ConfiguracoesModal>
+          motor={<EngineSettings config={config} onConfig={setConfig} chaves={chaves} onChaves={setChaves} servidor={servidor} />}
+          instrucoes={instrucoes}
+          instrucoesPadrao={instrucoesPadrao}
+          onInstrucoes={setInstrucoes}
+        />
       )}
 
       {contaAberta && <ContaModal usuario={usuario} onClose={() => setContaAberta(false)} />}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronDown, FileText, Loader2, X } from 'lucide-react';
+import { ChevronDown, Eye, FileText, Loader2, X } from 'lucide-react';
+import { PreviewModal } from './PreviewModal';
 import { estimarTokensPdf, estimarTokensTexto } from '../../shared/textoPdf';
 import { movimentoCompativel } from '../../shared/protocolo';
 import type { UploadedFileItem } from '../types/admissibility';
@@ -18,6 +19,7 @@ const mil = (n: number) => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).r
 
 export const ArquivoCard: React.FC<Props> = ({ file, papeis, onUpdateRole, onRemove, onUpdate }) => {
   const [aberto, setAberto] = useState(false);
+  const [visualizar, setVisualizar] = useState(false);
   const tokTexto = file.caracteres ? estimarTokensTexto(file.caracteres) : 0;
   const tokPdf = file.paginas ? estimarTokensPdf(file.paginas) : 0;
   const economia = tokPdf > 0 && tokTexto > 0 ? Math.max(0, Math.round((1 - tokTexto / tokPdf) * 100)) : 0;
@@ -71,6 +73,17 @@ export const ArquivoCard: React.FC<Props> = ({ file, papeis, onUpdateRole, onRem
               </option>
             ))}
           </select>
+          {file.arquivo && (
+            <button
+              type="button"
+              onClick={() => setVisualizar(true)}
+              aria-label={`Visualizar ${file.name}`}
+              title="Visualizar o PDF"
+              className="rounded-md p-1.5 text-tinta-3 hover:bg-papel hover:text-tinta"
+            >
+              <Eye className="size-4" />
+            </button>
+          )}
           {file.textPreview !== undefined && (
             <button
               type="button"
@@ -88,6 +101,8 @@ export const ArquivoCard: React.FC<Props> = ({ file, papeis, onUpdateRole, onRem
           </button>
         </div>
       </div>
+
+      {visualizar && file.arquivo && <PreviewModal arquivo={file.arquivo} onClose={() => setVisualizar(false)} />}
 
       {aberto && file.textPreview !== undefined && (
         <div className="ml-[30px] mt-3 space-y-2">

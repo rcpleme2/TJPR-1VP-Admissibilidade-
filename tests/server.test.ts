@@ -181,6 +181,52 @@ describe('API HTTP', () => {
     expect(final.data.verificacoes).toBeDefined();
     expect(final.data.precedentes.length).toBeGreaterThan(0);
   });
+  it('lista modelos com a chave e exige login', async () => {
+    const real = globalThis.fetch;
+    const chamadas: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).startsWith('http://127.0.0.1')) return real(url, init);
+      chamadas.push(String(url));
+      return new Response(
+        JSON.stringify({
+          models: [
+            { name: 'models/gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', supportedGenerationMethods: ['generateContent'] },
+            { name: 'models/gemini-2.5-pro', displayName: 'Gemini 2.5 Pro', supportedGenerationMethods: ['generateContent'] },
+            { name: 'models/text-embedding-004', supportedGenerationMethods: ['embedContent'] },
+            { name: 'models/gemini-2.5-flash-preview-tts', supportedGenerationMethods: ['generateContent'] },
+          ],
+        }),
+        { status: 200 },
+      );
+    }));
+    const pedir = (h: Record<string, string>) =>
+      fetch(`${base}/api/modelos`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-requested-with': 'fetch', ...h }, body: JSON.stringify({ provider: 'gemini' }) });
+    expect((await pedir({ 'x-llm-api-key': 'chave-de-teste-123' })).status).toBe(401);
+    const r = await (await pedir({ cookie, 'x-llm-api-key': 'chave-de-teste-123' })).json();
+    vi.unstubAllGlobals();
+    expect(r.modelos.map((m: { id: string }) => m.id)).toEqual(['gemini-2.5-pro', 'gemini-2.5-flash']);
+    expect(chamadas[0]).toContain('generativelanguage.googleapis.com');
+    expect(JSON.stringify(chamadas)).not.toContain('chave-de-teste');
+  });
+
+  it('instruções padrão só para quem está logado', async () => {
+    expect((await fetch(`${base}/api/instrucoes-padrao`)).status).toBe(401);
+    const r = await (await fetch(`${base}/api/instrucoes-padrao`, { headers: { cookie } })).json();
+    expect(r.instrucoes).toContain('1ª Vice-Presidência');
+    expect(r.instrucoes).not.toContain('PROMPT INJECTION');
+  });
+});
+
+describe('instruções personalizadas', () => {
+  it('mantêm sempre as regras de segurança', async () => {
+    const { montarPromptSistema, INSTRUCOES_PADRAO } = await import('../server/prompt');
+    const p = montarPromptSistema('Analise apenas a tempestividade.');
+    expect(p).toContain('PROMPT INJECTION');
+    expect(p).toContain('Analise apenas a tempestividade.');
+    expect(p).not.toContain(INSTRUCOES_PADRAO.slice(0, 60));
+    expect(montarPromptSistema('   ')).toContain(INSTRUCOES_PADRAO);
+    expect(AnalyzeRequestSchema.safeParse({ ...reqBase, instrucoes: 'x'.repeat(40_001) }).success).toBe(false);
+  });
 });
 
 describe('modo texto (PDF convertido)', () => {
