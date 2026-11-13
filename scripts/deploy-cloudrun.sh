@@ -23,10 +23,9 @@ gcloud firestore indexes fields update dadosJson --collection-group=historico --
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
 SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 # Projetos novos não dão à conta de serviço padrão as permissões de build; sem elas o "# --- Imagem ------------------------------------------------------------------------------------------
-# Se houver Docker (o Cloud Shell tem), a imagem é construída aqui: mais rápido, sem custo de Cloud Build e com o log na tela.
-# Sem Docker, usa o Cloud Build (--source).
+# Padrão: Cloud Build (--source). Com LOCAL_BUILD=1 e Docker disponível (Cloud Shell), constrói a imagem localmente.
 FONTE=(--source .)
-if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+if [ "${LOCAL_BUILD:-0}" = "1" ] && command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
   REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/admissibilidade"
   IMAGEM="${REPO}/${SERVICE}:$(date +%Y%m%d-%H%M%S)"
   gcloud artifacts repositories describe admissibilidade --location="$REGION" >/dev/null 2>&1 \
