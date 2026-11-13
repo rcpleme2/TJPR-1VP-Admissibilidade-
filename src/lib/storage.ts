@@ -19,6 +19,8 @@ export interface ConfigMotor {
   model: Record<Provedor, string>;
   lembrarChaves: boolean;
   usarChaveDoServidor: boolean;
+  /** Última lista de modelos consultada em cada provedor. */
+  modelosDisponiveis: Record<Provedor, Array<{ id: string; nome: string }>>;
 }
 
 export const CONFIG_PADRAO: ConfigMotor = {
@@ -26,13 +28,29 @@ export const CONFIG_PADRAO: ConfigMotor = {
   model: { gemini: '', claude: '', gpt: '' },
   lembrarChaves: false,
   usarChaveDoServidor: false,
+  modelosDisponiveis: { gemini: [], claude: [], gpt: [] },
 };
 
 const K_CONFIG = 'tjpr1vp:motor';
 const K_KEYS = 'tjpr1vp:chaves';
 
 export const lerConfig = (): ConfigMotor =>
-  seguro(() => ({ ...CONFIG_PADRAO, ...JSON.parse(localStorage.getItem(K_CONFIG) ?? '{}') }), CONFIG_PADRAO);
+  seguro(() => {
+    const salvo = JSON.parse(localStorage.getItem(K_CONFIG) ?? '{}');
+    return {
+      ...CONFIG_PADRAO,
+      ...salvo,
+      model: { ...CONFIG_PADRAO.model, ...salvo.model },
+      modelosDisponiveis: { ...CONFIG_PADRAO.modelosDisponiveis, ...salvo.modelosDisponiveis },
+    };
+  }, CONFIG_PADRAO);
+
+const K_INSTRUCOES = 'tjpr1vp:instrucoes';
+
+/** Instruções personalizadas da análise (vazio = usar as do sistema). */
+export const lerInstrucoes = (): string => seguro(() => localStorage.getItem(K_INSTRUCOES) ?? '', '');
+export const salvarInstrucoes = (t: string) =>
+  seguro(() => (t.trim() ? localStorage.setItem(K_INSTRUCOES, t) : localStorage.removeItem(K_INSTRUCOES)), undefined);
 export const salvarConfig = (c: ConfigMotor) => seguro(() => localStorage.setItem(K_CONFIG, JSON.stringify(c)), undefined);
 
 type Chaves = Partial<Record<Provedor, string>>;

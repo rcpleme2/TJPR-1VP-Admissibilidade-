@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import type { ConfigServidor } from '../lib/api';
+import { Eye, EyeOff, Loader2, RefreshCw } from 'lucide-react';
+import { listarModelos, type ConfigServidor } from '../lib/api';
 import type { ConfigMotor } from '../lib/storage';
 import type { Provedor } from '../types/admissibility';
-import { Ajuda, campo, Rotulo } from './ui';
+import { Ajuda, Botao, campo, campoSelect, Rotulo } from './ui';
 
 interface Props {
   config: ConfigMotor;
@@ -26,6 +26,21 @@ export const EngineSettings: React.FC<Props> = ({ config, onConfig, chaves, onCh
   const temChaveNoServidor = Boolean(servidor?.serverKeys.includes(p));
   const usandoServidor = temChaveNoServidor && config.usarChaveDoServidor;
   const pronto = usandoServidor || Boolean(chaves[p]);
+  const [consulta, setConsulta] = useState<{ carregando: boolean; erro?: string; ok?: string }>({ carregando: false });
+  const lista = config.modelosDisponiveis[p] ?? [];
+  const escolhido = config.model[p];
+  const padrao = servidor?.modelosPadrao[p];
+
+  const atualizarLista = async () => {
+    setConsulta({ carregando: true });
+    try {
+      const modelos = await listarModelos(p, usandoServidor ? undefined : chaves[p]);
+      onConfig({ ...config, modelosDisponiveis: { ...config.modelosDisponiveis, [p]: modelos } });
+      setConsulta({ carregando: false, ok: modelos.length ? `${modelos.length} modelos disponíveis para esta chave.` : 'Nenhum modelo de texto encontrado para esta chave.' });
+    } catch (e) {
+      setConsulta({ carregando: false, erro: (e as Error).message });
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -85,19 +100,37 @@ export const EngineSettings: React.FC<Props> = ({ config, onConfig, chaves, onCh
       )}
 
       <div>
-        <Rotulo htmlFor="modelo" dica="opcional">
-          Modelo
-        </Rotulo>
-        <input
-          id="modelo"
-          type="text"
-          value={config.model[p]}
-          onChange={(e) => onConfig({ ...config, model: { ...config.model, [p]: e.target.value.trim() } })}
-          placeholder={servidor?.modelosPadrao[p] ?? 'modelo padrão'}
-          className={campo}
-        />
-        <Ajuda>{pronto ? 'Pronto para analisar.' : 'Sem chave: informe uma para poder analisar.'} A chave só é repassada à {info.empresa} na análise; não é gravada nem registrada.</Ajuda>
+        <Rotulo htmlFor="modelo">Modelo</Rotulo>
+        <div className="flex gap-2">
+          <select
+            id="modelo"
+            value={escolhido}
+            onChange={(e) => onConfig({ ...config, model: { ...config.model, [p]: e.target.value } })}
+            className={`${campoSelect} min-w-0 flex-1`}
+          >
+            <option value="">Padrão do sistema{padrao ? ` (${padrao})` : ''}</option>
+            {escolhido && !lista.some((m) => m.id === escolhido) && <option value={escolhido}>{escolhido}</option>}
+            {lista.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.nome !== m.id ? `${m.nome} (${m.id})` : m.id}
+              </option>
+            ))}
+          </select>
+          <Botao onClick={atualizarLista} disabled={!pronto || consulta.carregando} title={pronto ? 'Consultar os modelos disponíveis para a chave' : 'Informe a chave primeiro'} className="shrink-0">
+            {consulta.carregando ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            Atualizar lista
+          </Botao>
+        </div>
+        {consulta.erro ? (
+          <Ajuda className="text-obice">{consulta.erro}</Ajuda>
+        ) : consulta.ok ? (
+          <Ajuda>{consulta.ok}</Ajuda>
+        ) : (
+          <Ajuda>{lista.length ? 'A escolha fica salva neste navegador.' : 'Use “Atualizar lista” para ver os modelos que a sua chave permite usar.'}</Ajuda>
+        )}
       </div>
+
+      <p className="text-[13px] leading-snug text-tinta-3">A chave só é repassada à {info.empresa} na análise e na consulta de modelos; não é gravada nem registrada.</p>
     </div>
   );
 };

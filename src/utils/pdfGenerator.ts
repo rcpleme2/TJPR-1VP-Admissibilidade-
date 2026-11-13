@@ -207,18 +207,45 @@ export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, opti
   filete(y - 1);
   y += 2;
 
+  // --- Sobrestamento -------------------------------------------------------------------------------
+  const sob = obterSobrestamento(data);
+  titulo('Preliminar: sobrestamento');
+  rotuloValor('Conclusão', ROTULO_CONCLUSAO[sob.conclusao], sob.conclusao === 'nao_verificado' || sob.conclusao === 'sobrestar' ? ATENCAO : TINTA);
+  if (sob.verificadoPor && sob.verificadoEm && sob.conclusao !== 'nao_verificado') {
+    nota(`Registrado por ${sob.verificadoPor} em ${new Date(sob.verificadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}.`, TINTA_3);
+  }
+  if (sob.fundamentacao?.trim()) {
+    y += 1;
+    fonte('times', 'normal', 10.5);
+    texto(sob.fundamentacao, { entrelinha: 5, justificar: true });
+  }
+  if (sob.temas.length) {
+    y += 1;
+    tabela(
+      ['Tema', 'Questão', 'Enquadramento', 'Suspensão'],
+      sob.temas.map((t) => [
+        `${rotuloTema(t)}\n${ROTULO_ESPECIE[t.especie]}${t.origem === 'ia' ? ', indicado pela IA' : ''}`,
+        [t.questao, t.decisaoAfetacao && `Afetação: ${t.decisaoAfetacao}`, t.abrangencia && `Abrangência: ${t.abrangencia}`, t.observacao].filter(Boolean).join('\n') || '—',
+        { content: ROTULO_ENQUADRAMENTO[t.enquadramento], styles: { textColor: t.enquadramento === 'se_insere' ? ATENCAO : TINTA_2 } },
+        { content: `${ROTULO_SUSPENSAO[t.suspensao]}\n${ROTULO_SITUACAO_TEMA[t.situacao]}`, styles: { textColor: t.suspensao === 'determinada' ? ATENCAO : TINTA_2 } },
+      ]),
+      { columnStyles: { 0: { cellWidth: 34 }, 2: { cellWidth: 30 }, 3: { cellWidth: 32 } } },
+    );
+  } else {
+    nota('Nenhum tema registrado.', TINTA_3);
+  }
+  avisosSobrestamento(data).forEach((a) => nota(a, ATENCAO));
+
   // --- Diagnóstico ---------------------------------------------------------------------------------
-  titulo('Diagnóstico');
+  titulo('Admissibilidade');
   fonte('times', 'bold', 12.5);
   texto(dg.probabilidadeAdmissao, { entrelinha: 5.4 });
   y += 1.5;
 
   const exigeTopico = data.verificacoes?.relevancia.exigeTopicoCalculado ?? processo.exigeTopicoRelevancia;
-  const sob = obterSobrestamento(data);
   rotuloValor('Enquadramento no art. 1.030 do CPC', dg.incisoArt1030Principal);
   rotuloValor('Tópico de relevância', exigeTopico ? 'Exigido (Lei 15.484/2026)' : `Não exigido, acórdão anterior a ${MARCO_RELEVANCIA_BR}`);
-  rotuloValor('Sobrestamento', ROTULO_CONCLUSAO[sob.conclusao], sob.conclusao === 'nao_verificado' || sob.conclusao === 'sobrestar' ? ATENCAO : TINTA);
-  if (dg.recursoCabivelAdvertencia) rotuloValor(dg.isDecisaoMista ? 'Decisão mista' : 'Recurso cabível', dg.recursoCabivelAdvertencia, TINTA, dg.isDecisaoMista ? OBICE : TINTA_3);
+  if (dg.isDecisaoMista && dg.recursoCabivelAdvertencia) rotuloValor('Decisão mista', dg.recursoCabivelAdvertencia, TINTA, OBICE);
 
   const obices = dg.principaisObicesIdentificados ?? [];
   if (obices.length) {
@@ -293,34 +320,6 @@ export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, opti
     );
     avisosPreparo(preparo).forEach((a) => nota(a, ATENCAO));
   }
-
-  // --- Sobrestamento -------------------------------------------------------------------------------
-  titulo('Sobrestamento por tema repetitivo');
-  rotuloValor('Conclusão', ROTULO_CONCLUSAO[sob.conclusao], sob.conclusao === 'nao_verificado' || sob.conclusao === 'sobrestar' ? ATENCAO : TINTA);
-  if (sob.verificadoPor && sob.verificadoEm && sob.conclusao !== 'nao_verificado') {
-    nota(`Registrado por ${sob.verificadoPor} em ${new Date(sob.verificadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}.`, TINTA_3);
-  }
-  if (sob.fundamentacao?.trim()) {
-    y += 1;
-    fonte('times', 'normal', 10.5);
-    texto(sob.fundamentacao, { entrelinha: 5, justificar: true });
-  }
-  if (sob.temas.length) {
-    y += 1;
-    tabela(
-      ['Tema', 'Questão', 'Enquadramento', 'Suspensão'],
-      sob.temas.map((t) => [
-        `${rotuloTema(t)}\n${ROTULO_ESPECIE[t.especie]}${t.origem === 'ia' ? ', indicado pela IA' : ''}`,
-        [t.questao, t.decisaoAfetacao && `Afetação: ${t.decisaoAfetacao}`, t.abrangencia && `Abrangência: ${t.abrangencia}`, t.observacao].filter(Boolean).join('\n') || '—',
-        { content: ROTULO_ENQUADRAMENTO[t.enquadramento], styles: { textColor: t.enquadramento === 'se_insere' ? ATENCAO : TINTA_2 } },
-        { content: `${ROTULO_SUSPENSAO[t.suspensao]}\n${ROTULO_SITUACAO_TEMA[t.situacao]}`, styles: { textColor: t.suspensao === 'determinada' ? ATENCAO : TINTA_2 } },
-      ]),
-      { columnStyles: { 0: { cellWidth: 34 }, 2: { cellWidth: 30 }, 3: { cellWidth: 32 } } },
-    );
-  } else {
-    nota('Nenhum tema registrado.', TINTA_3);
-  }
-  avisosSobrestamento(data).forEach((a) => nota(a, ATENCAO));
 
   // --- Checklist -----------------------------------------------------------------------------------
   titulo('Checklist', 70);

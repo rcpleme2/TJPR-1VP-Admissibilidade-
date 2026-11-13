@@ -316,6 +316,7 @@ export const LIMITES = {
   maxTextoPorArquivo: 1_500_000,
   maxTextoTotal: 3_000_000,
   maxNotas: 8_000,
+  maxInstrucoes: 40_000,
 } as const;
 
 export const AnalyzeRequestSchema = z.object({
@@ -326,6 +327,7 @@ export const AnalyzeRequestSchema = z.object({
     .optional(),
   appealType: z.enum(['auto', 'resp', 're', 'ambos']).default('auto'),
   notes: z.string().max(LIMITES.maxNotas).optional().default(''),
+  instrucoes: z.string().max(LIMITES.maxInstrucoes).optional(),
   prazo: EntradasPrazoSchema.optional(),
   files: z
     .array(

@@ -28,10 +28,29 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onCh
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_19rem]">
       <div className="min-w-0 space-y-8">
         <Folha className="p-6 sm:p-8">
-          <p className="text-[13px] text-tinta-3">Diagnóstico preliminar</p>
+          <div className="flex flex-col gap-2 border-b border-linha pb-5 sm:flex-row sm:items-baseline sm:justify-between">
+            <div>
+              <p className="text-[13px] text-tinta-3">Preliminar: sobrestamento</p>
+              <p className={`mt-0.5 text-[15px] ${sob.conclusao === 'sobrestar' ? 'font-medium text-atencao' : sob.conclusao === 'nao_verificado' ? 'text-atencao' : 'text-tinta'}`}>
+                {sob.conclusao === 'nao_verificado'
+                  ? sob.temas.length
+                    ? `Não verificado; ${sob.temas.length === 1 ? '1 tema indicado' : `${sob.temas.length} temas indicados`}`
+                    : 'Não verificado'
+                  : ROTULO_CONCLUSAO[sob.conclusao]}
+              </p>
+              {sob.conclusao === 'sobrestar' && (
+                <p className="mt-1 text-[13px] text-tinta-2">O exame de admissibilidade da matéria afetada fica suspenso até o julgamento do tema.</p>
+              )}
+            </div>
+            <button type="button" onClick={onNavigateToSobrestamento} className="shrink-0 text-[13px] font-medium text-toga underline-offset-2 hover:underline">
+              {sob.conclusao === 'nao_verificado' ? 'Examinar' : 'Rever'}
+            </button>
+          </div>
+
+          <p className="mt-6 text-[13px] text-tinta-3">Admissibilidade</p>
           <p className="mt-1.5 font-serif text-[24px] font-semibold leading-snug tracking-[-0.01em] text-tinta">{diagnosticoGeral.probabilidadeAdmissao}</p>
 
-          <dl className="mt-6 grid gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
+          <dl className="mt-6 grid gap-x-8 gap-y-4 sm:grid-cols-3">
             <div>
               <dt className="text-[13px] text-tinta-3">Art. 1.030 do CPC</dt>
               <dd className="mt-0.5 text-sm text-tinta">{diagnosticoGeral.incisoArt1030Principal}</dd>
@@ -48,17 +67,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onCh
                 {obices.length === 0 ? 'Nenhum identificado' : obices.length === 1 ? '1 identificado' : `${obices.length} identificados`}
               </dd>
             </div>
-            <div>
-              <dt className="text-[13px] text-tinta-3">Sobrestamento</dt>
-              <dd className="mt-0.5 text-sm">
-                <button type="button" onClick={onNavigateToSobrestamento} className={`text-left underline-offset-2 hover:underline ${sob.conclusao === 'nao_verificado' ? 'text-atencao' : sob.conclusao === 'sobrestar' ? 'font-medium text-atencao' : 'text-tinta'}`}>
-                  {sob.conclusao === 'nao_verificado' ? (sob.temas.length ? `Verificar ${sob.temas.length === 1 ? '1 tema' : `${sob.temas.length} temas`}` : 'Não verificado') : ROTULO_CONCLUSAO[sob.conclusao]}
-                </button>
-              </dd>
-            </div>
           </dl>
 
-          {isMista ? (
+          {isMista && (
             <div className="mt-7 border-l-2 border-obice pl-4">
               <p className="text-sm font-semibold text-obice">Decisão mista</p>
               <p className="mt-1 text-sm text-tinta">{diagnosticoGeral.recursoCabivelAdvertencia}</p>
@@ -66,13 +77,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onCh
                 Recurso único contra decisão mista é erro grosseiro e não admite fungibilidade. A decisão deve ter capítulos estanques, com advertência expressa ao recorrente.
               </p>
             </div>
-          ) : (
-            diagnosticoGeral.recursoCabivelAdvertencia && (
-              <div className="mt-7 border-l-2 border-linha-forte pl-4">
-                <p className="text-[13px] text-tinta-3">Recurso cabível contra a decisão</p>
-                <p className="mt-0.5 text-sm text-tinta">{diagnosticoGeral.recursoCabivelAdvertencia}</p>
-              </div>
-            )
           )}
 
           <div className="mt-8 border-t border-linha pt-6">

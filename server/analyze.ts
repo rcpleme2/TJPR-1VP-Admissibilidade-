@@ -13,7 +13,7 @@ import {
   type ModelOutput,
 } from '../shared/schema';
 import { MODELOS_PADRAO } from './config';
-import { SYSTEM_PROMPT } from './prompt';
+import { montarPromptSistema } from './prompt';
 import { PROVEDORES_IMPL } from './providers';
 import { ProviderError, type ParteEntrada } from './providers/types';
 import { sanitizeUntrustedInput } from './sanitize';
@@ -150,7 +150,7 @@ export async function executarAnalise(
   let ultimoErro = '';
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
     etapa(tentativa === 1 ? `Consultando o motor ${req.provider.toUpperCase()} (${model})…` : 'Corrigindo resposta fora do formato…');
-    const texto = await impl.executar({ apiKey, model, system: SYSTEM_PROMPT, partes: tentativaPartes, jsonSchema, signal });
+    const texto = await impl.executar({ apiKey, model, system: montarPromptSistema(req.instrucoes), partes: tentativaPartes, jsonSchema, signal });
     etapa('Validando a estrutura da resposta…');
     const r = interpretarSaida(texto);
     if (r.ok) {

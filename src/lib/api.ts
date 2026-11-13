@@ -16,6 +16,28 @@ export interface ConfigServidor {
   limites: { maxArquivos: number; maxBytesTotal: number };
 }
 
+export async function buscarInstrucoesPadrao(): Promise<string> {
+  const r = await fetch('/api/instrucoes-padrao', { headers: { 'x-requested-with': 'fetch' } });
+  if (!r.ok) throw new Error(await erroDaResposta(r));
+  return (await r.json()).instrucoes ?? '';
+}
+
+export interface ModeloDisponivel {
+  id: string;
+  nome: string;
+}
+
+/** Consulta, com a chave informada (ou a do servidor), os modelos disponíveis no provedor. */
+export async function listarModelos(provider: Provedor, apiKey?: string): Promise<ModeloDisponivel[]> {
+  const res = await fetch('/api/modelos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-requested-with': 'fetch', ...(apiKey ? { 'x-llm-api-key': apiKey } : {}) },
+    body: JSON.stringify({ provider }),
+  });
+  if (!res.ok) throw new Error(await erroDaResposta(res));
+  return (await res.json()).modelos ?? [];
+}
+
 export async function buscarConfig(): Promise<ConfigServidor | null> {
   try {
     const r = await fetch('/api/config');
@@ -53,6 +75,7 @@ export interface ParametrosAnalise {
   files: UploadedFileItem[];
   appealType: string;
   notes: string;
+  instrucoes?: string;
   prazo: EntradasPrazo;
   signal: AbortSignal;
   onStage: (mensagem: string) => void;
@@ -80,6 +103,7 @@ export async function analisar(p: ParametrosAnalise): Promise<{ data: Admissibil
       model: p.model || undefined,
       appealType: p.appealType,
       notes: p.notes,
+      instrucoes: p.instrucoes || undefined,
       prazo: p.prazo,
       files: arquivos,
     }),
