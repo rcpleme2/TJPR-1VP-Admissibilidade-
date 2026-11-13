@@ -1,6 +1,9 @@
 import React from 'react';
 import { AdmissibilityAnalysisResult, EntradasPrazo } from '../types/admissibility';
 import { DeadlinesPanel } from './DeadlinesPanel';
+import { PreparoPanel } from './PreparoPanel';
+import { obterPreparo } from '../../shared/preparo';
+import type { PreparoItem } from '../../shared/schema';
 import { MARCO_RELEVANCIA_BR } from '../../shared/regras';
 import { Botao, Folha, TituloSecao } from './ui';
 import { obterSobrestamento, ROTULO_CONCLUSAO } from '../../shared/sobrestamento';
@@ -11,9 +14,10 @@ interface DashboardOverviewProps {
   onNavigateToChecklist: () => void;
   onNavigateToMinuta: () => void;
   onNavigateToSobrestamento: () => void;
+  onChangePreparo: (p: PreparoItem[]) => void;
 }
 
-export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onChangePrazo, onNavigateToChecklist, onNavigateToMinuta, onNavigateToSobrestamento }) => {
+export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onChangePrazo, onNavigateToChecklist, onNavigateToMinuta, onNavigateToSobrestamento, onChangePreparo }) => {
   const { processo, diagnosticoGeral, recursosAnalisados } = data;
   const isMista = diagnosticoGeral.isDecisaoMista;
   const exigeTopico = data.verificacoes?.relevancia.exigeTopicoCalculado ?? processo.exigeTopicoRelevancia;
@@ -86,6 +90,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onCh
         </Folha>
 
         {data.verificacoes && <DeadlinesPanel v={data.verificacoes} entradas={data.entradasPrazo} onChange={onChangePrazo} />}
+        <PreparoPanel itens={obterPreparo(data)} onChange={onChangePreparo} />
       </div>
 
       <aside className="space-y-8">

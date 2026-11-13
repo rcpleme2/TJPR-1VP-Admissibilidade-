@@ -80,7 +80,6 @@ export async function analisar(p: ParametrosAnalise): Promise<{ data: Admissibil
       model: p.model || undefined,
       appealType: p.appealType,
       notes: p.notes,
-      confirmaUsoAutorizado: true,
       prazo: p.prazo,
       files: arquivos,
     }),

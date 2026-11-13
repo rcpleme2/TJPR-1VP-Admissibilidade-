@@ -128,5 +128,7 @@ export function resumirAlteracoes(antigo: RegistroDados | null, novo: RegistroDa
     r.push(c && c !== antigo.sobrestamento?.conclusao ? `Sobrestamento: ${ROTULO_CONCLUSAO[c].toLowerCase()}` : 'Sobrestamento: temas');
   }
 
-  return r.slice(0, 9);
+  if (!igual(novo.preparo, antigo.preparo)) r.push('Preparo');
+
+  return r.slice(0, 10);
 }

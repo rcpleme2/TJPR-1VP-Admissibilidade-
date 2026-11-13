@@ -10,7 +10,6 @@ import { AnalyzeRequestSchema, modelOutputJsonSchema } from '../shared/schema';
 const pdf = Buffer.from('%PDF-1.4\n%fake\n').toString('base64');
 const reqBase = {
   provider: 'gemini' as const,
-  confirmaUsoAutorizado: true as const,
   files: [{ name: 'acordao.pdf', role: 'acordao' as const, mimeType: 'application/pdf' as const, dataBase64: pdf }],
 };
 
@@ -26,11 +25,10 @@ describe('sanitização', () => {
 });
 
 describe('validação de entrada', () => {
-  it('rejeita papel, modelo e provedor inválidos e falta de consentimento', () => {
+  it('rejeita papel, modelo e provedor inválidos ', () => {
     expect(AnalyzeRequestSchema.safeParse({ ...reqBase, files: [{ ...reqBase.files[0], role: 'admin' }] }).success).toBe(false);
     expect(AnalyzeRequestSchema.safeParse({ ...reqBase, model: 'x; rm -rf /' }).success).toBe(false);
     expect(AnalyzeRequestSchema.safeParse({ ...reqBase, provider: 'llama' }).success).toBe(false);
-    expect(AnalyzeRequestSchema.safeParse({ ...reqBase, confirmaUsoAutorizado: false }).success).toBe(false);
     expect(AnalyzeRequestSchema.safeParse(reqBase).success).toBe(true);
   });
   it('exige assinatura %PDF e respeita o limite total', () => {
@@ -161,7 +159,7 @@ describe('API HTTP', () => {
   });
 
   it('valida o corpo e exige chave de API', async () => {
-    expect((await post({ ...reqBase, confirmaUsoAutorizado: false })).status).toBe(400);
+    expect((await post({ ...reqBase, provider: 'inexistente' })).status).toBe(400);
     const r = await post(reqBase);
     expect(r.status).toBe(400);
     expect((await r.json()).error).toMatch(/chave de API/);

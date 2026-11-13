@@ -110,8 +110,7 @@ Pontos de atenção:
 
 - Login com sessão, CSRF por cabeçalho, rate limit, `helmet` + CSP, validação de entrada (zod), PDF com assinatura `%PDF` e limites de tamanho.
 - Log estruturado sem conteúdo dos autos, chaves ou tokens (apenas provedor, modelo, nº de arquivos, duração, status).
-- O usuário declara, antes de enviar, estar autorizado e que os autos não estão em segredo de justiça. **Os autos vão ao provedor de IA escolhido**:
-  valide a política do órgão (LGPD, Res. CNJ 615/2025) antes de usar em produção.
+- **Os autos vão ao provedor de IA escolhido**: valide a política do órgão (LGPD, Res. CNJ 615/2025) antes de usar em produção.
 - Prompt injection: mitigação parcial (delimitadores, varredura das notas e do texto extraído, instruções de sistema, validação do schema de saída).
   PDFs enviados como arquivo original não são varridos; por isso a revisão humana é obrigatória.
 - Os registros ficam no banco da nuvem (só dados extraídos/cadastrados, nunca os arquivos). No navegador ficam apenas preferências e, se você pedir, chaves de API.

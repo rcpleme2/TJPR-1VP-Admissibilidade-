@@ -19,6 +19,7 @@ export function detectarPapel(nome: string, padrao: UploadedFileItem['role']): U
     .filter(Boolean);
   const tem = (...ps: string[]) => ps.some((p) => tokens.includes(p));
   const colado = tokens.join('');
+  if (tem('guia', 'custas', 'preparo', 'gru', 'darf', 'comprovante', 'recolhimento', 'porte')) return 'guia_preparo';
   if (/recursoextraordinario/.test(colado)) return 'recurso_extraordinario';
   if (/recursoespecial/.test(colado)) return 'recurso_especial';
   if (tem('acordao', 'sentenca')) return tem('embargos', 'edcl', 'ed') ? 'acordao_embargos' : 'acordao';
@@ -43,10 +44,9 @@ interface DocumentUploadSectionProps {
   onLoadSample: () => void;
   onError: (msg: string) => void;
   stageMessage: string;
-  engineSettings: React.ReactNode;
+  motor: { nome: string; pronto: boolean };
+  onConfigurar: () => void;
   prazoForm: React.ReactNode;
-  consent: boolean;
-  setConsent: (v: boolean) => void;
   canAnalyze: boolean;
   pendencias: string[];
   casos: CasoResumo[];
@@ -55,18 +55,16 @@ interface DocumentUploadSectionProps {
   onOpenCaso: (id: string) => void;
   onDeleteCaso: (c: CasoResumo) => void;
   podeExcluir: (c: CasoResumo) => boolean;
-  onClearLocal: () => void;
   onCancel: () => void;
 }
 
-const PAPEIS_ACORDAO = [
+const PAPEIS = [
   { v: 'acordao' as const, r: 'Acórdão' },
   { v: 'acordao_embargos' as const, r: 'Acórdão dos embargos' },
-];
-const PAPEIS_RECURSO = [
   { v: 'recurso_especial' as const, r: 'Recurso especial' },
   { v: 'recurso_extraordinario' as const, r: 'Recurso extraordinário' },
-  { v: 'outro' as const, r: 'Outra peça' },
+  { v: 'guia_preparo' as const, r: 'Guia de custas' },
+  { v: 'outro' as const, r: 'Outro documento' },
 ];
 
 export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
@@ -84,10 +82,9 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   onLoadSample,
   onError,
   stageMessage,
-  engineSettings,
+  motor,
+  onConfigurar,
   prazoForm,
-  consent,
-  setConsent,
   canAnalyze,
   pendencias,
   casos,
@@ -96,7 +93,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   onOpenCaso,
   onDeleteCaso,
   podeExcluir,
-  onClearLocal,
   onCancel,
 }) => {
   const [dragActive, setDragActive] = useState(false);
@@ -168,7 +164,8 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   };
 
   const acordaoFiles = files.filter((f) => f.role === 'acordao' || f.role === 'acordao_embargos');
-  const recursoFiles = files.filter((f) => f.role === 'recurso_especial' || f.role === 'recurso_extraordinario' || f.role === 'outro');
+  const recursoFiles = files.filter((f) => f.role === 'recurso_especial' || f.role === 'recurso_extraordinario');
+  const outrosFiles = files.filter((f) => f.role === 'guia_preparo' || f.role === 'outro');
 
   const seletor = (rotulo: string, papel: UploadedFileItem['role'], multiplo = false) => (
     <label className={`${'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-linha-forte bg-folha px-2.5 text-[13px] font-medium text-tinta transition-colors hover:border-tinta-3'} focus-within:ring-2 focus-within:ring-toga/30`}>
@@ -187,7 +184,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     </label>
   );
 
-  const grupo = (titulo: string, lista: UploadedFileItem[], vazio: string, papeis: typeof PAPEIS_ACORDAO | typeof PAPEIS_RECURSO) => (
+  const grupo = (titulo: string, lista: UploadedFileItem[], vazio: string) => (
     <div>
       <div className="flex items-baseline justify-between border-b border-linha pb-2">
         <h3 className="text-sm font-semibold text-tinta">{titulo}</h3>
@@ -198,7 +195,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       ) : (
         <ul className="divide-y divide-linha">
           {lista.map((file) => (
-            <ArquivoCard key={file.id} file={file} papeis={papeis} onUpdateRole={onUpdateRole} onRemove={onRemoveFile} onUpdate={onUpdateFile} />
+            <ArquivoCard key={file.id} file={file} papeis={PAPEIS} onUpdateRole={onUpdateRole} onRemove={onRemoveFile} onUpdate={onUpdateFile} />
           ))}
         </ul>
       )}
@@ -210,7 +207,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
         <div className="min-w-0">
           <h1 className="font-serif text-[32px] font-semibold leading-[1.1] tracking-[-0.015em] text-tinta">Novo exame</h1>
-          <p className="mt-2 max-w-xl text-[15px] text-tinta-2">Anexe o acórdão recorrido e os recursos. O texto dos PDFs é lido aqui no navegador antes de qualquer envio.</p>
+          <p className="mt-2 max-w-xl text-[15px] text-tinta-2">Anexe o acórdão recorrido, os recursos e, se houver, as guias de custas. O texto dos PDFs é lido aqui no navegador antes de qualquer envio.</p>
 
           <div
             onDragOver={(e) => {
@@ -229,13 +226,16 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
                 {seletor('Acórdão', 'acordao')}
                 {seletor('Recurso', 'recurso_especial', true)}
                 {seletor('Embargos de declaração', 'acordao_embargos')}
+                {seletor('Guia de custas', 'guia_preparo', true)}
+                {seletor('Outro documento', 'outro', true)}
               </div>
             </div>
           </div>
 
           <div className="mt-10 space-y-8">
-            {grupo('Acórdão recorrido', acordaoFiles, 'Nenhum acórdão anexado.', PAPEIS_ACORDAO)}
-            {grupo('Recursos', recursoFiles, 'Nenhum recurso anexado. É possível anexar o especial e o extraordinário juntos.', PAPEIS_RECURSO)}
+            {grupo('Acórdão recorrido', acordaoFiles, 'Nenhum acórdão anexado.')}
+            {grupo('Recursos', recursoFiles, 'Nenhum recurso anexado. É possível anexar o especial e o extraordinário juntos.')}
+            {grupo('Outros documentos', outrosFiles, 'Opcional: guias e comprovantes de preparo, decisão de gratuidade, procuração ou outra peça útil ao exame.')}
 
             <div>
               <Rotulo htmlFor="notas" dica="opcional">
@@ -267,15 +267,17 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
               </select>
             </div>
 
-            <div className="border-t border-linha pt-4">{engineSettings}</div>
+            <div className="flex items-baseline justify-between gap-3 border-t border-linha pt-4 text-[13px]">
+              <span className="text-tinta-3">
+                Motor: <span className="text-tinta">{motor.nome}</span>
+                {!motor.pronto && <span className="text-atencao">, sem chave</span>}
+              </span>
+              <button type="button" onClick={onConfigurar} className="font-medium text-toga underline-offset-2 hover:underline">
+                {motor.pronto ? 'Alterar' : 'Configurar'}
+              </button>
+            </div>
 
             <div className="space-y-3 border-t border-linha pt-5">
-              <label className="flex cursor-pointer items-start gap-2.5 text-[13px] leading-snug text-tinta-2">
-                <input type="checkbox" className="mt-0.5 shrink-0" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-                <span>
-                  Estou autorizado a enviar estes autos a um provedor externo de IA; não tramitam em segredo de justiça nem contêm dados vedados pela política do órgão (LGPD, Res. CNJ 615/2025).
-                </span>
-              </label>
 
               {isAnalyzing ? (
                 <div role="status" aria-live="polite" className="space-y-2.5">
@@ -382,10 +384,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
             </tbody>
           </table>
         )}
-
-        <button type="button" onClick={onClearLocal} className="mt-6 text-[13px] text-tinta-3 underline-offset-2 hover:text-tinta hover:underline">
-          Esquecer as chaves de API salvas neste navegador
-        </button>
       </section>
     </div>
   );

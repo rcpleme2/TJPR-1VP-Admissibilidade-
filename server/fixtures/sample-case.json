@@ -397,5 +397,18 @@
       "suspensao": "nao_determinada",
       "situacao": "julgado"
     }
+  ],
+  "preparoRecursos": [
+    {
+      "recurso": "Recurso Especial (REsp)",
+      "situacao": "recolhido",
+      "fundamento": "Guia de recolhimento da União e comprovante bancário juntados com a petição (seq. 1.1, p. 22-23).",
+      "valorRecolhido": "R$ 270,12"
+    },
+    {
+      "recurso": "Recurso Extraordinário (RE)",
+      "situacao": "desconhecido",
+      "fundamento": "Não foi localizado o comprovante de recolhimento das custas do STF entre os documentos enviados."
+    }
   ]
 }
