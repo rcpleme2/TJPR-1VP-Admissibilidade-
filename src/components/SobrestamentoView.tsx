@@ -13,6 +13,7 @@ import {
   rotuloTema,
 } from '../../shared/sobrestamento';
 import { Botao, campo, campoArea, dataHora, Folha, Marca, type Tom } from './ui';
+import { ComRefs } from './Movimentos';
 
 interface Props {
   valor: Sobrestamento;
@@ -202,7 +203,7 @@ export const SobrestamentoView: React.FC<Props> = ({ valor, avisos, usuarioNome,
                         {t.pertinencia && (
                           <p className="text-[13px] leading-relaxed text-tinta-2">
                             <span className="text-tinta-3">Pertinência apontada: </span>
-                            {t.pertinencia}
+                            <ComRefs texto={t.pertinencia} />
                           </p>
                         )}
                         <div className="grid gap-3 sm:grid-cols-3">

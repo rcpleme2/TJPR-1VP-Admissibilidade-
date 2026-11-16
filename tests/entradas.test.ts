@@ -36,7 +36,7 @@ describe('prazos com dados informados pelo usuário', () => {
     const v = verificarPrazos(r, ent({ protocolos: prot }));
     expect(v.prazos[0].dataInterposicao).toBe('30/10/2026');
     expect(v.prazos[0].fonteInterposicao).toMatch(/protocolo/);
-    expect(v.avisos.some((a) => a.includes('carimbo de protocolo'))).toBe(true);
+    expect(v.avisos.some((a) => a.includes('protocolo lido do PDF'))).toBe(true);
     const manual = verificarPrazos(r, ent({ protocolos: prot, interposicaoManual: { [r.recursosAnalisados[0].id]: '2026-11-10' } }));
     expect(manual.prazos[0].dataInterposicao).toBe('10/11/2026');
     expect(manual.prazos[0].status).toBe('tempestivo_se_prazo_dobro');

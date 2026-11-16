@@ -1,4 +1,5 @@
 import { parseData, formatBR } from './prazos';
+import { extrairMovimentos, interposicoes, type Movimento } from './movimentos';
 
 export interface ProtocoloDetectado {
   data: string; // dd/mm/aaaa
@@ -48,11 +49,28 @@ function projudi(paginas: string[]): ProtocoloDetectado | null {
 
 /**
  * Procura a data do protocolo no texto extraído da petição recursal.
+ * 0) movimentação "INTERPOSIÇÃO DE RECURSO" (vale a data desse ato);
  * 1) carimbo do Projudi ("dd/mm/aaaa: JUNTADA DE PETIÇÃO DE ..."), repetido em cada página;
  * 2) linhas com rótulo explícito ("Protocolado em", "Data do protocolo"...), preferindo as páginas das pontas.
  * Retorna null se nada for encontrado (o usuário informa a data manualmente).
  */
 export function extrairDataProtocolo(paginas: string[]): ProtocoloDetectado | null {
+  // 0) movimentação "INTERPOSIÇÃO DE RECURSO": é o ato que vale como protocolo
+  const atos = interposicoes(extrairMovimentos(paginas, ''))
+    .map((a) => ({ ...a, dt: parseData(a.mov.data) }))
+    .filter((a) => a.dt)
+    .sort((a, b) => b.dt!.getTime() - a.dt!.getTime());
+  if (atos.length) {
+    const { mov, dt } = atos[0]!;
+    return {
+      data: formatBR(dt!),
+      pagina: mov.paginas[0] ?? 1,
+      trecho: `${mov.data}: ${mov.descricao}`,
+      sistema: 'projudi',
+      movimento: mov.descricao,
+      referencia: `mov. ${mov.ref}`,
+    };
+  }
   const p = projudi(paginas);
   if (p) return p;
 
@@ -85,4 +103,55 @@ export function movimentoCompativel(papel: 'recurso_especial' | 'recurso_extraor
   if (/ESPECIAL/.test(mv)) return papel === 'recurso_especial';
   if (/EXTRAORDIN/.test(mv)) return papel === 'recurso_extraordinario';
   return null;
+}
+
+type Papel = 'recurso_especial' | 'recurso_extraordinario';
+interface Anexo {
+  name: string;
+  role: string;
+  protocolo?: ProtocoloDetectado;
+  movimentos?: Movimento[];
+}
+export interface ProtocoloDoRecurso extends ProtocoloDetectado {
+  arquivo: string;
+  papel: Papel;
+}
+
+/**
+ * Data de protocolo de cada recurso, considerando todos os PDFs anexados.
+ * Prioridade: movimentação "INTERPOSIÇÃO DE RECURSO" (de qualquer PDF, inclusive a íntegra do processo)
+ * > carimbo de juntada no PDF do próprio recurso.
+ */
+export function protocolosDosAnexos(anexos: Anexo[]): ProtocoloDoRecurso[] {
+  const papeis = new Set(anexos.map((a) => a.role).filter((r): r is Papel => r === 'recurso_especial' || r === 'recurso_extraordinario'));
+  const atos = anexos
+    .flatMap((a) => interposicoes(a.movimentos ?? []).map((x) => ({ ...x, arquivo: a.name, papelArquivo: a.role })))
+    .map((x) => ({ ...x, dt: parseData(x.mov.data) }))
+    .filter((x) => x.dt)
+    .sort((a, b) => b.dt!.getTime() - a.dt!.getTime());
+
+  const out: ProtocoloDoRecurso[] = [];
+  for (const papel of papeis) {
+    // ato com o tipo identificado; senão, ato genérico no próprio PDF do recurso; senão, ato genérico se só há um tipo de recurso
+    const ato =
+      atos.find((x) => x.papel === papel) ??
+      atos.find((x) => x.papel === null && x.papelArquivo === papel) ??
+      (papeis.size === 1 ? atos.find((x) => x.papel === null) : undefined);
+    if (ato) {
+      out.push({
+        arquivo: ato.arquivo,
+        papel,
+        data: formatBR(ato.dt!),
+        pagina: ato.mov.paginas[0] ?? 1,
+        trecho: `${ato.mov.data}: ${ato.mov.descricao}`,
+        sistema: 'projudi',
+        movimento: ato.mov.descricao,
+        referencia: `mov. ${ato.mov.ref}`,
+      });
+      continue;
+    }
+    const doArquivo = anexos.find((a) => a.role === papel && a.protocolo);
+    if (doArquivo) out.push({ arquivo: doArquivo.name, papel, ...doArquivo.protocolo! });
+  }
+  return out;
 }

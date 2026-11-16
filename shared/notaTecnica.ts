@@ -95,17 +95,29 @@ export function montarNotaTecnica(d: AdmissibilityAnalysisResult): NotaTecnica {
 
   // 2. Pressupostos extrínsecos
   const frases: string[] = [];
-  const tempestivos = prazos.filter((p) => p.status === 'tempestivo');
-  if (prazos.length && tempestivos.length === prazos.length) {
-    const p0 = prazos[0]!;
-    const mesmaData = prazos.every((p) => p.dataLimite === p0.dataLimite && p.dataInterposicao === p0.dataInterposicao);
+  const MEIO = { diario: 'pela publicação no Diário', eletronica: 'pela intimação eletrônica' } as const;
+  const RES = { tempestivo: 'tempestivo', intempestivo: 'intempestivo', tempestivo_se_prazo_dobro: 'tempestivo só com prazo em dobro', indeterminado: 'sem resultado' } as const;
+  // intimação em duplicidade: o resultado é dado para cada meio
+  for (const p of prazos.filter((x) => x.porMeio)) {
+    frases.push(
+      `Houve intimação pelo Diário e eletrônica. Quanto ao ${p.recursoTipo}, interposto em ${p.dataInterposicao ?? 'data não localizada'}: ${p.porMeio!
+        .map((m) => `${MEIO[m.meio]} (${m.dataBase}), prazo final em ${m.dataLimite}, ${RES[m.status]}`)
+        .join('; ')}.`,
+    );
+    if (p.status === 'indeterminado') pendencias.push(`Definir qual intimação prevalece para o ${p.recursoTipo}: o resultado muda conforme o meio.`);
+  }
+  const unicos = prazos.filter((x) => !x.porMeio);
+  const tempestivos = unicos.filter((p) => p.status === 'tempestivo');
+  if (unicos.length && tempestivos.length === unicos.length) {
+    const p0 = unicos[0]!;
+    const mesmaData = unicos.every((p) => p.dataLimite === p0.dataLimite && p.dataInterposicao === p0.dataInterposicao);
     frases.push(
       mesmaData
-        ? `${prazos.length > 1 ? 'Os recursos são tempestivos' : 'O recurso é tempestivo'}: prazo contado desde ${p0.dataBase}, com termo final em ${p0.dataLimite} e interposição em ${p0.dataInterposicao}.`
-        : `${prazos.length > 1 ? 'Os recursos são tempestivos' : 'O recurso é tempestivo'}: ${prazos.map((p) => `${p.recursoTipo} interposto em ${p.dataInterposicao}, prazo final em ${p.dataLimite}`).join('; ')}.`,
+        ? `${unicos.length > 1 ? 'Os recursos são tempestivos' : 'O recurso é tempestivo'}: prazo contado desde ${p0.dataBase}, com termo final em ${p0.dataLimite} e interposição em ${p0.dataInterposicao}.`
+        : `${unicos.length > 1 ? 'Os recursos são tempestivos' : 'O recurso é tempestivo'}: ${unicos.map((p) => `${p.recursoTipo} interposto em ${p.dataInterposicao}, prazo final em ${p.dataLimite}`).join('; ')}.`,
     );
   } else {
-    for (const p of prazos) {
+    for (const p of unicos) {
       if (p.status === 'tempestivo') frases.push(`O ${p.recursoTipo} é tempestivo (interposição em ${p.dataInterposicao}, prazo final em ${p.dataLimite}).`);
       else if (p.status === 'intempestivo') frases.push(`O ${p.recursoTipo} é intempestivo: prazo final em ${p.dataLimite} e interposição em ${p.dataInterposicao}.`);
       else if (p.status === 'tempestivo_se_prazo_dobro') {
@@ -167,6 +179,7 @@ export function montarNotaTecnica(d: AdmissibilityAnalysisResult): NotaTecnica {
   const celPrazo = (e: 'REsp' | 'RE'): Celula | null => {
     const p = porEspecie(prazos, (x) => x.recursoTipo, e);
     if (!p) return null;
+    if (p.porMeio && p.status === 'indeterminado') return { texto: 'Depende do meio', tom: 'atencao' };
     return {
       tempestivo: { texto: 'Tempestivo', tom: 'ok' as Tom },
       intempestivo: { texto: 'Intempestivo', tom: 'obice' as Tom },

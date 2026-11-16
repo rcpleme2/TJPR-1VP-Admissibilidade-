@@ -423,5 +423,81 @@
     "recursoEspecial": "O tópico de relevância da questão federal está presente e fundamentado. Quanto à responsabilidade do banco por fraude eletrônica, o acórdão está conforme a tese do Tema 466/STJ (art. 1.030, I, \"b\"). Nos demais pontos, a pretensão exige reexame de provas e de cláusulas contratuais (Súmulas 5 e 7/STJ), e a divergência esbarra na Súmula 83/STJ (art. 1.030, V).",
     "recursoExtraordinario": "A preliminar de repercussão geral está presente. A alegada ofensa ao contraditório, à ampla defesa e ao devido processo legal é reflexa e depende do exame de normas infraconstitucionais, nos termos do Tema 660/STF (art. 1.030, I, \"a\").",
     "proposta": "Negar seguimento ao recurso extraordinário (art. 1.030, I, \"a\") e ao recurso especial quanto ao Tema 466/STJ (art. 1.030, I, \"b\"); inadmitir o recurso especial quanto aos demais capítulos (art. 1.030, V)."
-  }
+  },
+  "movimentos": [
+    {
+      "ref": "1.1",
+      "data": "30/10/2026",
+      "descricao": "INTERPOSIÇÃO DE RECURSO",
+      "arquivo": "Petição",
+      "origem": "Autos do caso simulado (íntegra).pdf",
+      "paginas": [
+        1,
+        2,
+        3
+      ],
+      "texto": "EXCELENTÍSSIMO SENHOR DESEMBARGADOR 1º VICE-PRESIDENTE DO TRIBUNAL DE JUSTIÇA DO ESTADO DO PARANÁ\n\nRECURSO ESPECIAL\n\nBANCO PROGRESSO S/A, nos autos em epígrafe, inconformado com o acórdão proferido pela 16ª Câmara Cível, vem interpor RECURSO ESPECIAL, com fundamento no art. 105, III, alíneas \"a\" e \"c\", da Constituição Federal.\n\nI. DA RELEVÂNCIA DA QUESTÃO FEDERAL\nA controvérsia ultrapassa o interesse das partes: discute-se o alcance da responsabilidade das instituições financeiras por fraudes eletrônicas praticadas por terceiros..."
+    },
+    {
+      "ref": "1.2",
+      "data": "30/10/2026",
+      "descricao": "INTERPOSIÇÃO DE RECURSO",
+      "arquivo": "Petição",
+      "origem": "Autos do caso simulado (íntegra).pdf",
+      "paginas": [
+        4,
+        5
+      ],
+      "texto": "RECURSO EXTRAORDINÁRIO\n\nBANCO PROGRESSO S/A interpõe RECURSO EXTRAORDINÁRIO, com fundamento no art. 102, III, \"a\", da Constituição Federal.\n\nPRELIMINAR DE REPERCUSSÃO GERAL\nA questão constitucional tem relevância jurídica e econômica: o indeferimento da prova pericial complementar violou o contraditório e a ampla defesa (art. 5º, LIV e LV)..."
+    },
+    {
+      "ref": "12.2",
+      "data": "14/03/2024",
+      "descricao": "JUNTADA DE PROCURAÇÃO",
+      "arquivo": "Procuração",
+      "origem": "Autos do caso simulado (íntegra).pdf",
+      "paginas": [
+        9
+      ],
+      "texto": "PROCURAÇÃO AD JUDICIA ET EXTRA\n\nOUTORGANTE: Banco Progresso S/A, por seus representantes legais.\nOUTORGADOS: os advogados da Sociedade de Advogados indicada, aos quais confere os poderes da cláusula ad judicia et extra, inclusive para recorrer às instâncias superiores.\n\nCertidão: instrumento regular, com substabelecimento vigente."
+    },
+    {
+      "ref": "25.1",
+      "data": "08/10/2026",
+      "descricao": "JUNTADA DE ACÓRDÃO",
+      "arquivo": "Acórdão",
+      "origem": "Autos do caso simulado (íntegra).pdf",
+      "paginas": [
+        14,
+        15,
+        16
+      ],
+      "texto": "EMBARGOS DE DECLARAÇÃO CÍVEL\n\nEMENTA: EMBARGOS DE DECLARAÇÃO. RESPONSABILIDADE BANCÁRIA. FRAUDE ELETRÔNICA. ALEGADA OMISSÃO QUANTO AOS ARTS. 421 E 422 DO CÓDIGO CIVIL. QUESTÃO EXPRESSAMENTE ENFRENTADA. EMBARGOS REJEITADOS.\n\nO acórdão embargado examinou a validade das cláusulas contratuais à luz dos arts. 421 e 422 do Código Civil, concluindo pela falha na prestação do serviço..."
+    },
+    {
+      "ref": "35.1",
+      "data": "12/11/2026",
+      "descricao": "JUNTADA DE CONTRARRAZÕES",
+      "arquivo": "Contrarrazões",
+      "origem": "Autos do caso simulado (íntegra).pdf",
+      "paginas": [
+        20,
+        21
+      ],
+      "texto": "CONTRARRAZÕES AOS RECURSOS ESPECIAL E EXTRAORDINÁRIO\n\nINDÚSTRIA METALÚRGICA PARANAENSE LTDA. apresenta contrarrazões, requerendo a inadmissão dos recursos: a pretensão do recorrente exige o reexame de provas (Súmula 7/STJ) e a matéria constitucional é reflexa (Tema 660/STF)."
+    },
+    {
+      "ref": "88.1",
+      "data": "19/06/2025",
+      "descricao": "JUNTADA DE LAUDO PERICIAL",
+      "arquivo": "Laudo",
+      "origem": "Autos do caso simulado (íntegra).pdf",
+      "paginas": [
+        31,
+        32,
+        33
+      ],
+      "texto": "LAUDO DE PERÍCIA DIGITAL\n\nConclusão: as transações contestadas foram realizadas a partir de dispositivo não cadastrado, sem a validação do token de segurança, e o sistema do banco não emitiu bloqueio preventivo diante do padrão atípico das operações.\n\nResposta ao quesito 4: não há registro de que o correntista tenha compartilhado suas credenciais."
+    }
+  ]
 }

@@ -34,18 +34,36 @@ export const PrazoForm: React.FC<Props> = ({ value, onChange, idPrefix = 'pz' })
 
   return (
     <div className="space-y-4">
-      <div>
-        <Rotulo htmlFor={`${idPrefix}-ac`}>Intimação do acórdão</Rotulo>
-        <input id={`${idPrefix}-ac`} type="date" required value={value.dataIntimacaoAcordao ?? ''} onChange={(e) => set({ dataIntimacaoAcordao: e.target.value || undefined })} className={`${campo} num`} />
-        <Ajuda>Os 15 dias úteis contam a partir do dia útil seguinte.</Ajuda>
-      </div>
-
-      <div>
-        <Rotulo htmlFor={`${idPrefix}-emb`} dica="se houve">
-          Intimação do acórdão dos embargos
-        </Rotulo>
-        <input id={`${idPrefix}-emb`} type="date" value={value.dataIntimacaoEmbargos ?? ''} onChange={(e) => set({ dataIntimacaoEmbargos: e.target.value || undefined })} className={`${campo} num`} />
-      </div>
+      {(
+        [
+          ['ac', 'Intimação do acórdão', 'dataIntimacaoAcordao', 'dataIntimacaoAcordaoEletronica', undefined],
+          ['emb', 'Intimação do acórdão dos embargos', 'dataIntimacaoEmbargos', 'dataIntimacaoEmbargosEletronica', 'se houve'],
+        ] as const
+      ).map(([id, rotulo, diario, eletronica, dica]) => (
+        <fieldset key={id}>
+          <legend className="mb-1.5 flex w-full items-baseline justify-between text-[13px] font-medium text-tinta-2">
+            <span>{rotulo}</span>
+            {dica && <span className="font-normal text-tinta-3">{dica}</span>}
+          </legend>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label htmlFor={`${idPrefix}-${id}`} className="mb-1 block text-[12px] text-tinta-3">
+                Pelo Diário
+              </label>
+              <input id={`${idPrefix}-${id}`} type="date" value={value[diario] ?? ''} onChange={(e) => set({ [diario]: e.target.value || undefined })} className={`${campo} num px-2`} />
+            </div>
+            <div>
+              <label htmlFor={`${idPrefix}-${id}-el`} className="mb-1 block text-[12px] text-tinta-3">
+                Eletrônica (portal)
+              </label>
+              <input id={`${idPrefix}-${id}-el`} type="date" value={value[eletronica] ?? ''} onChange={(e) => set({ [eletronica]: e.target.value || undefined })} className={`${campo} num px-2`} />
+            </div>
+          </div>
+        </fieldset>
+      ))}
+      <Ajuda className="-mt-1">
+        Informe uma ou as duas. Havendo as duas, o prazo de 15 dias úteis é calculado para cada uma. A eletrônica vale da leitura ou do fim dos 10 dias para ler.
+      </Ajuda>
 
       <div role="radiogroup" aria-labelledby={`${idPrefix}-fer`}>
         <p id={`${idPrefix}-fer`} className="mb-1.5 text-[13px] font-medium text-tinta-2">

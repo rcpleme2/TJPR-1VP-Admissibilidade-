@@ -7,6 +7,7 @@ import type { PreparoItem } from '../../shared/schema';
 import { MARCO_RELEVANCIA_BR } from '../../shared/regras';
 import { Botao, Folha, TituloSecao } from './ui';
 import { obterSobrestamento, ROTULO_CONCLUSAO } from '../../shared/sobrestamento';
+import { ComRefs, ListaMovimentos } from './Movimentos';
 
 interface DashboardOverviewProps {
   data: AdmissibilityAnalysisResult;
@@ -73,7 +74,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onCh
             <TituloSecao as="h3" className="!text-[17px]">
               Parecer
             </TituloSecao>
-            <p className="mt-3 max-w-[68ch] whitespace-pre-line font-serif text-[16px] leading-[1.7] text-tinta">{diagnosticoGeral.resumoParecer}</p>
+            <p className="mt-3 max-w-[68ch] whitespace-pre-line font-serif text-[16px] leading-[1.7] text-tinta"><ComRefs texto={diagnosticoGeral.resumoParecer} /></p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Botao variante="primario" onClick={onNavigateToMinuta}>
                 Revisar a minuta
@@ -125,6 +126,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ data, onCh
             ))}
           </ul>
         </section>
+        <ListaMovimentos />
       </aside>
     </div>
   );

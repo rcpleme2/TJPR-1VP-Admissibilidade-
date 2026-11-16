@@ -130,6 +130,10 @@ export function somarDiasUteis(publicacao: Date, dias: number, extras?: Readonly
   return { inicio: inicio ?? cur, fim: cur };
 }
 
+export type Meio = 'diario' | 'eletronica';
+export const ROTULO_MEIO: Record<Meio, string> = { diario: 'pelo Diário', eletronica: 'pela intimação eletrônica' };
+const ROTULO_STATUS = { tempestivo: 'tempestivo', intempestivo: 'intempestivo', tempestivo_se_prazo_dobro: 'tempestivo só com prazo em dobro', indeterminado: 'indeterminado' } as const;
+
 const TIPO_RECURSO = {
   recurso_especial: /resp|especial/i,
   recurso_extraordinario: /\bre\b|extraordin/i,
@@ -147,35 +151,76 @@ export function verificarPrazos(out: ModelOutput, entradas: Partial<EntradasPraz
 
   const uAc = parseData(entradas.dataIntimacaoAcordao);
   const uEmb = parseData(entradas.dataIntimacaoEmbargos);
+  const uAcEl = parseData(entradas.dataIntimacaoAcordaoEletronica);
+  const uEmbEl = parseData(entradas.dataIntimacaoEmbargosEletronica);
   const dtAcordaoExtraida = parseData(p.dataPublicacaoAcordao);
   const dtEmbargosExtraida = parseData(p.dataPublicacaoEmbargos);
+  const exAcEl = parseData(p.dataIntimacaoEletronicaAcordao);
+  const exEmbEl = parseData(p.dataIntimacaoEletronicaEmbargos);
   if (p.dataPublicacaoAcordao && !dtAcordaoExtraida) avisos.push('Data de publicação do acórdão não reconhecida; informe a data da intimação.');
-  if (p.houveEmbargosDeclaracao && !uEmb && !dtEmbargosExtraida) {
+  if (p.houveEmbargosDeclaracao && !uEmb && !dtEmbargosExtraida && !uEmbEl && !exEmbEl) {
     avisos.push('Há embargos de declaração, mas a data de intimação/publicação do acórdão dos embargos não foi informada nem extraída.');
   }
 
-  // Data de referência do prazo: sempre a informada pelo usuário; senão a extraída dos autos.
-  const usaEmbargos = Boolean(p.houveEmbargosDeclaracao && (uEmb || dtEmbargosExtraida));
-  const dtBase = usaEmbargos ? (uEmb ?? dtEmbargosExtraida) : (uAc ?? dtAcordaoExtraida);
-  const fonteBase = usaEmbargos
-    ? uEmb
-      ? 'informada pelo usuário (intimação do acórdão dos embargos)'
-      : 'extraída dos autos (publicação do acórdão dos embargos)'
-    : uAc
-      ? 'informada pelo usuário (intimação do acórdão)'
-      : 'extraída dos autos (publicação do acórdão)';
-  if (p.houveEmbargosDeclaracao && uAc && !uEmb && !dtEmbargosExtraida) {
+  // Bases do prazo por meio de intimação. Em cada meio, a data informada pelo usuário prevalece sobre a extraída.
+  type Base = { meio: Meio; dt: Date; fonte: string; embargos: boolean };
+  const bases: Base[] = [];
+  const temEmbDiario = Boolean(p.houveEmbargosDeclaracao && (uEmb || dtEmbargosExtraida));
+  const acDiario = uAc ?? dtAcordaoExtraida;
+  if (temEmbDiario) {
+    bases.push({ meio: 'diario', dt: (uEmb ?? dtEmbargosExtraida)!, embargos: true, fonte: uEmb ? 'informada pelo usuário (intimação do acórdão dos embargos)' : 'extraída dos autos (publicação do acórdão dos embargos)' });
+  } else if (acDiario && !(p.houveEmbargosDeclaracao && (uEmbEl || exEmbEl))) {
+    bases.push({ meio: 'diario', dt: acDiario, embargos: false, fonte: uAc ? 'informada pelo usuário (intimação do acórdão)' : 'extraída dos autos (publicação do acórdão)' });
+  }
+  const embEl = uEmbEl ?? exEmbEl;
+  const acEl = uAcEl ?? exAcEl;
+  if (p.houveEmbargosDeclaracao && embEl) {
+    bases.push({ meio: 'eletronica', dt: embEl, embargos: true, fonte: `${uEmbEl ? 'informada pelo usuário' : 'extraída dos autos'} (intimação eletrônica do acórdão dos embargos)` });
+  } else if (acEl && !p.houveEmbargosDeclaracao) {
+    bases.push({ meio: 'eletronica', dt: acEl, embargos: false, fonte: `${uAcEl ? 'informada pelo usuário' : 'extraída dos autos'} (intimação eletrônica do acórdão)` });
+  } else if (acEl && p.houveEmbargosDeclaracao) {
+    avisos.push('Foi informada a intimação eletrônica só do acórdão original; havendo embargos, informe a intimação eletrônica do acórdão dos embargos.');
+  }
+
+  if (p.houveEmbargosDeclaracao && uAc && !uEmb && !dtEmbargosExtraida && !embEl) {
     avisos.push('Foi informada só a intimação do acórdão original; havendo embargos, o prazo corre da intimação do acórdão dos embargos.');
   }
   if (dtAcordaoExtraida && uAc && dtAcordaoExtraida.getTime() !== uAc.getTime() && !p.houveEmbargosDeclaracao) {
     avisos.push(`A intimação informada (${formatBR(uAc)}) difere da publicação extraída dos autos (${formatBR(dtAcordaoExtraida)}); prevaleceu a informada.`);
   }
-  const baseDescricao = usaEmbargos
+  if (bases.length === 2) {
+    avisos.push(
+      `Houve duas intimações: pelo Diário em ${formatBR(bases[0]!.dt)} e eletrônica em ${formatBR(bases[1]!.dt)}. O prazo foi calculado para cada uma; confira qual prevalece no caso.`,
+    );
+  }
+
+  const principal = bases[0];
+  const dtBase = principal?.dt ?? null;
+  const fonteBase = principal?.fonte ?? (uAc ? 'informada pelo usuário (intimação do acórdão)' : 'extraída dos autos (publicação do acórdão)');
+  const baseDescricao = principal?.embargos
     ? 'Intimação/publicação do acórdão dos embargos de declaração (interrupção do prazo – CPC, art. 1.026). Pressupõe embargos tempestivos e conhecidos.'
     : 'Intimação/publicação do acórdão recorrido (o dia da intimação é excluído; conta-se a partir do 1º dia útil seguinte).';
 
+  const calcular = (base: Date, dtInterp: Date | null) => {
+    const simples = somarDiasUteis(base, PRAZO_RECURSAL_DIAS_UTEIS, extras);
+    const dobro = somarDiasUteis(base, PRAZO_RECURSAL_DIAS_UTEIS * 2, extras);
+    const r = { inicio: formatBR(simples.inicio), limite: formatBR(simples.fim), dobro: formatBR(dobro.fim) };
+    if (!dtInterp) return { ...r, status: 'indeterminado' as const, observacao: 'Data de interposição não localizada no protocolo do PDF; informe-a manualmente.' };
+    const t = dtInterp.getTime();
+    if (t <= simples.fim.getTime()) return { ...r, status: 'tempestivo' as const, observacao: 'Interposto dentro de 15 dias úteis.' };
+    if (t <= dobro.fim.getTime()) {
+      return {
+        ...r,
+        status: 'tempestivo_se_prazo_dobro' as const,
+        observacao:
+          'Fora do prazo simples. Só será tempestivo se a parte tiver prazo em dobro (Fazenda Pública, MP, Defensoria – CPC, arts. 180, 183 e 186) ou houver suspensão/feriado não informado.',
+      };
+    }
+    return { ...r, status: 'intempestivo' as const, observacao: 'Interposto após o prazo, mesmo contado em dobro. Confira feriados e suspensões antes de concluir.' };
+  };
+
   const prazos: VerificacaoPrazo[] = out.recursosAnalisados.map((r) => {
-    // data de interposição: usuário > protocolo detectado no PDF > IA
+    // data de interposição: usuário > movimentação "interposição de recurso" ou carimbo no PDF > IA
     const manual = parseData(entradas.interposicaoManual?.[r.id]);
     const protocolo = (entradas.protocolos ?? []).find((pr) => TIPO_RECURSO[pr.papel].test(r.tipo));
     const doProtocolo = parseData(protocolo?.data);
@@ -187,13 +232,15 @@ export function verificarPrazos(out: ModelOutput, entradas: Partial<EntradasPraz
       fonteInterposicao = 'informada pelo usuário';
     } else if (doProtocolo) {
       dtInterp = doProtocolo;
-      fonteInterposicao = `carimbo de protocolo no PDF (p. ${protocolo!.pagina})`;
+      fonteInterposicao = /INTERPOSI/i.test(protocolo!.movimento ?? '')
+        ? `movimentação "${protocolo!.movimento}" (${protocolo!.referencia ?? `p. ${protocolo!.pagina}`})`
+        : `carimbo de protocolo no PDF (p. ${protocolo!.pagina})`;
     } else if (daIA) {
       dtInterp = daIA;
       fonteInterposicao = r.fonteDataInterposicao ? `extraída pela IA (${r.fonteDataInterposicao})` : 'extraída pela IA';
     }
     if (!manual && doProtocolo && daIA && doProtocolo.getTime() !== daIA.getTime()) {
-      avisos.push(`${r.tipo}: a IA leu a interposição em ${formatBR(daIA)}, mas o carimbo de protocolo do PDF indica ${formatBR(doProtocolo)}. Prevaleceu o carimbo; confira.`);
+      avisos.push(`${r.tipo}: a IA leu a interposição em ${formatBR(daIA)}, mas o protocolo lido do PDF indica ${formatBR(doProtocolo)}. Prevaleceu o PDF; confira.`);
     }
 
     const base: VerificacaoPrazo = {
@@ -211,25 +258,21 @@ export function verificarPrazos(out: ModelOutput, entradas: Partial<EntradasPraz
       observacao: '',
     };
     if (!dtBase) return { ...base, observacao: 'Sem data de intimação/publicação válida: informe a data da intimação para calcular.' };
-    const simples = somarDiasUteis(dtBase, PRAZO_RECURSAL_DIAS_UTEIS, extras);
-    const dobro = somarDiasUteis(dtBase, PRAZO_RECURSAL_DIAS_UTEIS * 2, extras);
-    base.inicioContagem = formatBR(simples.inicio);
-    base.dataLimite = formatBR(simples.fim);
-    base.dataLimiteDobro = formatBR(dobro.fim);
-    if (!dtInterp) {
-      return { ...base, observacao: 'Data de interposição não localizada no protocolo do PDF; informe-a manualmente.' };
-    }
-    const t = dtInterp.getTime();
-    if (t <= simples.fim.getTime()) return { ...base, status: 'tempestivo', observacao: 'Interposto dentro de 15 dias úteis.' };
-    if (t <= dobro.fim.getTime()) {
-      return {
-        ...base,
-        status: 'tempestivo_se_prazo_dobro',
-        observacao:
-          'Fora do prazo simples. Só será tempestivo se a parte tiver prazo em dobro (Fazenda Pública, MP, Defensoria – CPC, arts. 180, 183 e 186) ou houver suspensão/feriado não informado.',
-      };
-    }
-    return { ...base, status: 'intempestivo', observacao: 'Interposto após o prazo, mesmo contado em dobro. Confira feriados e suspensões antes de concluir.' };
+    const c = calcular(dtBase, dtInterp);
+    const res: VerificacaoPrazo = { ...base, inicioContagem: c.inicio, dataLimite: c.limite, dataLimiteDobro: c.dobro, status: c.status, observacao: c.observacao };
+    if (bases.length < 2) return res;
+
+    const porMeio = bases.map((b) => {
+      const x = calcular(b.dt, dtInterp);
+      return { meio: b.meio, dataBase: formatBR(b.dt), fonteBase: b.fonte, dataLimite: x.limite, dataLimiteDobro: x.dobro, status: x.status };
+    });
+    if (porMeio.every((m) => m.status === porMeio[0]!.status)) return { ...res, porMeio };
+    return {
+      ...res,
+      porMeio,
+      status: 'indeterminado',
+      observacao: `O resultado depende do meio de intimação: ${porMeio.map((m) => `${ROTULO_MEIO[m.meio]}, ${ROTULO_STATUS[m.status]}`).join('; ')}. Confira qual intimação prevalece.`,
+    };
   });
 
   if (feriadosUsuario.length > 0) {
@@ -237,8 +280,8 @@ export function verificarPrazos(out: ModelOutput, entradas: Partial<EntradasPraz
   }
 
   // marco da relevância: publicação do acórdão (informada pelo usuário prevalece sobre a extraída)
-  const dtAcordao = uAc ?? dtAcordaoExtraida;
-  const dtEmbargos = uEmb ?? dtEmbargosExtraida;
+  const dtAcordao = uAc ?? dtAcordaoExtraida ?? uAcEl ?? exAcEl;
+  const dtEmbargos = uEmb ?? dtEmbargosExtraida ?? uEmbEl ?? exEmbEl;
   const marco = parseData(MARCO_RELEVANCIA_ISO)!;
   let exigeCalc: boolean | null = null;
   let obsRel = '';
