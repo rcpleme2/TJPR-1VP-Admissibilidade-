@@ -34,6 +34,17 @@ Cada análise gera um **registro por processo** (chave: número CNJ, com dígito
 - **Armazenamento:** `STORE=firestore` (Cloud Run; camada gratuita do Firestore), `STORE=file` (desenvolvimento, `DATA_DIR`) ou `memory` (testes).
   Em desenvolvimento, se não houver usuários, cria-se `admin@local.test` com senha impressa no console.
 
+## Instruções à IA nos autos (prompt injection)
+
+- **Varredura** (`shared/injecao.ts`): ao anexar, o navegador procura no texto de cada PDF comandos dirigidos à IA (ordens para ignorar
+  instruções, redefinir o papel do modelo, forçar a admissão, ocultar óbices, revelar o prompt; marcadores que imitam instruções de sistema;
+  texto escondido com caracteres invisíveis). O alerta aparece no próprio arquivo, com página e trecho; o servidor repete a varredura antes
+  do envio.
+- **Modelo**: o conteúdo segue delimitado como dado não confiável e o prompt manda ignorar qualquer ordem contida nele e registrá-la em
+  `alertasManipulacao` (cobre também PDFs escaneados, que a varredura de texto não alcança).
+- **Resultado**: um aviso no topo do exame reúne o que a varredura e a IA encontraram; a nota técnica em PDF traz o quadro de alerta.
+- É alerta, não barreira: prazos e precedentes continuam recalculados em código e a minuta sempre passa por revisão humana.
+
 ## Motores de IA (Gemini, Claude, GPT)
 
 Na caixa "Motor de IA" escolha o provedor, informe a chave e, se quiser, o nome do modelo.

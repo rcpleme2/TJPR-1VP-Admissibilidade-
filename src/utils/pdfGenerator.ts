@@ -21,6 +21,9 @@ const LINHA_FORTE: RGB = [160, 167, 178];
 const OK: RGB = [43, 100, 73];
 const ATENCAO: RGB = [133, 89, 11];
 const OBICE: RGB = [140, 42, 42];
+const TOGA: RGB = [31, 53, 87];
+const ATENCAO_FUNDO: RGB = [251, 244, 227];
+const OBICE_FUNDO: RGB = [249, 238, 238];
 
 
 
@@ -105,21 +108,25 @@ export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, opti
   const hoje = new Date();
   const dataExtenso = hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  // --- Cabeçalho -----------------------------------------------------------------------------------
-  fonte('helvetica', 'normal', 8, TINTA_2);
-  doc.text('Tribunal de Justiça do Estado do Paraná', M.esq, y);
-  doc.text('Nota técnica de admissibilidade', W - M.dir, y, { align: 'right' });
+  // --- Cabeçalho e título --------------------------------------------------------------------------
+  fonte('helvetica', 'normal', 7.5, TINTA_2);
+  doc.text('TRIBUNAL DE JUSTIÇA DO ESTADO DO PARANÁ', M.esq, y, { charSpace: 0.3 });
   fonte('helvetica', 'normal', 8, TINTA_3);
-  doc.text('1ª Vice-Presidência', M.esq, y + 4);
-  doc.text(hoje.toLocaleDateString('pt-BR'), W - M.dir, y + 4, { align: 'right' });
+  doc.text('1ª Vice-Presidência', M.esq, y + 4.2);
+  doc.text(hoje.toLocaleDateString('pt-BR'), W - M.dir, y, { align: 'right' });
   y += 8;
-  filete(y);
-  y += 11;
+  filete(y, LINHA_FORTE);
+  y += 13;
+  fonte('times', 'bold', 18, TOGA);
+  doc.text('Nota técnica de admissibilidade', M.esq, y);
+  y += 7;
+  fonte('times', 'normal', 11.5, TINTA_2);
+  doc.text(`Processo ${processo.numero || 'sem número informado'}`, M.esq, y);
+  y += 9;
 
   // --- Identificação -------------------------------------------------------------------------------
   const recursos = [nt.temREsp && 'especial', nt.temRE && 'extraordinário'].filter(Boolean).join(' e ');
   const ident: Array<[string, string]> = [
-    ['Processo', processo.numero || 'Não informado'],
     ['Matéria', processo.materia || 'Não identificada'],
     ['Recorrente', (processo.recorrentes || []).join('; ') || data.recursosAnalisados.map((r) => r.recorrente).filter(Boolean).join('; ') || 'Não identificado'],
     ['Recorrido', (processo.recorridos || []).join('; ') || 'Não identificado'],
@@ -127,53 +134,76 @@ export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, opti
     [nt.temREsp && nt.temRE ? 'Recursos' : 'Recurso', recursos || 'Não identificado'],
   ];
   const colRot = 33;
+  filete(y - 4.5);
   for (const [r, v] of ident) {
-    fonte('times', 'bold', 11);
+    fonte('helvetica', 'normal', 8.5, TINTA_3);
     doc.text(r, M.esq, y);
     fonte('times', 'normal', 11);
     const ls = doc.splitTextToSize(v, larg - colRot) as string[];
     doc.text(ls, M.esq + colRot, y);
-    y += ls.length * 5 + 1;
+    y += ls.length * 5 + 1.6;
   }
+  filete(y - 2.5);
   y += 3;
 
   // --- Exame, na ordem: preliminar, extrínsecos, recursos, proposta ---------------------------------
   nt.secoes.forEach((sec, k) => {
     garantir(22);
     y += 5;
-    fonte('times', 'bold', 12);
+    fonte('times', 'bold', 12.5, TOGA);
     doc.text(`${k + 1}. ${sec.titulo}`, M.esq, y);
     y += 6;
     fonte('times', 'normal', 11.5);
     texto(sec.texto, { entrelinha: 5.5, justificar: true });
   });
 
-  if (nt.pendencias.length) {
-    garantir(16);
-    y += 4;
-    fonte('times', 'bold', 12);
-    doc.text('Pendências', M.esq, y);
-    y += 6;
+  /** Quadro de destaque com fundo claro: título e itens com marcador. */
+  const quadroDestaque = (titulo: string, itens: string[], fundo: RGB, marca: RGB) => {
     fonte('helvetica', 'normal', 9.5, TINTA);
-    for (const pz of nt.pendencias) {
-      const ls = doc.splitTextToSize(pz, larg - 4.5) as string[];
-      garantir(ls.length * 4.6);
-      doc.setFillColor(...ATENCAO);
-      doc.rect(M.esq, y - 2.3, 1.3, 1.3, 'F');
+    const blocos = itens.map((t) => doc.splitTextToSize(t, larg - 14) as string[]);
+    const altura = 12 + blocos.reduce((n, ls) => n + ls.length * 4.5 + 1.4, 0);
+    garantir(Math.min(altura, limite - M.topo) + 4);
+    y += 5;
+    doc.setFillColor(...fundo);
+    doc.rect(M.esq, y - 5, larg, altura, 'F');
+    doc.setFillColor(...marca);
+    doc.rect(M.esq, y - 5, 0.9, altura, 'F');
+    fonte('helvetica', 'bold', 9.5, marca);
+    doc.text(titulo, M.esq + 5, y + 1);
+    y += 7.5;
+    for (const ls of blocos) {
+      if (y + ls.length * 4.5 > limite) novaPagina();
+      doc.setFillColor(...marca);
+      doc.rect(M.esq + 5, y - 2.3, 1.2, 1.2, 'F');
       fonte('helvetica', 'normal', 9.5, TINTA);
-      doc.text(ls, M.esq + 4.5, y);
-      y += ls.length * 4.6 + 1;
+      doc.text(ls, M.esq + 9, y);
+      y += ls.length * 4.5 + 1.4;
     }
-  }
+    y += 3;
+  };
 
-  garantir(24);
-  y += 9;
+  const alertas = data.alertasManipulacao ?? [];
+  if (alertas.length) {
+    quadroDestaque(
+      'Instruções à IA encontradas nos autos (desconsideradas no exame)',
+      alertas.map((a) => `${a.documento}${a.pagina ? `, p. ${a.pagina}` : ''}: ${a.descricao}${a.trecho ? `. Trecho: "${a.trecho}"` : ''}`),
+      OBICE_FUNDO,
+      OBICE,
+    );
+  }
+  if (nt.pendencias.length) quadroDestaque('Pontos a conferir antes de assinar', nt.pendencias, ATENCAO_FUNDO, ATENCAO);
+
+  // assinatura: local e data, linha e nome, sempre juntos
+  garantir(34);
+  y += 8;
   fonte('times', 'normal', 11.5);
   doc.text(`Curitiba, ${dataExtenso}.`, M.esq, y);
-  y += 12;
+  y += 17;
+  filete(y - 4.5, LINHA_FORTE, M.esq, M.esq + 70);
   if (options.assessorName?.trim()) {
+    fonte('times', 'normal', 11.5);
     doc.text(options.assessorName.trim(), M.esq, y);
-    y += 5;
+    y += 4.8;
   }
   fonte('helvetica', 'normal', 8.5, TINTA_3);
   doc.text('Assessoria da 1ª Vice-Presidência', M.esq, y);
@@ -181,7 +211,7 @@ export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, opti
   // --- Anexo I: quadro de requisitos ---------------------------------------------------------------
   if (options.includeQuadro !== false && nt.quadro.length) {
     novaPagina();
-    fonte('times', 'bold', 13.5);
+    fonte('times', 'bold', 14, TOGA);
     doc.text('Anexo I. Quadro de requisitos', M.esq, y);
     y += 6;
     const head = ['Requisito', ...(nt.temREsp ? ['Recurso especial'] : []), ...(nt.temRE ? ['Recurso extraordinário'] : [])];
@@ -220,7 +250,7 @@ export function generateAdmissibilityPDF(data: AdmissibilityAnalysisResult, opti
   if (options.includeMinuta && minuta) {
     novaPagina();
     const meio = W / 2;
-    fonte('helvetica', 'normal', 8, TINTA_3);
+    fonte('times', 'bold', 14, TOGA);
     doc.text('Anexo II. Minuta da decisão', M.esq, y);
     y += 9;
     fonte('helvetica', 'normal', 8, TINTA_2);

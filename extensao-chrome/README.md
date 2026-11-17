@@ -9,7 +9,8 @@ PDF com a sessão que você já tem no site e o anexa ao exame.
 1. Baixe a versão mais recente pelo próprio sistema (cabeçalho: **Extensão**, ou Configurações > Extensão do Chrome).
 2. Descompacte numa pasta fixa.
 3. Em `chrome://extensions`, ligue o **Modo do desenvolvedor** e clique em **Carregar sem compactação**, escolhendo a pasta.
-4. Clique no ícone da extensão e informe o endereço do sistema. O Chrome pede permissão para acessá-lo.
+4. Clique no ícone da extensão: o sistema abre no painel lateral, em `https://admissibilidade.cloud.run/`
+   (outro endereço pode ser informado nas opções da extensão, para testes).
 
 Para atualizar: baixe de novo, substitua o conteúdo da pasta e clique em **Recarregar** em `chrome://extensions`.
 

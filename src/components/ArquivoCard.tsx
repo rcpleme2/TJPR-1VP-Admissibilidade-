@@ -5,6 +5,7 @@ import { estimarTokensPdf, estimarTokensTexto } from '../../shared/textoPdf';
 import { movimentoCompativel } from '../../shared/protocolo';
 import type { UploadedFileItem } from '../types/admissibility';
 import { campoArea } from './ui';
+import { AlertasInjecaoLista } from './AlertasSeguranca';
 
 interface Props {
   file: UploadedFileItem;
@@ -28,7 +29,7 @@ export const ArquivoCard: React.FC<Props> = ({ file, papeis, onUpdateRole, onRem
 
   const meta = [
     tamanho(file.size),
-    file.extraindo ? 'lendo o texto…' : file.paginas ? `${file.paginas} páginas` : '',
+    file.extraindo ? 'lendo o texto…' : file.paginas ? `${file.paginas} ${file.paginas === 1 ? 'página' : 'páginas'}` : '',
     !file.extraindo && file.modo === 'texto' && tokTexto > 0 ? `≈ ${mil(tokTexto)} tokens${economia ? ` (${economia}% a menos que o PDF)` : ''}` : '',
     !file.extraindo && file.modo === 'pdf' && tokPdf > 0 ? `enviado como PDF, ≈ ${mil(tokPdf)} tokens` : '',
   ].filter(Boolean);
@@ -58,6 +59,8 @@ export const ArquivoCard: React.FC<Props> = ({ file, papeis, onUpdateRole, onRem
             </p>
           )}
           {file.avisoExtracao && <p className="mt-1 text-[13px] text-atencao">{file.avisoExtracao}</p>}
+          {file.avisoClassificacao && <p className="mt-1 text-[13px] text-tinta-2">{file.avisoClassificacao}</p>}
+          {file.alertasInjecao && file.alertasInjecao.length > 0 && <AlertasInjecaoLista alertas={file.alertasInjecao} compacto />}
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-1">

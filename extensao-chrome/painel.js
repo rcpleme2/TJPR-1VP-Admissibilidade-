@@ -1,8 +1,9 @@
 import { baixar } from './baixar.js';
-import { formularioEndereco, lerEndereco } from './config.js';
+import { lerEndereco } from './config.js';
 
 const quadro = document.getElementById('app');
-const configurar = document.getElementById('configurar');
+const carregando = document.getElementById('carregando');
+quadro.addEventListener('load', () => (carregando.hidden = true));
 let origemApp = '';
 /** Aberto como janela própria (e não no painel lateral)? */
 const emJanela = new URLSearchParams(location.search).has('janela');
@@ -10,15 +11,10 @@ if (emJanela) document.title = 'Admissibilidade 1ª VP';
 
 function abrir(endereco) {
   origemApp = new URL(endereco).origin;
-  configurar.hidden = true;
-  quadro.hidden = false;
-  if (quadro.src !== endereco) quadro.src = endereco;
-}
-
-function pedirEndereco(atual) {
-  quadro.hidden = true;
-  configurar.hidden = false;
-  formularioEndereco(document.getElementById('form'), atual, abrir);
+  if (quadro.src !== endereco) {
+    carregando.hidden = false;
+    quadro.src = endereco;
+  }
 }
 
 // Ponte com o sistema: ele pede os links soltos no painel; a extensão baixa e devolve o PDF.
@@ -32,7 +28,9 @@ window.addEventListener('message', async (e) => {
   }
   // passa do painel lateral para uma janela própria
   if (msg?.tipo === 'tjpr:janela') {
-    const r = await chrome.runtime.sendMessage({ tipo: 'abrirJanela' }).catch(() => null);
+    // a janela é criada pelo service worker, que a traz para a frente depois que o painel fecha
+    const w = await chrome.windows.getCurrent().catch(() => null);
+    const r = await chrome.runtime.sendMessage({ tipo: 'abrirJanela', origem: w && { left: w.left, top: w.top, width: w.width, height: w.height } }).catch(() => null);
     if (r?.ok && !emJanela) window.close();
     return;
   }
@@ -47,10 +45,8 @@ window.addEventListener('message', async (e) => {
   }
 });
 
-chrome.storage.onChanged.addListener((mudancas, area) => {
-  if (area === 'sync' && mudancas.enderecoApp?.newValue) abrir(mudancas.enderecoApp.newValue);
+chrome.storage.onChanged.addListener(async (mudancas, area) => {
+  if (area === 'sync' && 'enderecoApp' in mudancas) abrir(await lerEndereco());
 });
 
-const atual = await lerEndereco();
-if (atual) abrir(atual);
-else pedirEndereco('');
+abrir(await lerEndereco());

@@ -17,6 +17,7 @@ import { montarPromptSistema } from './prompt';
 import { PROVEDORES_IMPL } from './providers';
 import { ProviderError, type ParteEntrada } from './providers/types';
 import { sanitizeUntrustedInput } from './sanitize';
+import type { AlertaInjecao } from '../shared/injecao';
 
 export class RequisicaoInvalida extends Error {}
 
@@ -63,10 +64,10 @@ const ROTULO_PAPEL: Record<string, string> = {
   outro: 'outro documento dos autos',
 };
 
-export function montarPartes(req: AnalyzeRequest): { partes: ParteEntrada[]; avisos: string[] } {
-  const avisos: string[] = [];
-  const { sanitized: notas, warnings } = sanitizeUntrustedInput(req.notes ?? '');
-  avisos.push(...warnings);
+export function montarPartes(req: AnalyzeRequest): { partes: ParteEntrada[]; avisos: AlertaInjecao[] } {
+  const avisos: AlertaInjecao[] = [];
+  const { sanitized: notas, alertas } = sanitizeUntrustedInput(req.notes ?? '', 'Observações');
+  avisos.push(...alertas);
 
   const partes: ParteEntrada[] = [];
   let intro = 'Analise os autos e peças recursais anexadas para o Juízo de Admissibilidade da 1ª Vice-Presidência do TJPR.\n';
@@ -88,13 +89,13 @@ export function montarPartes(req: AnalyzeRequest): { partes: ParteEntrada[]; avi
     if (f.mimeType === 'application/pdf' && f.dataBase64) {
       partes.push({ kind: 'pdf', name: nome.endsWith('.pdf') ? nome : `${nome}.pdf`, base64: f.dataBase64.replace(/\s/g, '') });
     } else if (f.textPreview) {
-      const { sanitized, warnings: w } = sanitizeUntrustedInput(f.textPreview);
+      const { sanitized, alertas: w } = sanitizeUntrustedInput(f.textPreview, f.name);
       avisos.push(...w);
       partes.push({ kind: 'text', text: sanitized });
     }
     partes.push({ kind: 'text', text: '</UNTRUSTED_DOCUMENT_CONTENT>' });
   }
-  return { partes, avisos: [...new Set(avisos)] };
+  return { partes, avisos };
 }
 
 function semNulos(v: unknown): unknown {
@@ -129,7 +130,7 @@ export function enriquecer(out: ModelOutput, meta: AdmissibilityAnalysisResult['
 
 export interface ResultadoAnalise {
   data: AdmissibilityAnalysisResult;
-  avisosSeguranca: string[];
+  avisosSeguranca: AlertaInjecao[];
 }
 
 export async function executarAnalise(

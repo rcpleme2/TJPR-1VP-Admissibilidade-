@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { enriquecer } from '../server/analyze';
-import { detectarPapel } from '../src/components/DocumentUploadSection';
+import { detectarPapel } from '../shared/classificacao';
 import { avisosPreparo, obterPreparo, preparoInicial } from '../shared/preparo';
 import { resumirAlteracoes } from '../shared/registro';
 import { AdmissibilityAnalysisResultSchema, AnalyzeRequestSchema, type ModelOutput } from '../shared/schema';

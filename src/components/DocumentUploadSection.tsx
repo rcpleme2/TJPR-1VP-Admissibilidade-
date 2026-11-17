@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { Loader2, Plus, Search, Trash2 } from 'lucide-react';
 import { UploadedFileItem } from '../types/admissibility';
 import { LIMITES } from '../../shared/schema';
 import type { CasoResumo } from '../../shared/registro';
@@ -7,28 +7,9 @@ import { ArquivoCard } from './ArquivoCard';
 import { extrairPdf } from '../lib/pdfText';
 import { linksArrastados, temArquivos, temLinks, trazerLinks } from '../lib/extensao';
 import { ROTULO_STATUS } from './CasoCabecalho';
+import { detectarPapel, papelPeloConteudo } from '../../shared/classificacao';
+import { detectarInjecao } from '../../shared/injecao';
 import { Botao, campo, campoArea, campoSelect, dataHora, Folha, Rotulo, TituloSecao } from './ui';
-
-/** Papel do arquivo a partir de palavras inteiras do nome (evita falsos positivos como "resposta" → REsp). */
-export function detectarPapel(nome: string, padrao: UploadedFileItem['role']): UploadedFileItem['role'] {
-  const tokens = nome
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/\.[^.]+$/, '')
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean);
-  const tem = (...ps: string[]) => ps.some((p) => tokens.includes(p));
-  const colado = tokens.join('');
-  if (tem('guia', 'custas', 'preparo', 'gru', 'darf', 'comprovante', 'recolhimento', 'porte')) return 'guia_preparo';
-  if (/recursoextraordinario/.test(colado)) return 'recurso_extraordinario';
-  if (/recursoespecial/.test(colado)) return 'recurso_especial';
-  if (tem('acordao', 'sentenca')) return tem('embargos', 'edcl', 'ed') ? 'acordao_embargos' : 'acordao';
-  if (tem('embargos', 'edcl')) return 'acordao_embargos';
-  if (tem('extraordinario', 're')) return 'recurso_extraordinario';
-  if (tem('especial', 'resp')) return 'recurso_especial';
-  return padrao;
-}
 
 interface DocumentUploadSectionProps {
   files: UploadedFileItem[];
@@ -60,10 +41,10 @@ interface DocumentUploadSectionProps {
 }
 
 const PAPEIS = [
-  { v: 'acordao' as const, r: 'Acórdão' },
-  { v: 'acordao_embargos' as const, r: 'Acórdão dos embargos' },
+  { v: 'acordao' as const, r: 'Acórdão recorrido' },
+  { v: 'acordao_embargos' as const, r: 'Acórdão (ED)' },
   { v: 'recurso_especial' as const, r: 'Recurso especial' },
-  { v: 'recurso_extraordinario' as const, r: 'Recurso extraordinário' },
+  { v: 'recurso_extraordinario' as const, r: 'Recurso extraord.' },
   { v: 'guia_preparo' as const, r: 'Guia de custas' },
   { v: 'outro' as const, r: 'Outro documento' },
 ];
@@ -116,11 +97,15 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       }
       quantidade++;
       const id = crypto.randomUUID();
+      // o espaço escolhido manda; no espaço "Recursos", o nome ainda separa especial de extraordinário
+      const peloNome = detectarPapel(file.name, roleOverride ?? 'recurso_especial');
+      const ehRecurso = (p: string) => p === 'recurso_especial' || p === 'recurso_extraordinario';
+      const papel = !roleOverride || (ehRecurso(roleOverride) && ehRecurso(peloNome)) ? peloNome : roleOverride;
       onAddFile({
         id,
         name: file.name,
         size: file.size,
-        role: detectarPapel(file.name, roleOverride || 'recurso_especial'),
+        role: papel,
         label: file.name.replace(/\.[^/.]+$/, ''),
         arquivo: file,
         modo: 'texto',
@@ -136,7 +121,11 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
             avisoExtracao: 'PDF sem camada de texto (escaneado): será enviado como PDF, com mais tokens. Se possível, use uma versão pesquisável.',
           });
         } else {
+          const novoPapel = papelPeloConteudo(papel, r.texto);
+          const alertas = detectarInjecao(r.texto, file.name);
           onUpdateFile(id, {
+            ...(novoPapel !== papel ? { role: novoPapel, avisoClassificacao: 'Classificado como acórdão dos embargos: o texto decide embargos de declaração.' } : {}),
+            ...(alertas.length ? { alertasInjecao: alertas } : {}),
             extraindo: false,
             modo: 'texto',
             paginas: r.paginas,
@@ -158,16 +147,19 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
 
   const [trazendo, setTrazendo] = useState(0);
 
-  /** Arquivos soltos em qualquer ponto da tela; links (de outro site) são baixados pela extensão do Chrome ou, sem ela, pelo servidor. */
-  const receber = async (dt: DataTransfer) => {
-    if (dt.files && dt.files.length > 0) return handleFileSelection(dt.files);
+  /**
+   * Arquivos ou links soltos: numa peça do índice (o tipo é o dela) ou em qualquer outro ponto da tela (o tipo vem do
+   * nome e do conteúdo). Links de outro site são baixados pela extensão do Chrome ou, sem ela, pelo servidor.
+   */
+  const receber = async (dt: DataTransfer, papel?: UploadedFileItem['role']) => {
+    if (dt.files && dt.files.length > 0) return handleFileSelection(dt.files, papel);
     const links = linksArrastados(dt);
     if (links.length === 0) return;
     setTrazendo((n) => n + links.length);
     await Promise.all(
       trazerLinks(links).map(async ({ link, arquivo }) => {
         try {
-          await handleFileSelection([await arquivo]);
+          await handleFileSelection([await arquivo], papel);
         } catch (e) {
           onError(`${link.nome || link.url}: ${(e as Error).message}`);
         } finally {
@@ -178,13 +170,14 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   };
   const receberRef = useRef(receber);
   receberRef.current = receber;
+  const profundidade = useRef(0);
+  const [alvo, setAlvo] = useState<UploadedFileItem['role'] | null>(null);
 
   useEffect(() => {
-    let profundidade = 0;
     const aceita = (e: DragEvent) => temArquivos(e.dataTransfer) || temLinks(e.dataTransfer);
     const entrar = (e: DragEvent) => {
       if (!aceita(e)) return;
-      profundidade++;
+      profundidade.current++;
       setDragActive(true);
     };
     const sobre = (e: DragEvent) => {
@@ -193,12 +186,16 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
     };
     const sair = () => {
-      profundidade = Math.max(0, profundidade - 1);
-      if (profundidade === 0) setDragActive(false);
+      profundidade.current = Math.max(0, profundidade.current - 1);
+      if (profundidade.current === 0) {
+        setDragActive(false);
+        setAlvo(null);
+      }
     };
     const soltar = (e: DragEvent) => {
-      profundidade = 0;
+      profundidade.current = 0;
       setDragActive(false);
+      setAlvo(null);
       if (!e.dataTransfer || !aceita(e)) return;
       e.preventDefault();
       receberRef.current(e.dataTransfer);
@@ -215,18 +212,40 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     };
   }, []);
 
-  const acordaoFiles = files.filter((f) => f.role === 'acordao' || f.role === 'acordao_embargos');
-  const recursoFiles = files.filter((f) => f.role === 'recurso_especial' || f.role === 'recurso_extraordinario');
-  const outrosFiles = files.filter((f) => f.role === 'guia_preparo' || f.role === 'outro');
+  /** Soltar sobre uma peça do índice: o arquivo entra com o tipo dela. */
+  const alvoDaPeca = (papel: UploadedFileItem['role']) => ({
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      if (alvo !== papel) setAlvo(papel);
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      profundidade.current = 0;
+      setDragActive(false);
+      setAlvo(null);
+      receber(e.dataTransfer, papel);
+    },
+  });
 
-  const seletor = (rotulo: string, papel: UploadedFileItem['role'], multiplo = false) => (
-    <label className={`${'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-linha-forte bg-folha px-2.5 text-[13px] font-medium text-tinta transition-colors hover:border-tinta-3'} focus-within:ring-2 focus-within:ring-toga/30`}>
-      <Plus className="size-3.5 text-tinta-3" />
-      {rotulo}
+  const lista = (...papeis: UploadedFileItem['role'][]) => files.filter((f) => papeis.includes(f.role));
+  const PECAS: Array<{ papel: UploadedFileItem['role']; titulo: string; dica: string; exigencia: 'obrigatória' | 'se houver' | 'opcional'; arquivos: UploadedFileItem[]; multiplo: boolean }> = [
+    { papel: 'acordao', titulo: 'Acórdão recorrido', dica: 'O acórdão que julgou a apelação ou o agravo.', exigencia: 'obrigatória', arquivos: lista('acordao'), multiplo: false },
+    { papel: 'acordao_embargos', titulo: 'Acórdão dos embargos de declaração', dica: 'Se houve embargos. Acórdão que acolhe ou rejeita embargos é reconhecido pelo texto.', exigencia: 'se houver', arquivos: lista('acordao_embargos'), multiplo: false },
+    { papel: 'recurso_especial', titulo: 'Recursos', dica: 'Especial e extraordinário, juntos ou separados; o tipo vem do nome do arquivo.', exigencia: 'obrigatória', arquivos: lista('recurso_especial', 'recurso_extraordinario'), multiplo: true },
+    { papel: 'guia_preparo', titulo: 'Guias de custas e comprovantes', dica: 'Nomes com preparo, custas, guia ou pagamento entram aqui sozinhos.', exigencia: 'se houver', arquivos: lista('guia_preparo'), multiplo: true },
+    { papel: 'outro', titulo: 'Outros documentos', dica: 'Decisão de gratuidade, procuração, contrarrazões ou outra peça útil.', exigencia: 'opcional', arquivos: lista('outro'), multiplo: true },
+  ];
+
+  const anexar = (papel: UploadedFileItem['role'], multiplo: boolean, titulo: string) => (
+    <label className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium text-toga transition-colors hover:bg-toga-claro focus-within:ring-2 focus-within:ring-toga/30">
+      <Plus className="size-3.5" />
+      Anexar
       <input
         type="file"
         accept="application/pdf,.pdf"
         multiple={multiplo}
+        aria-label={`Anexar: ${titulo}`}
         className="sr-only"
         onChange={async (e) => {
           if (e.target.files) await handleFileSelection(e.target.files, papel);
@@ -236,24 +255,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     </label>
   );
 
-  const grupo = (titulo: string, lista: UploadedFileItem[], vazio: string) => (
-    <div>
-      <div className="flex items-baseline justify-between border-b border-linha pb-2">
-        <h3 className="text-sm font-semibold text-tinta">{titulo}</h3>
-        <span className="num text-[13px] text-tinta-3">{lista.length}</span>
-      </div>
-      {lista.length === 0 ? (
-        <p className="py-3.5 text-sm text-tinta-3">{vazio}</p>
-      ) : (
-        <ul className="divide-y divide-linha">
-          {lista.map((file) => (
-            <ArquivoCard key={file.id} file={file} papeis={PAPEIS} onUpdateRole={onUpdateRole} onRemove={onRemoveFile} onUpdate={onUpdateFile} />
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-
   return (
     <div className="space-y-14">
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
@@ -261,30 +262,67 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
           <h1 className="font-serif text-[32px] font-semibold leading-[1.1] tracking-[-0.015em] text-tinta">Novo exame</h1>
           <p className="mt-2 max-w-xl text-[15px] text-tinta-2">Anexe o acórdão recorrido, os recursos e, se houver, as guias de custas. O texto dos PDFs é lido aqui no navegador antes de qualquer envio.</p>
 
-          <div
-            className={`mt-8 rounded-lg border border-dashed px-6 py-8 transition-colors ${dragActive ? 'border-toga bg-toga-claro' : 'border-linha-forte bg-folha'}`}
-          >
-            <div className="flex flex-col items-center text-center">
-              <Upload className="size-5 text-tinta-3" />
-              <p className="mt-2.5 text-sm text-tinta">{trazendo > 0 ? `Trazendo ${trazendo === 1 ? '1 documento' : `${trazendo} documentos`}…` : 'Arraste os PDFs para cá'}</p>
-              <p className="mt-0.5 text-[13px] text-tinta-3">
-                Arquivos do computador ou links de documentos de outro site. O tipo de cada peça é reconhecido pelo nome. Ou escolha:
+          <section aria-labelledby="autos-titulo" className="mt-8 overflow-hidden rounded-lg border border-linha bg-folha">
+            <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-linha px-5 py-3.5">
+              <h2 id="autos-titulo" className="font-serif text-[19px] font-semibold text-tinta">
+                Peças do exame
+              </h2>
+              <p className="text-[13px] text-tinta-3" aria-live="polite">
+                {trazendo > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 text-toga">
+                    <Loader2 className="size-3.5 animate-spin" />
+                    Trazendo {trazendo === 1 ? '1 documento' : `${trazendo} documentos`}…
+                  </span>
+                ) : (
+                  'Arraste PDFs ou links de outro site para uma peça ou para qualquer ponto da tela.'
+                )}
               </p>
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {seletor('Acórdão', 'acordao')}
-                {seletor('Recurso', 'recurso_especial', true)}
-                {seletor('Embargos de declaração', 'acordao_embargos')}
-                {seletor('Guia de custas', 'guia_preparo', true)}
-                {seletor('Outro documento', 'outro', true)}
-              </div>
+            </header>
+            <ol className="divide-y divide-linha">
+              {PECAS.map((p) => {
+                const juntada = p.arquivos.length > 0;
+                const sobre = dragActive && alvo === p.papel;
+                return (
+                  <li key={p.papel} {...alvoDaPeca(p.papel)} className={`relative transition-colors ${sobre ? 'bg-toga-claro' : ''}`}>
+                    {/* lombada: a situação de cada peça na borda do índice */}
+                    <span
+                      aria-hidden
+                      className={`absolute inset-y-0 left-0 w-[3px] ${juntada ? 'bg-toga' : p.exigencia === 'obrigatória' ? 'bg-atencao/70' : 'bg-transparent'}`}
+                    />
+                    <div className="flex items-start gap-3 px-5 py-3.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-baseline gap-x-2.5">
+                          <h3 className="text-[15px] font-semibold text-tinta">{p.titulo}</h3>
+                          <span className={`text-[12px] ${juntada ? 'text-ok' : p.exigencia === 'obrigatória' ? 'text-atencao' : 'text-tinta-3'}`}>
+                            {juntada ? (p.arquivos.length === 1 ? 'juntada' : `${p.arquivos.length} arquivos`) : p.exigencia === 'obrigatória' ? 'pendente' : p.exigencia}
+                          </span>
+                        </div>
+                        {!juntada && <p className="mt-0.5 text-[13px] text-tinta-3">{p.dica}</p>}
+                      </div>
+                      {anexar(p.papel, p.multiplo, p.titulo)}
+                    </div>
+                    {juntada && (
+                      <ul className="mx-5 mb-2 divide-y divide-linha border-t border-linha">
+                        {p.arquivos.map((file) => (
+                          <ArquivoCard key={file.id} file={file} papeis={PAPEIS} onUpdateRole={onUpdateRole} onRemove={onRemoveFile} onUpdate={onUpdateFile} />
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+
+          {dragActive && (
+            <div aria-hidden className="pointer-events-none fixed inset-3 z-40 flex items-end justify-center rounded-xl border-2 border-dashed border-toga/60 bg-toga/[0.04] pb-8">
+              <p className="rounded-full bg-toga px-4 py-2 text-sm font-medium text-white shadow-lg">
+                {alvo ? `Solte para juntar como: ${PECAS.find((x) => x.papel === alvo)?.titulo}` : 'Solte para juntar; o tipo de cada peça é reconhecido pelo nome e pelo texto'}
+              </p>
             </div>
-          </div>
+          )}
 
           <div className="mt-10 space-y-8">
-            {grupo('Acórdão recorrido', acordaoFiles, 'Nenhum acórdão anexado.')}
-            {grupo('Recursos', recursoFiles, 'Nenhum recurso anexado. É possível anexar o especial e o extraordinário juntos.')}
-            {grupo('Outros documentos', outrosFiles, 'Opcional: guias e comprovantes de preparo, decisão de gratuidade, procuração ou outra peça útil ao exame.')}
-
             <div>
               <Rotulo htmlFor="notas" dica="opcional">
                 Observações para a análise

@@ -1,3 +1,4 @@
+import type { AlertaInjecao } from '../../shared/injecao';
 import type { AdmissibilityAnalysisResult, EntradasPrazo, Provedor, UploadedFileItem } from '../types/admissibility';
 
 function arquivoParaBase64(file: File): Promise<string> {
@@ -82,7 +83,7 @@ export interface ParametrosAnalise {
 }
 
 /** Lê a resposta NDJSON do servidor: etapas reais de progresso e o resultado final. */
-export async function analisar(p: ParametrosAnalise): Promise<{ data: AdmissibilityAnalysisResult; securityWarnings: string[] }> {
+export async function analisar(p: ParametrosAnalise): Promise<{ data: AdmissibilityAnalysisResult; securityWarnings: AlertaInjecao[] }> {
   // PDFs só são lidos e codificados agora, e apenas os enviados no modo "PDF original".
   const arquivos = await Promise.all(
     p.files.map(async (f) =>
@@ -114,7 +115,7 @@ export async function analisar(p: ParametrosAnalise): Promise<{ data: Admissibil
   const leitor = res.body.getReader();
   const dec = new TextDecoder();
   let buffer = '';
-  let final: { data: AdmissibilityAnalysisResult; securityWarnings: string[] } | null = null;
+  let final: { data: AdmissibilityAnalysisResult; securityWarnings: AlertaInjecao[] } | null = null;
 
   const processar = (linha: string) => {
     if (!linha.trim()) return;

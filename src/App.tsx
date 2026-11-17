@@ -32,6 +32,8 @@ import { apagarDadosLocais, lerChaves, lerConfig, lerInstrucoes, salvarChaves, s
 import { ErroApi, nuvem, type UsuarioNuvem } from './lib/nuvem';
 import type { Caso, CasoResumo, StatusCaso } from '../shared/registro';
 import { LoginView } from './components/LoginView';
+import { AlertasSeguranca } from './components/AlertasSeguranca';
+import type { AlertaInjecao } from '../shared/injecao';
 import { CasoCabecalho, type EstadoSalvamento } from './components/CasoCabecalho';
 import { Abas, Botao } from './components/ui';
 import { HistoricoModal } from './components/HistoricoModal';
@@ -48,7 +50,7 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [stage, setStage] = useState('');
   const [analysisResult, setAnalysisResult] = useState<AdmissibilityAnalysisResult | null>(null);
-  const [securityWarnings, setSecurityWarnings] = useState<string[]>([]);
+  const [securityWarnings, setSecurityWarnings] = useState<AlertaInjecao[]>([]);
   const [activeTab, setActiveTab] = useState<Aba>('dashboard');
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [consultaAberta, setConsultaAberta] = useState(false);
@@ -292,7 +294,7 @@ export default function App() {
   const handleUpdateFile = (id: string, patch: Partial<UploadedFileItem>) =>
     setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   const handleUpdateRole = (id: string, role: UploadedFileItem['role']) =>
-    setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, role } : f)));
+    setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, role, avisoClassificacao: undefined } : f)));
 
   const abrirResultado = (data: AdmissibilityAnalysisResult) => {
     setConsultaAberta(false);
@@ -478,16 +480,7 @@ export default function App() {
           </div>
         )}
 
-        {securityWarnings.length > 0 && (
-          <div role="alert" className="mb-8 border-l-2 border-atencao bg-folha py-3 pl-4 pr-4 text-sm">
-            <p className="font-medium text-tinta">Trechos com aparência de instrução à IA foram encontrados nas peças ou notas. Revise a análise com atenção redobrada.</p>
-            <ul className="mt-1.5 space-y-0.5 text-[13px] text-tinta-2">
-              {securityWarnings.map((w, i) => (
-                <li key={i}>{w}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {!consultaAberta && analysisResult && <AlertasSeguranca doSistema={securityWarnings} daIA={analysisResult.alertasManipulacao} />}
 
         {consultaAberta ? (
           <ConsultaPrecedentes baseCustom={baseCustom} onBaseChange={handleBaseChange} onClose={() => setConsultaAberta(false)} />

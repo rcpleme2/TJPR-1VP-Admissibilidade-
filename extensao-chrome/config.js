@@ -1,8 +1,11 @@
 // Configuração compartilhada pelo painel e pela página de opções.
 
+/** Endereço do sistema. Pode ser trocado nas opções da extensão (ex.: para testes). */
+export const ENDERECO_PADRAO = 'https://admissibilidade.cloud.run/';
+
 export async function lerEndereco() {
   const { enderecoApp } = await chrome.storage.sync.get({ enderecoApp: '' });
-  return enderecoApp;
+  return enderecoApp || ENDERECO_PADRAO;
 }
 
 /** Normaliza o endereço digitado: só https (ou http em localhost), sem caminho extra. */
@@ -23,6 +26,10 @@ export const padrao = (origem) => (origem.startsWith('http://localhost') || orig
 /** Grava o endereço e pede acesso a ele (necessário para a sessão funcionar dentro do painel). */
 export async function salvarEndereco(endereco) {
   const origem = new URL(endereco).origin;
+  if (endereco === ENDERECO_PADRAO) {
+    await chrome.storage.sync.remove('enderecoApp');
+    return;
+  }
   const ok = await chrome.permissions.request({ origins: [padrao(origem)] });
   if (!ok) throw new Error('Sem a permissão de acesso ao endereço, o login não funciona dentro do painel.');
   await chrome.storage.sync.set({ enderecoApp: endereco });
@@ -31,7 +38,7 @@ export async function salvarEndereco(endereco) {
 /** Sites de onde os PDFs podem ser arrastados (além dos *.jus.br, liberados na instalação). */
 export async function sitesExtras() {
   const { origins = [] } = await chrome.permissions.getAll();
-  return origins.filter((o) => o !== 'https://*.jus.br/*');
+  return origins.filter((o) => o !== 'https://*.jus.br/*' && o !== `${new URL(ENDERECO_PADRAO).origin}/*`);
 }
 
 export async function liberarSite(texto) {
@@ -50,10 +57,10 @@ export function formularioEndereco(raiz, atual, aoSalvar) {
   raiz.innerHTML = `
     <form class="form" novalidate>
       <label for="endereco">Endereço do sistema</label>
-      <input id="endereco" type="url" inputmode="url" autocomplete="url" placeholder="https://admissibilidade-1vp-....run.app" required>
-      <p class="ajuda">O mesmo endereço que você abre no navegador. O Chrome vai pedir permissão para a extensão acessá-lo.</p>
+      <input id="endereco" type="url" inputmode="url" autocomplete="url" placeholder="${ENDERECO_PADRAO}" required>
+      <p class="ajuda">Padrão: ${ENDERECO_PADRAO}. Troque só se for usar outra instalação; o Chrome pede permissão para acessá-la.</p>
       <p class="erro" role="alert" hidden></p>
-      <button type="submit">Salvar e abrir</button>
+      <button type="submit">Salvar</button>
     </form>`;
   const form = raiz.querySelector('form');
   const campo = raiz.querySelector('#endereco');

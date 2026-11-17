@@ -55,7 +55,7 @@ export const ConfiguracoesModal: React.FC<Props> = ({ onClose, onEsquecerChaves,
     >
       {aba === 'extensao' ? (
         <div className="space-y-5 text-sm text-tinta-2">
-          <p>Abre este sistema no painel lateral do Chrome, ao lado do Projudi. No painel, você pode arrastar os documentos direto do site do processo, sem baixá-los antes.</p>
+          <p>Abre este sistema no painel lateral do Chrome (ou numa janela própria), ao lado do Projudi, e permite arrastar os documentos direto do site do processo, sem baixá-los antes, também numa aba comum.</p>
           <a href={URL_EXTENSAO} download className={botao('primario')}>
             <Download className="size-4" />
             Baixar a extensão{VERSAO_EXTENSAO ? `, versão ${VERSAO_EXTENSAO}` : ''}
@@ -68,9 +68,7 @@ export const ConfiguracoesModal: React.FC<Props> = ({ onClose, onEsquecerChaves,
             <li>
               Clique em <span className="font-medium text-tinta">Carregar sem compactação</span> e escolha a pasta.
             </li>
-            <li>
-              Clique no ícone da extensão e informe o endereço <span className="num font-medium text-tinta">{window.location.origin}</span>.
-            </li>
+            <li>Clique no ícone da extensão: o sistema abre no painel lateral, já no endereço oficial.</li>
           </ol>
           <p className="text-[13px] text-tinta-3">Para atualizar, baixe de novo, substitua o conteúdo da pasta e clique em Recarregar na página de extensões. Os sites do Judiciário (*.jus.br) já vêm liberados para arrastar documentos; outros sites podem ser liberados nas opções da extensão.</p>
         </div>

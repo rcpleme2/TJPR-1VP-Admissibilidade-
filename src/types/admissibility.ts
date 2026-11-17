@@ -1,3 +1,4 @@
+import type { AlertaInjecao } from '../../shared/injecao';
 // Tipos derivados do schema compartilhado (fonte única: shared/schema.ts).
 export type {
   ChecklistStatus,
@@ -39,4 +40,8 @@ export interface UploadedFileItem {
   linhasRemovidas?: number;
   avisoExtracao?: string;
   protocolo?: ProtocoloDetectado;
+  /** Instruções à IA encontradas no texto (prompt injection). */
+  alertasInjecao?: AlertaInjecao[];
+  /** Explicação de uma reclassificação automática (ex.: acórdão que decide embargos). */
+  avisoClassificacao?: string;
 }

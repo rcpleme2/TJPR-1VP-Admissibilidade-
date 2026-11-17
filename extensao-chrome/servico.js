@@ -50,25 +50,46 @@ async function baixarParaAba(item, remetente) {
   return { nome, base64: paraBase64(dados) };
 }
 
-/** Abre (ou traz para a frente) a janela própria do sistema, no tamanho e posição da última vez. */
-async function abrirJanela() {
+const LARGURA = 560;
+
+/** Traz a janela para a frente. Repetido depois de um instante: ao fechar, o painel lateral devolve o foco à janela do navegador. */
+function trazerParaFrente(id) {
+  const focar = () => chrome.windows.update(id, { focused: true, drawAttention: true, state: 'normal' }).catch(() => {});
+  focar();
+  setTimeout(focar, 350);
+  setTimeout(focar, 900);
+}
+
+/** Posição da janela: a da última vez, se ainda couber na tela; senão, encostada à direita da janela do navegador. */
+async function limites(origem) {
+  const { limitesJanela } = await chrome.storage.local.get('limitesJanela');
+  if (limitesJanela?.width >= 320 && limitesJanela?.height >= 400) return limitesJanela;
+  const base = origem ?? (await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => null));
+  if (!base?.width) return { width: LARGURA, height: 900 };
+  const width = Math.min(LARGURA, base.width);
+  return { left: base.left + base.width - width, top: base.top, width, height: base.height };
+}
+
+/** Abre (ou traz para a frente) a janela própria do sistema. */
+async function abrirJanela(origem) {
   const { janelaId } = await chrome.storage.session.get('janelaId');
   if (janelaId) {
-    try {
-      await chrome.windows.update(janelaId, { focused: true });
+    const existe = await chrome.windows.get(janelaId).catch(() => null);
+    if (existe) {
+      trazerParaFrente(janelaId);
       return;
-    } catch {
-      /* a janela já foi fechada */
     }
   }
-  const { limitesJanela } = await chrome.storage.local.get('limitesJanela');
-  const w = await chrome.windows.create({
-    url: chrome.runtime.getURL('painel.html?janela=1'),
-    type: 'popup',
-    focused: true,
-    ...(limitesJanela ?? { width: 560, height: 900 }),
-  });
+  let w;
+  try {
+    w = await chrome.windows.create({ url: chrome.runtime.getURL('painel.html?janela=1'), type: 'popup', focused: true, ...(await limites(origem)) });
+  } catch {
+    // posição salva fora da tela (ex.: monitor desconectado): abre no tamanho padrão
+    await chrome.storage.local.remove('limitesJanela');
+    w = await chrome.windows.create({ url: chrome.runtime.getURL('painel.html?janela=1'), type: 'popup', focused: true, width: LARGURA, height: 900 });
+  }
   await chrome.storage.session.set({ janelaId: w.id });
+  trazerParaFrente(w.id);
 }
 
 chrome.contextMenus.onClicked.addListener((info) => {
@@ -78,7 +99,7 @@ chrome.contextMenus.onClicked.addListener((info) => {
 chrome.runtime.onMessage.addListener((msg, remetente, responder) => {
   if (remetente.id !== chrome.runtime.id) return;
   if (msg?.tipo === 'abrirJanela') {
-    abrirJanela().then(() => responder({ ok: true }), (e) => responder({ ok: false, erro: String(e?.message || e) }));
+    abrirJanela(msg.origem).then(() => responder({ ok: true }), (e) => responder({ ok: false, erro: String(e?.message || e) }));
     return true;
   }
   if (msg?.tipo === 'baixarLink' && msg.item?.url) {
