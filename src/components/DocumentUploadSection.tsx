@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { UploadedFileItem } from '../types/admissibility';
 import { LIMITES } from '../../shared/schema';
 import type { CasoResumo } from '../../shared/registro';
 import { ArquivoCard } from './ArquivoCard';
 import { extrairPdf } from '../lib/pdfText';
+import { baixarPelaExtensao, linksArrastados, origemDaExtensao, temArquivos, temLinks } from '../lib/extensao';
 import { ROTULO_STATUS } from './CasoCabecalho';
 import { Botao, campo, campoArea, campoSelect, dataHora, Folha, Rotulo, TituloSecao } from './ui';
 
@@ -97,7 +98,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
 }) => {
   const [dragActive, setDragActive] = useState(false);
 
-  const handleFileSelection = async (fileList: FileList, roleOverride?: UploadedFileItem['role']) => {
+  const handleFileSelection = async (fileList: FileList | File[], roleOverride?: UploadedFileItem['role']) => {
     let quantidade = files.length;
     for (const file of Array.from(fileList)) {
       const ehPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
@@ -155,13 +156,68 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     }
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      await handleFileSelection(e.dataTransfer.files);
+  const [trazendo, setTrazendo] = useState(0);
+
+  /** Arquivos soltos em qualquer ponto da tela; links (de outro site) são baixados pela extensão do Chrome. */
+  const receber = async (dt: DataTransfer) => {
+    if (dt.files && dt.files.length > 0) return handleFileSelection(dt.files);
+    const links = linksArrastados(dt);
+    if (links.length === 0) return;
+    if (!origemDaExtensao()) {
+      onError('Para trazer documentos arrastados de outro site, abra o sistema pela extensão do Chrome. Fora dela, baixe o PDF e arraste o arquivo.');
+      return;
     }
+    setTrazendo((n) => n + links.length);
+    await Promise.all(
+      baixarPelaExtensao(links).map(async ({ link, arquivo }) => {
+        try {
+          await handleFileSelection([await arquivo]);
+        } catch (e) {
+          onError(`${link.nome || link.url}: ${(e as Error).message}`);
+        } finally {
+          setTrazendo((n) => n - 1);
+        }
+      }),
+    );
   };
+  const receberRef = useRef(receber);
+  receberRef.current = receber;
+
+  useEffect(() => {
+    let profundidade = 0;
+    const aceita = (e: DragEvent) => temArquivos(e.dataTransfer) || temLinks(e.dataTransfer);
+    const entrar = (e: DragEvent) => {
+      if (!aceita(e)) return;
+      profundidade++;
+      setDragActive(true);
+    };
+    const sobre = (e: DragEvent) => {
+      if (!aceita(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    };
+    const sair = () => {
+      profundidade = Math.max(0, profundidade - 1);
+      if (profundidade === 0) setDragActive(false);
+    };
+    const soltar = (e: DragEvent) => {
+      profundidade = 0;
+      setDragActive(false);
+      if (!e.dataTransfer || !aceita(e)) return;
+      e.preventDefault();
+      receberRef.current(e.dataTransfer);
+    };
+    window.addEventListener('dragenter', entrar);
+    window.addEventListener('dragover', sobre);
+    window.addEventListener('dragleave', sair);
+    window.addEventListener('drop', soltar);
+    return () => {
+      window.removeEventListener('dragenter', entrar);
+      window.removeEventListener('dragover', sobre);
+      window.removeEventListener('dragleave', sair);
+      window.removeEventListener('drop', soltar);
+    };
+  }, []);
 
   const acordaoFiles = files.filter((f) => f.role === 'acordao' || f.role === 'acordao_embargos');
   const recursoFiles = files.filter((f) => f.role === 'recurso_especial' || f.role === 'recurso_extraordinario');
@@ -210,18 +266,14 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
           <p className="mt-2 max-w-xl text-[15px] text-tinta-2">Anexe o acórdão recorrido, os recursos e, se houver, as guias de custas. O texto dos PDFs é lido aqui no navegador antes de qualquer envio.</p>
 
           <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragActive(true);
-            }}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={handleDrop}
             className={`mt-8 rounded-lg border border-dashed px-6 py-8 transition-colors ${dragActive ? 'border-toga bg-toga-claro' : 'border-linha-forte bg-folha'}`}
           >
             <div className="flex flex-col items-center text-center">
               <Upload className="size-5 text-tinta-3" />
-              <p className="mt-2.5 text-sm text-tinta">Arraste os PDFs para cá</p>
-              <p className="mt-0.5 text-[13px] text-tinta-3">O tipo de cada peça é reconhecido pelo nome do arquivo. Ou escolha:</p>
+              <p className="mt-2.5 text-sm text-tinta">{trazendo > 0 ? `Trazendo ${trazendo === 1 ? '1 documento' : `${trazendo} documentos`}…` : 'Arraste os PDFs para cá'}</p>
+              <p className="mt-0.5 text-[13px] text-tinta-3">
+                {origemDaExtensao() ? 'Arquivos do computador ou links de documentos de outro site. ' : ''}O tipo de cada peça é reconhecido pelo nome. Ou escolha:
+              </p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 {seletor('Acórdão', 'acordao')}
                 {seletor('Recurso', 'recurso_especial', true)}

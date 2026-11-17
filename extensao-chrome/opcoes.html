@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Opções da extensão</title>
+    <link rel="stylesheet" href="estilo.css" />
+    <style>
+      main { max-width: 560px; margin: 0 auto; padding: 48px 16px; display: grid; gap: 36px; }
+      h2 { font: 600 17px/1.3 Georgia, "Times New Roman", serif; margin: 0 0 4px; }
+      ul { list-style: none; padding: 0; margin: 12px 0 0; border-top: 1px solid var(--linha); }
+      li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--linha); font-size: 13px; }
+      .ok { color: #2b6449; font-size: 13px; margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Admissibilidade 1ª VP</h1>
+        <p class="ajuda">Painel lateral do Chrome para o sistema de admissibilidade.</p>
+      </header>
+      <section>
+        <h2>Sistema</h2>
+        <div id="form"></div>
+        <p class="ok" role="status" hidden>Endereço salvo. Abra o painel pelo ícone da extensão.</p>
+      </section>
+      <section>
+        <h2>Sites de onde arrastar PDFs</h2>
+        <p class="ajuda">Os sites do Judiciário (*.jus.br) já estão liberados. Libere outros se precisar trazer arquivos deles; a extensão baixa o PDF com a sua sessão aberta no site.</p>
+        <form id="novo-site" class="form" novalidate style="margin-top: 12px">
+          <label for="site">Endereço do site</label>
+          <input id="site" type="url" placeholder="https://exemplo.gov.br" />
+          <p class="erro" role="alert" hidden></p>
+          <button type="submit">Liberar site</button>
+        </form>
+        <ul id="sites"></ul>
+      </section>
+    </main>
+    <script type="module" src="opcoes.js"></script>
+  </body>
+</html>

@@ -35,10 +35,10 @@ export const ArquivoCard: React.FC<Props> = ({ file, papeis, onUpdateRole, onRem
 
   return (
     <li className="py-3.5">
-      <div className="flex items-start gap-3">
+      <div className="flex flex-wrap items-start gap-x-3 gap-y-1">
         <span className="mt-0.5 text-tinta-3">{file.extraindo ? <Loader2 className="size-[18px] animate-spin" /> : <FileText className="size-[18px]" />}</span>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[11rem] flex-1 basis-[11rem]">
           <p className="truncate text-sm font-medium text-tinta" title={file.name}>
             {file.name}
           </p>
@@ -60,7 +60,7 @@ export const ArquivoCard: React.FC<Props> = ({ file, papeis, onUpdateRole, onRem
           {file.avisoExtracao && <p className="mt-1 text-[13px] text-atencao">{file.avisoExtracao}</p>}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <select
             aria-label={`Tipo de peça de ${file.name}`}
             value={file.role}

@@ -85,6 +85,13 @@ O texto pode ser revisado/editado antes do envio (corrigir extração, tarjar da
 de PDFs não se aplica. PDFs escaneados (sem camada de texto) são enviados como PDF original, com aviso; o usuário também pode forçar o envio do PDF por arquivo.
 No modo texto a varredura de prompt injection alcança o conteúdo dos autos.
 
+## Extensão do Chrome (painel lateral)
+
+`extensao-chrome/` abre o sistema no painel lateral do Chrome e recebe PDFs arrastados de outros sites (ex.: Projudi):
+a extensão baixa o documento com a sessão do usuário e o entrega ao sistema. O build gera
+`dist/extensao-admissibilidade.zip`, baixado pelo link **Extensão** no cabeçalho; instruções em `extensao-chrome/README.md`.
+O servidor só aceita ser embutido pela extensão listada em `EXTENSAO_CHROME_IDS` (padrão: o ID fixado pela chave do manifest).
+
 ## Hospedagem no Google Cloud Run (camada gratuita)
 
 Pré-requisitos: projeto GCP com faturamento ativo (exigido mesmo para a camada gratuita) e `gcloud` autenticado.

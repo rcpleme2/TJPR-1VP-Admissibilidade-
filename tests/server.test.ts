@@ -209,6 +209,14 @@ describe('API HTTP', () => {
     expect(JSON.stringify(chamadas)).not.toContain('chave-de-teste');
   });
 
+  it('serve a extensão do Chrome para download', async () => {
+    const r = await fetch(`${base}/extensao-admissibilidade.zip`);
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-type')).toMatch(/zip/);
+    expect(r.headers.get('x-frame-options')).toBeNull();
+    expect(Buffer.from(await r.arrayBuffer()).readUInt32LE(0)).toBe(0x04034b50);
+  });
+
   it('instruções padrão só para quem está logado', async () => {
     expect((await fetch(`${base}/api/instrucoes-padrao`)).status).toBe(401);
     const r = await (await fetch(`${base}/api/instrucoes-padrao`, { headers: { cookie } })).json();

@@ -1,0 +1,20 @@
+:root {
+  --papel: #f2f3f5; --folha: #fff; --tinta: #18202c; --tinta-2: #465062; --tinta-3: #687184;
+  --linha: #cbd0d8; --toga: #1f3557; --obice: #8c2a2a;
+  color-scheme: light;
+  font: 14px/1.5 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--papel); color: var(--tinta); }
+h1 { font: 600 22px/1.2 Georgia, "Times New Roman", serif; color: var(--toga); margin: 0 0 6px; }
+p { margin: 0; }
+.ajuda { font-size: 13px; color: var(--tinta-3); margin-top: 6px; }
+.erro { font-size: 13px; color: var(--obice); margin-top: 8px; }
+.form { display: grid; gap: 4px; }
+label { font-size: 13px; font-weight: 500; color: var(--tinta-2); }
+input { height: 36px; padding: 0 10px; border: 1px solid var(--linha); border-radius: 6px; font: inherit; color: var(--tinta); background: var(--folha); }
+input:focus { outline: 2px solid color-mix(in srgb, var(--toga) 25%, transparent); border-color: var(--toga); }
+button { height: 36px; padding: 0 14px; border: 0; border-radius: 6px; background: var(--toga); color: #fff; font: 500 14px/1 inherit; cursor: pointer; justify-self: start; margin-top: 10px; }
+button.discreto { background: none; color: var(--tinta-2); padding: 0 8px; margin: 0; height: 28px; }
+button:focus-visible { outline: 2px solid var(--toga); outline-offset: 2px; }

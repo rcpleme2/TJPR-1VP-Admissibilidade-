@@ -16,12 +16,14 @@ import {
   provedoresComChaveNoServidor,
   RATE_LIMIT_MAX,
   RATE_LIMIT_WINDOW_MIN,
+  EXTENSAO_CHROME_IDS,
 } from './config';
 import { criarAuth, semearAdmin } from './auth';
 import { criarRotasCasos } from './casos';
 import { criarStore, type Store } from './store';
 import { ProviderError } from './providers/types';
 import { listarModelos } from './providers/modelos';
+import { NOME_ZIP_EXTENSAO, ziparPasta } from './zip';
 import { INSTRUCOES_PADRAO } from './prompt';
 import { redigirSegredos } from './sanitize';
 
@@ -54,10 +56,13 @@ export function createApp(store: Store) {
               objectSrc: ["'none'"],
               // pré-visualização dos PDFs anexados (blob: gerado no próprio navegador)
               frameSrc: ["'self'", 'blob:'],
-              frameAncestors: ["'none'"],
+              // só a extensão do Chrome pode abrir o sistema dentro de outra página (painel lateral)
+              frameAncestors: ["'self'", ...EXTENSAO_CHROME_IDS.map((id) => `chrome-extension://${id}`)],
             },
           }
         : false,
+      // frame-ancestors (CSP) já controla quem pode embutir; X-Frame-Options bloquearia a extensão
+      frameguard: false,
     }),
   );
 
@@ -183,6 +188,13 @@ export function createApp(store: Store) {
   });
 
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));
+
+  // Em produção o .zip vem pronto do build (dist/); em desenvolvimento, é montado na hora.
+  if (!IS_PROD) {
+    app.get(`/${NOME_ZIP_EXTENSAO}`, (_req, res) => {
+      res.type('application/zip').attachment(NOME_ZIP_EXTENSAO).send(ziparPasta(path.resolve(__dirname, '../extensao-chrome'), 'extensao-admissibilidade'));
+    });
+  }
 
   return app;
 }

@@ -3,6 +3,16 @@ import type { Provedor } from '../shared/schema';
 export const PORT = Number(process.env.PORT) || 8080;
 export const IS_PROD = process.env.NODE_ENV === 'production';
 
+/**
+ * Extensões do Chrome que podem abrir o sistema no painel lateral (frame-ancestors).
+ * O ID padrão é o da extensão em extensao-chrome/ (fixado pela chave do manifest).
+ * Publicada na Chrome Web Store, a extensão ganha outro ID: informe-o em EXTENSAO_CHROME_IDS.
+ */
+export const EXTENSAO_CHROME_IDS = (process.env.EXTENSAO_CHROME_IDS || 'abcgfjjfopdbldinmjmaogemajfifkpf')
+  .split(',')
+  .map((s) => s.trim())
+  .filter((s) => /^[a-p]{32}$/.test(s));
+
 /** Teto de requisições de análise por IP/janela. */
 export const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX) || 15;
 export const RATE_LIMIT_WINDOW_MIN = Number(process.env.RATE_LIMIT_WINDOW_MIN) || 15;
