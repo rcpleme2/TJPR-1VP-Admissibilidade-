@@ -20,10 +20,11 @@ export const RATE_LIMIT_WINDOW_MIN = Number(process.env.RATE_LIMIT_WINDOW_MIN) |
 /** Timeout de uma chamada ao provedor (ms). Cloud Run: ajuste --timeout para ser maior que isto. */
 export const PROVIDER_TIMEOUT_MS = Number(process.env.PROVIDER_TIMEOUT_MS) || 240_000;
 
-export const MODELOS_PADRAO: Record<Provedor, string> = {
-  gemini: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-  claude: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
-  gpt: process.env.OPENAI_MODEL || 'gpt-4.1',
+/** Modelo fixo por fornecedor, se definido no ambiente (GEMINI_MODEL etc.); sem ele, vale o nível escolhido na tela. */
+export const MODELO_FIXO: Partial<Record<Provedor, string>> = {
+  gemini: process.env.GEMINI_MODEL || undefined,
+  claude: process.env.ANTHROPIC_MODEL || undefined,
+  gpt: process.env.OPENAI_MODEL || undefined,
 };
 
 const ENV_KEYS: Record<Provedor, string | undefined> = {

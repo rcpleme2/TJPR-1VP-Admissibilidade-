@@ -1,3 +1,4 @@
+import type { Nivel } from '../../shared/modelos';
 import type { AlertaInjecao } from '../../shared/injecao';
 import type { AdmissibilityAnalysisResult, EntradasPrazo, Provedor, UploadedFileItem } from '../types/admissibility';
 
@@ -13,7 +14,8 @@ function arquivoParaBase64(file: File): Promise<string> {
 export interface ConfigServidor {
   autenticacao: boolean;
   serverKeys: Provedor[];
-  modelosPadrao: Record<Provedor, string>;
+  /** Modelo de reserva de cada nível (o servidor prefere o mais recente da família que a chave pode usar). */
+  modelosReserva: Record<Provedor, Record<Nivel, string>>;
   limites: { maxArquivos: number; maxBytesTotal: number };
 }
 
@@ -29,14 +31,21 @@ export interface ModeloDisponivel {
 }
 
 /** Consulta, com a chave informada (ou a do servidor), os modelos disponíveis no provedor. */
-export async function listarModelos(provider: Provedor, apiKey?: string): Promise<ModeloDisponivel[]> {
+export interface NivelResolvido {
+  id: string;
+  origem: 'lista' | 'reserva';
+}
+
+/** Modelos que a chave pode usar e o modelo de cada nível. */
+export async function listarModelos(provider: Provedor, apiKey?: string): Promise<{ modelos: ModeloDisponivel[]; niveis: Record<Nivel, NivelResolvido> }> {
   const res = await fetch('/api/modelos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-requested-with': 'fetch', ...(apiKey ? { 'x-llm-api-key': apiKey } : {}) },
     body: JSON.stringify({ provider }),
   });
   if (!res.ok) throw new Error(await erroDaResposta(res));
-  return (await res.json()).modelos ?? [];
+  const j = await res.json();
+  return { modelos: j.modelos ?? [], niveis: j.niveis };
 }
 
 export async function buscarConfig(): Promise<ConfigServidor | null> {

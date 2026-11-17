@@ -64,11 +64,21 @@ feito na hora. Se o download de sexta falhar, segue a cópia anterior e há nova
 
 ## Motores de IA (Gemini, Claude, GPT)
 
-Na caixa "Motor de IA" escolha o provedor, informe a chave e, se quiser, o nome do modelo.
+Na caixa "Motor de IA" escolha o provedor, informe a chave e o **nível do modelo**:
+
+| Nível | Gemini | Claude | GPT | Uso |
+|---|---|---|---|---|
+| Básico | Flash-Lite | Haiku | nano | rápido e barato; casos simples |
+| Intermediário (padrão) | Flash | Sonnet | mini | equilíbrio; a maioria dos exames |
+| Complexo | Pro | Opus | principal | mais capaz; vários capítulos ou teses difíceis |
+
+Na análise, o servidor consulta os modelos que a chave pode usar (cache de 6 horas) e usa o mais recente da família do
+nível (`shared/modelos.ts`); se a lista não vier, usa o modelo de reserva (ajustável por `MODELO_<PROVEDOR>_<NÍVEL>`, ex.:
+`MODELO_GEMINI_COMPLEXO`). `GEMINI_MODEL`, `ANTHROPIC_MODEL` e `OPENAI_MODEL`, se definidos, fixam um modelo para todos os níveis.
 A chave trafega só até o servidor, que a repassa ao provedor naquela análise: **não é gravada nem entra em log**.
 Fica em `sessionStorage` (some ao fechar a aba) ou, se marcado "lembrar", em `localStorage`.
-Modelos padrão: `GEMINI_MODEL`, `ANTHROPIC_MODEL`, `OPENAI_MODEL`. As três integrações usam a API REST oficial
-(`server/providers/`) e o mesmo JSON Schema, derivado de `shared/schema.ts`.
+As três integrações usam a API REST oficial (`server/providers/`) e o mesmo JSON Schema, derivado de `shared/schema.ts`;
+no Claude, por saída estruturada (`output_config.format`), já que os modelos atuais recusam o uso forçado de ferramenta.
 
 Chaves do servidor (`GEMINI_API_KEY` etc.) podem ser usadas por qualquer usuário autenticado.
 

@@ -1,5 +1,6 @@
 import type { Provedor } from '../types/admissibility';
 import { PROVEDORES } from '../../shared/schema';
+import { nivelDoValor, valorNivel, type Nivel } from '../../shared/modelos';
 
 /**
  * Armazenamento local (só preferências e chaves de API). Os registros dos casos ficam na nuvem. Chaves de API ficam em sessionStorage (somem ao fechar a aba)
@@ -21,11 +22,13 @@ export interface ConfigMotor {
   usarChaveDoServidor: boolean;
   /** Última lista de modelos consultada em cada provedor. */
   modelosDisponiveis: Record<Provedor, Array<{ id: string; nome: string }>>;
+  /** Modelo de cada nível para a chave, na última consulta. */
+  niveis?: Partial<Record<Provedor, Record<Nivel, { id: string; origem: 'lista' | 'reserva' }>>>;
 }
 
 export const CONFIG_PADRAO: ConfigMotor = {
   provider: 'gemini',
-  model: { gemini: '', claude: '', gpt: '' },
+  model: { gemini: valorNivel('intermediario'), claude: valorNivel('intermediario'), gpt: valorNivel('intermediario') },
   lembrarChaves: false,
   usarChaveDoServidor: false,
   modelosDisponiveis: { gemini: [], claude: [], gpt: [] },
@@ -40,7 +43,10 @@ export const lerConfig = (): ConfigMotor =>
     return {
       ...CONFIG_PADRAO,
       ...salvo,
-      model: { ...CONFIG_PADRAO.model, ...salvo.model },
+      // escolhas antigas (nome de modelo solto) passam para o nível intermediário
+      model: Object.fromEntries(
+        PROVEDORES.map((p) => [p, nivelDoValor(salvo.model?.[p]) ? salvo.model[p] : CONFIG_PADRAO.model[p]]),
+      ) as Record<Provedor, string>,
       modelosDisponiveis: { ...CONFIG_PADRAO.modelosDisponiveis, ...salvo.modelosDisponiveis },
     };
   }, CONFIG_PADRAO);

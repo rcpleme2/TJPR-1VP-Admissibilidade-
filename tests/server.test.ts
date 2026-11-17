@@ -91,14 +91,16 @@ describe('provedores (fetch simulado)', () => {
     expect(body.generationConfig.responseJsonSchema).toEqual({ type: 'object' });
   });
 
-  it('Claude: tool_use forçado e documento PDF', async () => {
-    const f = stub({ stop_reason: 'tool_use', content: [{ type: 'tool_use', input: { ok: true } }] });
+  it('Claude: saída estruturada (sem uso forçado de ferramenta) e documento PDF', async () => {
+    const f = stub({ stop_reason: 'end_turn', content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: '{"ok":true}' }] });
     expect(await PROVEDORES_IMPL.claude.executar(entrada)).toBe('{"ok":true}');
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('https://api.anthropic.com/v1/messages');
     expect((init.headers as Record<string, string>)['x-api-key']).toBe('chave-de-teste-123');
     const body = JSON.parse(init.body as string);
-    expect(body.tool_choice).toEqual({ type: 'tool', name: 'registrar_analise' });
+    expect(body.tool_choice).toBeUndefined(); // Opus 5.5 e Sonnet 5.5 recusam tool_choice "tool"
+    expect(body.output_config.format.type).toBe('json_schema');
+    expect(body.output_config.format.schema.additionalProperties).toBe(false);
     expect(body.messages[0].content[1].type).toBe('document');
   });
 

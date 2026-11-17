@@ -11,7 +11,7 @@ import { enriquecer, executarAnalise, RequisicaoInvalida } from './analyze';
 import {
   chaveDoServidor,
   IS_PROD,
-  MODELOS_PADRAO,
+  MODELO_FIXO,
   PORT,
   provedoresComChaveNoServidor,
   RATE_LIMIT_MAX,
@@ -25,6 +25,8 @@ import { ProviderError } from './providers/types';
 import { listarModelos } from './providers/modelos';
 import { NOME_ZIP_EXTENSAO, ziparPasta } from './zip';
 import { baixarLink, ErroLink } from './baixarLink';
+import { niveisResolvidos, reserva } from './modelosNivel';
+import { NIVEIS } from '../shared/modelos';
 import { baseStj, configurarBaseStj, statusBaseStj } from './temasStj';
 import { buscarTemas, temaPorNumero } from '../shared/temasStj';
 import { INSTRUCOES_PADRAO } from './prompt';
@@ -84,7 +86,7 @@ export function createApp(store: Store) {
       autenticacao: true,
       serverKeys: provedoresComChaveNoServidor(),
       provedores: PROVEDORES,
-      modelosPadrao: MODELOS_PADRAO,
+      modelosReserva: Object.fromEntries(PROVEDORES.map((p) => [p, Object.fromEntries(NIVEIS.map((n) => [n, MODELO_FIXO[p] ?? reserva(p, n)]))])),
       limites: LIMITES,
     });
   });
@@ -114,7 +116,8 @@ export function createApp(store: Store) {
     if (!apiKey) return res.status(400).json({ error: 'Informe a chave de API para consultar os modelos.' });
     if (apiKey.length < 8 || apiKey.length > 400 || /\s/.test(apiKey)) return res.status(400).json({ error: 'Chave de API em formato inválido.' });
     try {
-      res.json({ modelos: await listarModelos(provider, apiKey) });
+      const [modelos, niveis] = await Promise.all([listarModelos(provider, apiKey), niveisResolvidos(provider, apiKey)]);
+      res.json({ modelos, niveis });
     } catch (err) {
       const status = err instanceof ProviderError ? (err.status === 401 || err.status === 403 ? 400 : 502) : 500;
       res.status(status).json({ error: err instanceof ProviderError ? err.message : 'Erro ao consultar os modelos.' });
@@ -193,7 +196,7 @@ export function createApp(store: Store) {
     const meta = {
       evento: 'analise',
       provedor: dados.provider,
-      modelo: dados.model ?? MODELOS_PADRAO[dados.provider],
+      modelo: dados.model ?? 'nivel:intermediario',
       arquivos: dados.files.length,
       chaveDoUsuario: Boolean(chaveUsuario),
       usuario: req.usuario!.id,

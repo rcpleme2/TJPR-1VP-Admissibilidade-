@@ -3,7 +3,8 @@ import { Eye, EyeOff, Loader2, RefreshCw } from 'lucide-react';
 import { listarModelos, type ConfigServidor } from '../lib/api';
 import type { ConfigMotor } from '../lib/storage';
 import type { Provedor } from '../types/admissibility';
-import { Ajuda, Botao, campo, campoSelect, Rotulo } from './ui';
+import { Ajuda, Botao, campo, Rotulo } from './ui';
+import { DESCRICAO_NIVEL, FAMILIA_NIVEL, NIVEIS, nivelDoValor, ROTULO_NIVEL, valorNivel, type Nivel } from '../../shared/modelos';
 
 interface Props {
   config: ConfigMotor;
@@ -27,16 +28,20 @@ export const EngineSettings: React.FC<Props> = ({ config, onConfig, chaves, onCh
   const usandoServidor = temChaveNoServidor && config.usarChaveDoServidor;
   const pronto = usandoServidor || Boolean(chaves[p]);
   const [consulta, setConsulta] = useState<{ carregando: boolean; erro?: string; ok?: string }>({ carregando: false });
-  const lista = config.modelosDisponiveis[p] ?? [];
-  const escolhido = config.model[p];
-  const padrao = servidor?.modelosPadrao[p];
+  const nivelAtual = nivelDoValor(config.model[p]) ?? 'intermediario';
+  const resolvidos = config.niveis?.[p];
+  const modeloDo = (n: Nivel) => resolvidos?.[n]?.id ?? servidor?.modelosReserva?.[p]?.[n];
 
-  const atualizarLista = async () => {
+  const conferir = async () => {
     setConsulta({ carregando: true });
     try {
-      const modelos = await listarModelos(p, usandoServidor ? undefined : chaves[p]);
-      onConfig({ ...config, modelosDisponiveis: { ...config.modelosDisponiveis, [p]: modelos } });
-      setConsulta({ carregando: false, ok: modelos.length ? `${modelos.length} modelos disponíveis para esta chave.` : 'Nenhum modelo de texto encontrado para esta chave.' });
+      const r = await listarModelos(p, usandoServidor ? undefined : chaves[p]);
+      onConfig({ ...config, modelosDisponiveis: { ...config.modelosDisponiveis, [p]: r.modelos }, niveis: { ...config.niveis, [p]: r.niveis } });
+      const daLista = NIVEIS.filter((n) => r.niveis?.[n]?.origem === 'lista').length;
+      setConsulta({
+        carregando: false,
+        ok: daLista === 3 ? 'Modelos conferidos: os três níveis estão disponíveis para esta chave.' : 'Conferido. Onde a chave não lista um modelo da família, vale o modelo de reserva.',
+      });
     } catch (e) {
       setConsulta({ carregando: false, erro: (e as Error).message });
     }
@@ -99,26 +104,36 @@ export const EngineSettings: React.FC<Props> = ({ config, onConfig, chaves, onCh
         </div>
       )}
 
-      <div>
-        <Rotulo htmlFor="modelo">Modelo</Rotulo>
-        <div className="flex gap-2">
-          <select
-            id="modelo"
-            value={escolhido}
-            onChange={(e) => onConfig({ ...config, model: { ...config.model, [p]: e.target.value } })}
-            className={`${campoSelect} min-w-0 flex-1`}
-          >
-            <option value="">Padrão do sistema{padrao ? ` (${padrao})` : ''}</option>
-            {escolhido && !lista.some((m) => m.id === escolhido) && <option value={escolhido}>{escolhido}</option>}
-            {lista.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.nome !== m.id ? `${m.nome} (${m.id})` : m.id}
-              </option>
-            ))}
-          </select>
-          <Botao onClick={atualizarLista} disabled={!pronto || consulta.carregando} title={pronto ? 'Consultar os modelos disponíveis para a chave' : 'Informe a chave primeiro'} className="shrink-0">
-            {consulta.carregando ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-3.5" />}
-            Atualizar lista
+      <fieldset>
+        <legend className="mb-1.5 text-[13px] font-medium text-tinta-2">Nível do modelo</legend>
+        <div className="space-y-1.5">
+          {NIVEIS.map((n) => {
+            const ativo = nivelAtual === n;
+            const id = modeloDo(n);
+            return (
+              <label
+                key={n}
+                className={`flex cursor-pointer gap-3 rounded-md border px-3 py-2.5 transition-colors ${ativo ? 'border-toga bg-toga-claro' : 'border-linha-forte bg-folha hover:border-tinta-3'}`}
+              >
+                <input type="radio" name={`nivel-${p}`} className="mt-1" checked={ativo} onChange={() => onConfig({ ...config, model: { ...config.model, [p]: valorNivel(n) } })} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-baseline gap-x-2">
+                    <span className={`text-sm font-semibold ${ativo ? 'text-toga' : 'text-tinta'}`}>{ROTULO_NIVEL[n]}</span>
+                    <span className="text-[13px] text-tinta-2">
+                      {info.nome} {FAMILIA_NIVEL[p][n]}
+                    </span>
+                    {id && <span className="num truncate text-[12px] text-tinta-3">{id}</span>}
+                  </span>
+                  <span className="mt-0.5 block text-[13px] leading-snug text-tinta-3">{DESCRICAO_NIVEL[n]}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Botao tamanho="sm" onClick={conferir} disabled={!pronto || consulta.carregando} title={pronto ? 'Conferir quais modelos a chave pode usar' : 'Informe a chave primeiro'}>
+            {consulta.carregando ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            Conferir com a chave
           </Botao>
         </div>
         {consulta.erro ? (
@@ -126,9 +141,9 @@ export const EngineSettings: React.FC<Props> = ({ config, onConfig, chaves, onCh
         ) : consulta.ok ? (
           <Ajuda>{consulta.ok}</Ajuda>
         ) : (
-          <Ajuda>{lista.length ? 'A escolha fica salva neste navegador.' : 'Use “Atualizar lista” para ver os modelos que a sua chave permite usar.'}</Ajuda>
+          <Ajuda>Na análise, o sistema usa o modelo mais recente da família escolhida que a sua chave permite. A escolha fica salva neste navegador.</Ajuda>
         )}
-      </div>
+      </fieldset>
 
       <p className="text-[13px] leading-snug text-tinta-3">A chave só é repassada à {info.empresa} na análise e na consulta de modelos; não é gravada nem registrada.</p>
     </div>

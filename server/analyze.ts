@@ -14,7 +14,9 @@ import {
   type EntradasPrazo,
   type ModelOutput,
 } from '../shared/schema';
-import { MODELOS_PADRAO } from './config';
+import { MODELO_FIXO } from './config';
+import { resolverModelo } from './modelosNivel';
+import { ROTULO_NIVEL } from '../shared/modelos';
 import { montarPromptSistema } from './prompt';
 import { PROVEDORES_IMPL } from './providers';
 import { ProviderError, type ParteEntrada } from './providers/types';
@@ -196,14 +198,19 @@ export async function executarAnalise(
   if (base && candidatos.length) partes.push({ kind: 'text', text: textoCandidatosStj(candidatos, base.atualizadaEm) });
   const stj: OpcoesBaseStj = base ? { base: base.indice, consultadoEm: base.atualizadaEm, sugestoes: candidatos } : {};
 
-  const model = req.model || MODELOS_PADRAO[req.provider];
+  const resolvido = MODELO_FIXO[req.provider] ? { id: MODELO_FIXO[req.provider]!, nivel: null } : await resolverModelo(req.provider, req.model, apiKey);
+  const model = resolvido.id;
   const impl = PROVEDORES_IMPL[req.provider];
   const jsonSchema = modelOutputJsonSchema();
 
   let tentativaPartes = partes;
   let ultimoErro = '';
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
-    etapa(tentativa === 1 ? `Consultando o motor ${req.provider.toUpperCase()} (${model})…` : 'Corrigindo resposta fora do formato…');
+    etapa(
+      tentativa === 1
+        ? `Consultando o motor ${req.provider.toUpperCase()} (${resolvido.nivel ? `${ROTULO_NIVEL[resolvido.nivel].toLowerCase()}: ` : ''}${model})…`
+        : 'Corrigindo resposta fora do formato…',
+    );
     const texto = await impl.executar({ apiKey, model, system: montarPromptSistema(req.instrucoes), partes: tentativaPartes, jsonSchema, signal });
     etapa('Validando a estrutura da resposta…');
     const r = interpretarSaida(texto);

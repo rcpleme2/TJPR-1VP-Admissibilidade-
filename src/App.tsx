@@ -32,6 +32,7 @@ import { ErroApi, nuvem, type UsuarioNuvem } from './lib/nuvem';
 import type { Caso, CasoResumo, StatusCaso } from '../shared/registro';
 import { LoginView } from './components/LoginView';
 import { AlertasSeguranca } from './components/AlertasSeguranca';
+import { nivelDoValor, ROTULO_NIVEL } from '../shared/modelos';
 import type { AlertaInjecao } from '../shared/injecao';
 import { CasoCabecalho, type EstadoSalvamento } from './components/CasoCabecalho';
 import { Abas, Botao } from './components/ui';
@@ -508,7 +509,7 @@ export default function App() {
             onDeleteCaso={excluirCaso}
             podeExcluir={(c) => usuario?.papel === 'admin' || c.criadoPor.id === usuario?.id}
             prazoForm={<PrazoForm value={prazo} onChange={setPrazo} idPrefix="pre" />}
-            motor={{ nome: `${nomeMotor(provider).nome} (${nomeMotor(provider).empresa})`, pronto: temChave }}
+            motor={{ nome: `${nomeMotor(provider).nome}, nível ${ROTULO_NIVEL[nivelDoValor(config.model[provider]) ?? 'intermediario'].toLowerCase()}`, pronto: temChave }}
             onConfigurar={() => setConfigAberta(true)}
           />
         ) : (

@@ -14,7 +14,7 @@ export const gemini: Provedorlike = {
       {
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: 'user', parts }],
-        generationConfig: { responseMimeType: 'application/json', responseJsonSchema: jsonSchema, temperature: 0.2 },
+        generationConfig: { responseMimeType: 'application/json', responseJsonSchema: jsonSchema },
       },
       signal,
     );
