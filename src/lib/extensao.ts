@@ -4,6 +4,8 @@
  * usuário já tem no site de origem; o PDF volta para cá por postMessage.
  */
 
+import { useEffect, useState } from 'react';
+
 export const URL_EXTENSAO = '/extensao-admissibilidade.zip';
 export const VERSAO_EXTENSAO = typeof __VERSAO_EXTENSAO__ !== 'undefined' ? __VERSAO_EXTENSAO__ : '';
 
@@ -87,4 +89,30 @@ export function baixarPelaExtensao(links: LinkArrastado[]): Array<{ link: LinkAr
   }));
   window.parent.postMessage({ tipo: 'tjpr:baixar', itens: itens.map(({ id, url, nome }) => ({ id, url, nome })) }, origem);
   return out;
+}
+
+export type ModoExtensao = 'painel' | 'janela';
+
+/** Onde a extensão abriu o sistema (painel lateral ou janela própria); null fora da extensão ou em versão antiga dela. */
+export function useModoExtensao(): ModoExtensao | null {
+  const [modo, setModo] = useState<ModoExtensao | null>(null);
+  useEffect(() => {
+    const origem = origemDaExtensao();
+    if (!origem) return;
+    const aoReceber = (e: MessageEvent) => {
+      if (e.origin !== origem || e.source !== window.parent) return;
+      const m = e.data as { tipo?: string; modo?: string };
+      if (m?.tipo === 'tjpr:modo' && (m.modo === 'painel' || m.modo === 'janela')) setModo(m.modo);
+    };
+    window.addEventListener('message', aoReceber);
+    window.parent.postMessage({ tipo: 'tjpr:ola' }, origem);
+    return () => window.removeEventListener('message', aoReceber);
+  }, []);
+  return modo;
+}
+
+/** Pede à extensão que passe o sistema do painel lateral para uma janela própria. */
+export function abrirEmJanela() {
+  const origem = origemDaExtensao();
+  if (origem) window.parent.postMessage({ tipo: 'tjpr:janela' }, origem);
 }

@@ -13,6 +13,13 @@ PDF com a sessão que você já tem no site e o anexa ao exame.
 
 Para atualizar: baixe de novo, substitua o conteúdo da pasta e clique em **Recarregar** em `chrome://extensions`.
 
+## Painel lateral ou janela própria
+
+No painel, o botão de janela no cabeçalho do sistema (ou o item **Abrir em janela separada** no menu do
+ícone da extensão, com o botão direito) passa o sistema para uma janela própria, que pode ficar em outro
+monitor. A janela guarda tamanho e posição; para voltar ao painel, feche-a e clique no ícone da extensão.
+Ao trocar de painel para janela o sistema é recarregado: salve o registro antes.
+
 ## Como funciona
 
 - `painel.html` abre o sistema num iframe. O servidor só aceita ser embutido pela extensão cujo ID está em

@@ -1,6 +1,6 @@
 import React from 'react';
-import { BookOpen, LogOut, PanelRight, Search, Settings } from 'lucide-react';
-import { origemDaExtensao, URL_EXTENSAO, VERSAO_EXTENSAO } from '../lib/extensao';
+import { BookOpen, ExternalLink, LogOut, PanelRight, Search, Settings } from 'lucide-react';
+import { abrirEmJanela, origemDaExtensao, URL_EXTENSAO, useModoExtensao, VERSAO_EXTENSAO } from '../lib/extensao';
 
 /** Dentro do painel da extensão, o link para baixá-la não faz sentido. */
 const dentroDaExtensao = typeof window !== 'undefined' && Boolean(origemDaExtensao());
@@ -25,6 +25,14 @@ const iniciais = (nome: string) =>
 
 const link = 'inline-flex h-9 items-center gap-2 rounded-md px-2 sm:px-2.5 text-sm text-tinta-2 transition-colors hover:bg-tinta/[0.05] hover:text-tinta';
 
+/** No painel lateral da extensão: botão para passar o sistema para uma janela própria. */
+const BotaoJanela: React.FC = () =>
+  useModoExtensao() === 'painel' ? (
+    <button type="button" onClick={abrirEmJanela} className={link} aria-label="Abrir em janela separada" title="Abrir em janela separada (o painel lateral fecha)">
+      <ExternalLink className="size-4" />
+    </button>
+  ) : null;
+
 export const Header: React.FC<HeaderProps> = ({ onOpenGuide, onOpenConsulta, onOpenConfig, onHome, usuarioNome, onConta, onLogout }) => (
   <header className="border-b border-linha bg-folha">
     <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-8">
@@ -48,6 +56,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenGuide, onOpenConsulta, onO
           <span className="hidden sm:inline">Extensão</span>
         </a>
         )}
+        <BotaoJanela />
         <button type="button" onClick={onOpenConfig} className={link} aria-label="Configurações" title="Configurações">
           <Settings className="size-4" />
         </button>
