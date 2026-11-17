@@ -3,7 +3,6 @@ import { ChevronDown } from 'lucide-react';
 import type { EntradasPrazo, Verificacoes } from '../types/admissibility';
 import { ENTRADAS_VAZIAS, PrazoForm } from './PrazoForm';
 import { Folha, Marca, TituloSecao, type Tom } from './ui';
-import { ComRefs } from './Movimentos';
 
 const ROTULO: Record<Verificacoes['prazos'][number]['status'], { t: string; tom: Tom }> = {
   tempestivo: { t: 'Tempestivo', tom: 'ok' },
@@ -11,8 +10,6 @@ const ROTULO: Record<Verificacoes['prazos'][number]['status'], { t: string; tom:
   tempestivo_se_prazo_dobro: { t: 'Só com prazo em dobro', tom: 'atencao' },
   indeterminado: { t: 'Indeterminado', tom: 'neutro' },
 };
-
-const MEIO = { diario: 'pelo Diário', eletronica: 'intimação eletrônica' } as const;
 
 interface Props {
   v: Verificacoes;
@@ -49,37 +46,14 @@ export const DeadlinesPanel: React.FC<Props> = ({ v, entradas = ENTRADAS_VAZIAS,
               return (
                 <tr key={p.recursoId} className="align-top">
                   <td className="py-3 pr-4 font-medium text-tinta">{p.recursoTipo}</td>
-                  {p.porMeio ? (
-                    <>
-                      <td className="num py-3 pr-4 text-tinta" title={p.baseDescricao}>
-                        {p.porMeio.map((m) => (
-                          <span key={m.meio} className="block [&+&]:mt-2">
-                            {m.dataBase}
-                            <span className="block text-[13px] leading-snug text-tinta-3">{MEIO[m.meio]}</span>
-                          </span>
-                        ))}
-                      </td>
-                      <td className="num py-3 pr-4 text-tinta">
-                        {p.porMeio.map((m) => (
-                          <span key={m.meio} className="block [&+&]:mt-2">
-                            {m.dataLimite}
-                            <span className="block text-[13px] text-tinta-3">em dobro: {m.dataLimiteDobro}</span>
-                          </span>
-                        ))}
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="num py-3 pr-4 text-tinta" title={p.baseDescricao}>
-                        {p.dataBase ?? '—'}
-                        <span className="block max-w-[11rem] text-[13px] leading-snug text-tinta-3"><ComRefs texto={p.fonteBase} /></span>
-                      </td>
-                      <td className="num py-3 pr-4 text-tinta">
-                        {p.dataLimite ?? '—'}
-                        {p.dataLimiteDobro && <span className="block text-[13px] text-tinta-3">em dobro: {p.dataLimiteDobro}</span>}
-                      </td>
-                    </>
-                  )}
+                  <td className="num py-3 pr-4 text-tinta" title={p.baseDescricao}>
+                    {p.dataBase ?? '—'}
+                    <span className="block max-w-[11rem] text-[13px] leading-snug text-tinta-3">{p.fonteBase}</span>
+                  </td>
+                  <td className="num py-3 pr-4 text-tinta">
+                    {p.dataLimite ?? '—'}
+                    {p.dataLimiteDobro && <span className="block text-[13px] text-tinta-3">em dobro: {p.dataLimiteDobro}</span>}
+                  </td>
                   <td className="py-2 pr-4">
                     <input
                       type="date"
@@ -93,22 +67,11 @@ export const DeadlinesPanel: React.FC<Props> = ({ v, entradas = ENTRADAS_VAZIAS,
                       }}
                       className="num h-8 rounded-md border border-linha-forte bg-folha px-2 text-sm text-tinta focus:border-toga focus:outline-none"
                     />
-                    <span className="mt-1 block max-w-[11rem] text-[13px] leading-snug text-tinta-3">{p.fonteInterposicao ? <ComRefs texto={p.fonteInterposicao} /> : 'não localizada'}</span>
+                    <span className="mt-1 block max-w-[11rem] text-[13px] leading-snug text-tinta-3">{p.fonteInterposicao || 'não localizada'}</span>
                   </td>
                   <td className="py-3">
-                    {p.porMeio ? (
-                      p.porMeio.map((m) => (
-                        <span key={m.meio} className="block [&+&]:mt-2">
-                          <Marca tom={ROTULO[m.status].tom}>{ROTULO[m.status].t}</Marca>
-                          <span className="block text-[13px] leading-snug text-tinta-3">{MEIO[m.meio]}</span>
-                        </span>
-                      ))
-                    ) : (
-                      <>
-                        <Marca tom={r.tom}>{r.t}</Marca>
-                        {p.observacao && <p className="mt-1 max-w-xs text-[13px] leading-snug text-tinta-3"><ComRefs texto={p.observacao} /></p>}
-                      </>
-                    )}
+                    <Marca tom={r.tom}>{r.t}</Marca>
+                    {p.observacao && <p className="mt-1 max-w-xs text-[13px] leading-snug text-tinta-3">{p.observacao}</p>}
                   </td>
                 </tr>
               );

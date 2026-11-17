@@ -1,6 +1,5 @@
 import { extrairDataProtocolo, type ProtocoloDetectado } from '../../shared/protocolo';
 import { montarMarkdown, pareceEscaneado } from '../../shared/textoPdf';
-import { extrairMovimentos, type Movimento } from '../../shared/movimentos';
 
 export interface PdfExtraido {
   texto: string;
@@ -9,7 +8,6 @@ export interface PdfExtraido {
   escaneado: boolean;
   linhasRemovidas: number;
   protocolo: ProtocoloDetectado | null;
-  movimentos: Movimento[];
 }
 
 interface ItemTexto {
@@ -67,6 +65,5 @@ export async function extrairPdf(file: File, onProgresso?: (pagina: number, tota
     escaneado: pareceEscaneado(md),
     linhasRemovidas: md.linhasRepetidasRemovidas,
     protocolo: extrairDataProtocolo(textoPorPagina),
-    movimentos: extrairMovimentos(textoPorPagina, file.name),
   };
 }

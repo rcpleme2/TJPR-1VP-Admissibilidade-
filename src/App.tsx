@@ -6,7 +6,6 @@ import { ChecklistView } from './components/ChecklistView';
 import { DecisionDraftView } from './components/DecisionDraftView';
 import { PrecedentsView } from './components/PrecedentsView';
 import { SobrestamentoView } from './components/SobrestamentoView';
-import { MovimentosContext } from './components/Movimentos';
 import { avisosSobrestamento, obterSobrestamento } from '../shared/sobrestamento';
 import { ConsultaPrecedentes } from './components/ConsultaPrecedentes';
 import { EngineSettings, nomeMotor } from './components/EngineSettings';
@@ -25,8 +24,6 @@ import {
 } from './types/admissibility';
 import { verificarResultado } from '../shared/precedentes';
 import { verificarPrazos } from '../shared/prazos';
-import { protocolosDosAnexos } from '../shared/protocolo';
-import { unirMovimentos } from '../shared/movimentos';
 import { LIMITES } from '../shared/schema';
 import type { EntradaBase } from '../shared/precedentesBase';
 import { analisar, buscarConfig, buscarInstrucoesPadrao, carregarExemplo, type ConfigServidor } from './lib/api';
@@ -268,7 +265,9 @@ export default function App() {
   const provider = config.provider;
   const usaChaveServidor = Boolean(servidor?.serverKeys.includes(provider) && config.usarChaveDoServidor);
   const temChave = usaChaveServidor || Boolean(chaves[provider]);
-  const protocolosDetectados = useMemo(() => protocolosDosAnexos(files), [files]);
+  const protocolosDetectados = files
+    .filter((f) => (f.role === 'recurso_especial' || f.role === 'recurso_extraordinario') && f.protocolo)
+    .map((f) => ({ arquivo: f.name, papel: f.role as 'recurso_especial' | 'recurso_extraordinario', ...f.protocolo! }));
   const bytesPdf = files.filter((f) => f.modo === 'pdf').reduce((t, f) => t + f.size, 0);
   const extraindo = files.some((f) => f.extraindo);
   const temAcordao = files.some((f) => f.role === 'acordao' || f.role === 'acordao_embargos');
@@ -276,7 +275,7 @@ export default function App() {
   const pendencias = [
     !temAcordao && 'Anexar o acórdão recorrido',
     !temRecurso && 'Anexar ao menos um recurso',
-    !prazo.dataIntimacaoAcordao && !prazo.dataIntimacaoAcordaoEletronica && !prazo.dataIntimacaoEmbargos && !prazo.dataIntimacaoEmbargosEletronica && 'Informar a intimação do acórdão',
+    !prazo.dataIntimacaoAcordao && 'Informar a intimação do acórdão',
     !prazo.feriadosRespondido && 'Responder sobre feriados e suspensões',
     !temChave && 'Configurar a chave de API do motor de IA',
     extraindo && 'Aguardar a leitura dos PDFs',
@@ -339,10 +338,8 @@ export default function App() {
         onStage: setStage,
       });
       setSecurityWarnings(r.securityWarnings);
-      // trechos das movimentações lidas dos PDFs: base da janela flutuante sobre as referências "mov. X"
-      const dados = { ...r.data, movimentos: unirMovimentos(files.map((f) => f.movimentos ?? [])) };
-      abrirResultado(dados);
-      criarRegistro(dados);
+      abrirResultado(r.data);
+      criarRegistro(r.data);
     } catch (err) {
       const e = err as Error;
       if (e.name === 'AbortError' && !controller.signal.reason) setErrorMessage('Análise cancelada.');
@@ -558,7 +555,6 @@ export default function App() {
               </div>
             </div>
 
-            <MovimentosContext.Provider value={analysisResult.movimentos ?? []}>
             <div role="tabpanel">
               {activeTab === 'dashboard' && (
                 <DashboardOverview
@@ -607,7 +603,6 @@ export default function App() {
                 />
               )}
             </div>
-            </MovimentosContext.Provider>
           </div>
         )}
       </main>

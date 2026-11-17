@@ -5,7 +5,6 @@ import type { EntradaBase } from '../../shared/precedentesBase';
 import type { CitacaoPrecedente } from '../types/admissibility';
 import { exportarBase, importarBase } from '../lib/baseIO';
 import { Abas, Botao, campo, campoArea, Folha, Marca, type Tom } from './ui';
-import { ComRefs } from './Movimentos';
 
 interface Props {
   citacoes: CitacaoPrecedente[];
@@ -185,7 +184,7 @@ export const PrecedentsView: React.FC<Props> = ({ citacoes, baseCustom, onChange
                         {c.ocorrencias.map((o, i) => (
                           <blockquote key={i} className="border-l-2 border-linha-forte pl-3">
                             <span className="block text-[12px] text-tinta-3">{o.origem}</span>
-                            <span className="font-serif leading-relaxed text-tinta-2"><ComRefs texto={o.contexto} /></span>
+                            <span className="font-serif leading-relaxed text-tinta-2">{o.contexto}</span>
                           </blockquote>
                         ))}
                       </div>

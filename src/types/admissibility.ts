@@ -19,7 +19,6 @@ export type {
 
 import type { FileRole } from '../../shared/schema';
 import type { ProtocoloDetectado } from '../../shared/protocolo';
-import type { Movimento } from '../../shared/movimentos';
 
 export interface UploadedFileItem {
   id: string;
@@ -40,6 +39,4 @@ export interface UploadedFileItem {
   linhasRemovidas?: number;
   avisoExtracao?: string;
   protocolo?: ProtocoloDetectado;
-  /** Movimentações do Projudi lidas deste PDF. */
-  movimentos?: Movimento[];
 }

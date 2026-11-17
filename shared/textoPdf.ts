@@ -1,5 +1,3 @@
-import { RE_REF_PROJUDI } from './movimentos';
-
 /**
  * Conversão do texto extraído de PDFs para Markdown enxuto (menos tokens).
  * A extração em si (pdf.js) fica no navegador; aqui há só a limpeza, que é testável.
@@ -52,13 +50,8 @@ export function montarMarkdown(linhasPorPagina: string[][]): ResultadoMarkdown {
   let removidas = 0;
   const partes: string[] = [];
   const carimbos = new Map<string, string>(); // linha normalizada -> 1ª ocorrência (mostrada uma única vez no topo)
-  let movAnterior: string | undefined;
   linhasPorPagina.forEach((linhas, i) => {
     const margem = naMargem(linhas);
-    // número do movimento do Projudi (some com o carimbo repetido): marcado na 1ª página de cada movimento
-    const mov = linhas.map((l) => l.match(RE_REF_PROJUDI)?.[1]).find(Boolean);
-    const marcaMov = mov && mov !== movAnterior ? ` [mov. ${mov}]` : '';
-    if (mov) movAnterior = mov;
     const uteis = linhas
       .map((l) => l.replace(/[ \t\u00a0]+/g, ' ').trim())
       .filter((l, k) => {
@@ -77,7 +70,7 @@ export function montarMarkdown(linhasPorPagina: string[][]): ResultadoMarkdown {
       .replace(/([^\n.:;!?»")\]])\n(?=\p{Ll})/gu, '$1 ') // quebra no meio de frase
       .replace(/\n{3,}/g, '\n\n')
       .trim();
-    if (corpo) partes.push(`[p. ${i + 1}]${marcaMov}\n${corpo}`);
+    if (corpo) partes.push(`[p. ${i + 1}]\n${corpo}`);
   });
   // o conteúdo do carimbo (protocolo, assinatura, número do recurso) é informação dos autos: fica uma vez só, no topo
   if (carimbos.size > 0) {

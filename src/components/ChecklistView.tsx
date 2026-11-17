@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
 import { ChecklistSecao, ChecklistStatus } from '../types/admissibility';
 import { Abas, campo, Folha, type Tom } from './ui';
-import { ComRefs } from './Movimentos';
 
 interface ChecklistViewProps {
   sections: ChecklistSecao[];
@@ -145,15 +144,15 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({ sections, onUpdate
 
                     {aberto && (
                       <div className="mt-3 space-y-3 pl-12">
-                        <p className="max-w-[72ch] text-sm leading-relaxed text-tinta-2"><ComRefs texto={item.analiseTecnica} /></p>
+                        <p className="max-w-[72ch] text-sm leading-relaxed text-tinta-2">{item.analiseTecnica}</p>
                         {item.fundamentoLegal && (
                           <p className="text-[13px] text-tinta-3">
-                            <span className="text-tinta-2">Fundamento:</span> <ComRefs texto={item.fundamentoLegal} />
+                            <span className="text-tinta-2">Fundamento:</span> {item.fundamentoLegal}
                           </p>
                         )}
                         {item.trechoRelevante && (
                           <blockquote className="max-w-[72ch] border-l-2 border-linha-forte pl-3.5 font-serif text-[14px] italic leading-relaxed text-tinta-2">
-                            <ComRefs texto={item.trechoRelevante} />
+                            {item.trechoRelevante}
                           </blockquote>
                         )}
                         {onUpdateItemNote && (

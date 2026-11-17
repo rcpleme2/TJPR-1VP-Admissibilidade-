@@ -21,11 +21,6 @@ export const ProcessoInfoSchema = z.object({
   dataPublicacaoAcordao: z.string().optional().describe('Formato dd/mm/aaaa'),
   houveEmbargosDeclaracao: z.boolean().optional(),
   dataPublicacaoEmbargos: z.string().optional().describe('Formato dd/mm/aaaa'),
-  dataIntimacaoEletronicaAcordao: z
-    .string()
-    .optional()
-    .describe('Intimação eletrônica do acórdão pelo portal (leitura ou decurso dos 10 dias), se constar dos autos. Formato dd/mm/aaaa'),
-  dataIntimacaoEletronicaEmbargos: z.string().optional().describe('Intimação eletrônica do acórdão dos embargos pelo portal, se constar. Formato dd/mm/aaaa'),
   marcoTemporalRelevancia2026: z
     .string()
     .optional()
@@ -143,9 +138,6 @@ export const EntradasPrazoSchema = z.object({
   dataIntimacaoAcordao: z.string().optional(),
   /** Data da intimação/publicação do acórdão dos embargos informada pelo usuário. */
   dataIntimacaoEmbargos: z.string().optional(),
-  /** Intimação eletrônica pelo portal (leitura ou decurso de 10 dias), quando também houve: aaaa-mm-dd. */
-  dataIntimacaoAcordaoEletronica: z.string().optional(),
-  dataIntimacaoEmbargosEletronica: z.string().optional(),
   /** O usuário respondeu à pergunta sobre feriados/suspensões? */
   feriadosRespondido: z.boolean().default(false),
   feriados: z.array(z.object({ data: z.string(), descricao: z.string().optional() })).default([]),
@@ -181,19 +173,6 @@ export const VerificacaoPrazoSchema = z.object({
   dataInterposicao: z.string().nullable(),
   status: z.enum(['tempestivo', 'intempestivo', 'tempestivo_se_prazo_dobro', 'indeterminado']),
   observacao: z.string(),
-  /** Quando houve intimação pelo Diário e eletrônica: o resultado para cada uma. */
-  porMeio: z
-    .array(
-      z.object({
-        meio: z.enum(['diario', 'eletronica']),
-        dataBase: z.string(),
-        fonteBase: z.string(),
-        dataLimite: z.string(),
-        dataLimiteDobro: z.string(),
-        status: z.enum(['tempestivo', 'intempestivo', 'tempestivo_se_prazo_dobro', 'indeterminado']),
-      }),
-    )
-    .optional(),
 });
 
 export const VerificacaoRelevanciaSchema = z.object({
@@ -289,17 +268,6 @@ export const SobrestamentoSchema = z.object({
   verificadoEm: z.string().optional(),
 });
 
-/** Movimentação do Projudi lida dos PDFs (só um trecho do conteúdo, com teto). */
-export const MovimentoSchema = z.object({
-  ref: z.string().max(20),
-  data: z.string().max(10).optional(),
-  descricao: z.string().max(200).optional(),
-  arquivo: z.string().max(120).optional(),
-  origem: z.string().max(200),
-  paginas: z.array(z.number().int()).max(500),
-  texto: z.string().max(3000),
-});
-
 /** Resultado completo trafegado entre servidor, UI, armazenamento local e PDF. */
 export const AdmissibilityAnalysisResultSchema = ModelOutputSchema.extend({
   entradasPrazo: EntradasPrazoSchema.optional(),
@@ -307,7 +275,6 @@ export const AdmissibilityAnalysisResultSchema = ModelOutputSchema.extend({
   precedentes: z.array(CitacaoPrecedenteSchema).optional(),
   sobrestamento: SobrestamentoSchema.optional(),
   preparo: z.array(PreparoItemSchema).optional(),
-  movimentos: z.array(MovimentoSchema).max(300).optional(),
   meta: MetaAnaliseSchema.optional(),
 });
 

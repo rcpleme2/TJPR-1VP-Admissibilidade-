@@ -143,7 +143,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
             caracteres: r.caracteres,
             linhasRemovidas: r.linhasRemovidas,
             protocolo: r.protocolo ?? undefined,
-            movimentos: r.movimentos,
           });
         }
       } catch {
@@ -326,7 +325,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         <div className="flex flex-col gap-3 border-b border-linha pb-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <TituloSecao id="registros-titulo">Registros da equipe</TituloSecao>
-            <p className="mt-1 text-[13px] text-tinta-3">Guardam os dados extraídos, trechos das movimentações e as revisões; os PDFs nunca são gravados.</p>
+            <p className="mt-1 text-[13px] text-tinta-3">Guardam apenas os dados extraídos e as revisões; os PDFs nunca são gravados.</p>
           </div>
           <div className="relative sm:w-72">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-tinta-3" />

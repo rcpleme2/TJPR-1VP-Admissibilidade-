@@ -4,7 +4,7 @@ import { ROTULO_CONCLUSAO } from './sobrestamento';
 
 /**
  * Registro (caso) gravado na nuvem: SOMENTE dados extraídos, calculados e cadastrados.
- * Nunca contém PDFs nem base64; das peças, só trechos com teto (movimentações, até 2.500 caracteres cada): o schema descarta qualquer campo
+ * Nunca contém PDFs, texto integral das peças nem base64: o schema descarta qualquer campo
  * desconhecido, e os campos de texto têm teto de tamanho.
  */
 

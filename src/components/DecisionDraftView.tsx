@@ -3,7 +3,6 @@ import { Check, Copy, Download, FileDown, Pencil } from 'lucide-react';
 import { MinutaDecisao1VP } from '../types/admissibility';
 import { Botao } from './ui';
 import { cabecalhoSemTimbre } from '../../shared/minuta';
-import { ComRefs } from './Movimentos';
 
 interface DecisionDraftViewProps {
   minuta: MinutaDecisao1VP;
@@ -29,9 +28,7 @@ const Texto: React.FC<{
       className="-mx-3 block w-[calc(100%+1.5rem)] resize-y rounded-md border border-linha-forte bg-toga-claro/40 px-3 py-2 font-serif text-[15px] leading-[1.7] text-tinta focus:border-toga focus:bg-folha focus:outline-none"
     />
   ) : (
-    <p className={className}>
-      <ComRefs texto={value} />
-    </p>
+    <p className={className}>{value}</p>
   );
 
 const Titulo: React.FC<{ children: React.ReactNode }> = ({ children }) => (
