@@ -8,7 +8,14 @@ import type { Papel, Store, Usuario, UsuarioPublico } from './store/types';
 
 const scrypt = promisify(crypto.scrypt) as (senha: string, salt: Buffer, len: number) => Promise<Buffer>;
 
-export const SESSAO_HORAS = 12;
+/**
+ * Sessão persistente: o cookie vale 400 dias (o máximo que o Chrome aceita) e é renovado a cada dia de uso,
+ * então quem usa o sistema não precisa entrar de novo. Sair, trocar a senha ou desativar a conta encerra a sessão.
+ */
+export const SESSAO_DIAS = 400;
+const SESSAO_SEG = SESSAO_DIAS * 86_400;
+/** Renova o cookie quando ele já tem mais de um dia. */
+const RENOVAR_APOS_SEG = 86_400;
 const COOKIE = 'sid';
 
 // --- senhas -------------------------------------------------------------------------------------------
@@ -41,23 +48,32 @@ let segredoEfemero: string | undefined;
 
 const assinar = (corpo: string) => crypto.createHmac('sha256', segredo()).update(corpo).digest('base64url');
 
-export function criarSessao(uid: string, agora = Date.now()): string {
-  const corpo = `${uid}.${Math.floor(agora / 1000) + SESSAO_HORAS * 3600}`;
+/** Selo da senha atual: trocar a senha (ou o admin redefini-la) invalida todas as sessões abertas. */
+const seloSenha = (senhaHash: string) => assinar(`senha:${senhaHash}`).slice(0, 16);
+
+export function criarSessao(uid: string, senhaHash: string, agora = Date.now()): string {
+  const corpo = `${uid}.${Math.floor(agora / 1000) + SESSAO_SEG}.${seloSenha(senhaHash)}`;
   return `${corpo}.${assinar(corpo)}`;
 }
 
-export function lerSessao(token: string | undefined, agora = Date.now()): { uid: string } | null {
+export function lerSessao(token: string | undefined, agora = Date.now()): { uid: string; exp: number; selo: string } | null {
   if (!token) return null;
   const partes = token.split('.');
-  if (partes.length !== 3) return null;
-  const [uid, exp, sig] = partes;
-  const esperado = assinar(`${uid}.${exp}`);
+  if (partes.length !== 4) return null;
+  const [uid, exp, selo, sig] = partes;
+  const esperado = assinar(`${uid}.${exp}.${selo}`);
   const a = Buffer.from(sig);
   const b = Buffer.from(esperado);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
   if (Number(exp) * 1000 < agora) return null;
-  return { uid };
+  return { uid, exp: Number(exp), selo };
 }
+
+/** A sessão vale para este usuário se a senha não mudou desde o login. */
+export const sessaoConfere = (s: { selo: string }, u: Pick<Usuario, 'senhaHash'>) => s.selo === seloSenha(u.senhaHash);
+
+/** Precisa renovar o cookie? (emitido há mais de um dia) */
+export const sessaoParaRenovar = (s: { exp: number }, agora = Date.now()) => s.exp - Math.floor(agora / 1000) < SESSAO_SEG - RENOVAR_APOS_SEG;
 
 const lerCookie = (req: Request, nome: string) =>
   req.headers.cookie
@@ -66,7 +82,7 @@ const lerCookie = (req: Request, nome: string) =>
     .find(([k]) => k === nome)?.[1];
 
 const opcoesCookie = () => `Path=/; HttpOnly; SameSite=Strict${IS_PROD ? '; Secure' : ''}`;
-const definirCookie = (res: Response, token: string) => res.append('Set-Cookie', `${COOKIE}=${token}; Max-Age=${SESSAO_HORAS * 3600}; ${opcoesCookie()}`);
+const definirCookie = (res: Response, token: string) => res.append('Set-Cookie', `${COOKIE}=${token}; Max-Age=${SESSAO_SEG}; ${opcoesCookie()}`);
 const limparCookie = (res: Response) => res.append('Set-Cookie', `${COOKIE}=; Max-Age=0; ${opcoesCookie()}`);
 
 // --- usuários ---------------------------------------------------------------------------------------
@@ -126,8 +142,9 @@ export function criarAuth(store: Store) {
     try {
       const s = lerSessao(lerCookie(req, COOKIE));
       const u = s ? await carregar(s.uid) : null;
-      if (!u || !u.ativo) return res.status(401).json({ error: 'Sessão expirada ou inválida. Entre novamente.', codigo: 'nao_autenticado' });
+      if (!s || !u || !u.ativo || !sessaoConfere(s, u)) return res.status(401).json({ error: 'Sessão expirada ou inválida. Entre novamente.', codigo: 'nao_autenticado' });
       req.usuario = u;
+      if (sessaoParaRenovar(s)) definirCookie(res, criarSessao(u.id, u.senhaHash));
       next();
     } catch (e) {
       next(e);
@@ -147,7 +164,7 @@ export function criarAuth(store: Store) {
     const u = await store.usuarios.porEmail(normalizaEmail(p.data.email));
     const ok = await verificarSenha(p.data.senha, u ? u.senhaHash : await DUMMY);
     if (!u || !ok || !u.ativo) return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
-    definirCookie(res, criarSessao(u.id));
+    definirCookie(res, criarSessao(u.id, u.senhaHash));
     res.json({ usuario: publico(u) });
   });
 
@@ -162,8 +179,11 @@ export function criarAuth(store: Store) {
     const p = z.object({ atual: z.string().min(1), nova: SenhaSchema }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message ?? 'Dados inválidos.' });
     if (!(await verificarSenha(p.data.atual, req.usuario!.senhaHash))) return res.status(400).json({ error: 'A senha atual não confere.' });
-    await store.usuarios.atualizar(req.usuario!.id, { senhaHash: await hashSenha(p.data.nova) });
+    const senhaHash = await hashSenha(p.data.nova);
+    await store.usuarios.atualizar(req.usuario!.id, { senhaHash });
     invalidar(req.usuario!.id);
+    // as outras sessões caem com a troca de senha; esta continua
+    definirCookie(res, criarSessao(req.usuario!.id, senhaHash));
     res.json({ ok: true });
   });
 

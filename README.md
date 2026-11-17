@@ -28,7 +28,7 @@ Cada análise gera um **registro por processo** (chave: número CNJ, com dígito
   súmulas compartilhada; controle de versão otimista (edição concorrente gera aviso de conflito, sem perder dados); um registro por processo;
   salvar sem alteração não cria versão.
 - **Histórico:** cada versão guarda autor, data, resumo das mudanças e o conteúdo (últimas 50); qualquer versão pode ser restaurada.
-- **Usuários:** login por e-mail e senha (scrypt), sessão em cookie HttpOnly/SameSite=Strict, papéis `admin` e `assessor`, desativação de contas.
+- **Usuários:** login por e-mail e senha (scrypt), sessão persistente em cookie HttpOnly/SameSite=Strict (400 dias, renovado a cada dia de uso; cai ao sair, trocar a senha ou desativar a conta), papéis `admin` e `assessor`, desativação de contas.
   Todos os usuários veem e editam os registros; excluir é do autor ou de um admin. Admin gerencia usuários em "Conta e usuários".
 - **Base de súmulas e temas:** compartilhada pela equipe (cadastros ficam com autor e data).
 - **Armazenamento:** `STORE=firestore` (Cloud Run; camada gratuita do Firestore), `STORE=file` (desenvolvimento, `DATA_DIR`) ou `memory` (testes).

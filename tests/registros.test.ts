@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import sample from '../server/fixtures/sample-case.json';
 import { resumirAlteracoes, validarCNJ, type RegistroDados } from '../shared/registro';
 import { enriquecer } from '../server/analyze';
-import { criarSessao, hashSenha, lerSessao, verificarSenha } from '../server/auth';
+import { criarSessao, hashSenha, lerSessao, sessaoConfere, sessaoParaRenovar, verificarSenha } from '../server/auth';
 import { criarStoreMemoria } from '../server/store/memory';
 import type { ModelOutput } from '../shared/schema';
 
@@ -31,12 +31,22 @@ describe('senhas e sessões', () => {
     expect(await verificarSenha('outra-senha-qualquer', h)).toBe(false);
   });
   it('assina o token e rejeita adulteração e expiração', () => {
-    const t = criarSessao('u1');
+    const t = criarSessao('u1', 'hash-1');
     expect(lerSessao(t)?.uid).toBe('u1');
     expect(lerSessao(t.replace('u1', 'u2'))).toBeNull();
     expect(lerSessao(t.slice(0, -2) + 'xx')).toBeNull();
-    expect(lerSessao(t, Date.now() + 13 * 3600 * 1000)).toBeNull();
+    expect(lerSessao(t, Date.now() + 401 * 86_400_000)).toBeNull();
     expect(lerSessao(undefined)).toBeNull();
+  });
+  it('sessão persistente: vale meses, renova com o uso e cai com a troca de senha', () => {
+    const agora = Date.now();
+    const s = lerSessao(criarSessao('u1', 'hash-1', agora), agora + 300 * 86_400_000)!;
+    expect(s.uid).toBe('u1');
+    expect(sessaoConfere(s, { senhaHash: 'hash-1' })).toBe(true);
+    expect(sessaoConfere(s, { senhaHash: 'hash-2' })).toBe(false);
+    const nova = lerSessao(criarSessao('u1', 'hash-1', agora), agora)!;
+    expect(sessaoParaRenovar(nova, agora + 3600_000)).toBe(false);
+    expect(sessaoParaRenovar(nova, agora + 2 * 86_400_000)).toBe(true);
   });
 });
 
