@@ -240,6 +240,8 @@ async function iniciar() {
   const store = await criarStore();
   await semearAdmin(store, auditar);
   const app = createApp(store);
+  // carrega a base de temas do STJ ao ligar (cópia guardada ou download), fora do pico de memória de uma análise
+  void baseStj(60_000);
 
   if (!IS_PROD) {
     const { createServer } = await import('vite');

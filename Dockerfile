@@ -9,6 +9,8 @@ RUN npm run build
 # ---- runtime (somente dependências de produção) ----
 FROM node:22-slim
 ENV NODE_ENV=production
+# O Node não enxerga o limite de memória do Cloud Run (1 GiB) e adiava a coleta de lixo até a instância ser derrubada.
+ENV NODE_OPTIONS=--max-old-space-size=512
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force

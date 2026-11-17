@@ -1,7 +1,7 @@
 import { verificarPrazos } from '../shared/prazos';
 import { verificarResultado } from '../shared/precedentes';
 import { sobrestamentoInicial, type OpcoesBaseStj } from '../shared/sobrestamento';
-import { buscarTemas, temaPorNumero, temasCitados, type IndiceTemas, type TemaEncontrado, type TemaStj } from '../shared/temasStj';
+import { buscarTemas, prepararConsulta, temaPorNumero, temasCitados, type IndiceTemas, type TemaEncontrado, type TemaStj } from '../shared/temasStj';
 import { baseStj } from './temasStj';
 import { preparoInicial } from '../shared/preparo';
 import {
@@ -152,8 +152,9 @@ export function candidatosStj(req: AnalyzeRequest, indice: IndiceTemas): TemaEnc
     const t = temaPorNumero(indice, n);
     if (t) add({ ...t, pontuacao: 0 });
   }
-  buscarTemas(indice, consulta, { limite: 10, fases: ['pendente', 'julgado'] }).forEach(add);
-  buscarTemas(indice, consulta, { limite: 5, fases: ['pendente'] }).forEach(add);
+  const termosConsulta = prepararConsulta(indice, consulta);
+  buscarTemas(indice, termosConsulta, { limite: 10, fases: ['pendente', 'julgado'] }).forEach(add);
+  buscarTemas(indice, termosConsulta, { limite: 5, fases: ['pendente'] }).forEach(add);
   return [...out.values()].slice(0, 18);
 }
 

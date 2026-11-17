@@ -160,26 +160,49 @@ export function termosComPares(texto: string): string[] {
   return [...ts, ...pares];
 }
 
+/**
+ * Índice invertido compacto: para cada termo, os temas em que aparece e quantas vezes (arrays numéricos).
+ * Ocupa uma fração da memória de um mapa por tema, o que importa no Cloud Run (512 MB por instância, divididos com os
+ * PDFs da análise em andamento).
+ */
 export interface IndiceTemas {
   temas: TemaStj[];
-  df: Map<string, number>;
-  docs: Array<{ tf: Map<string, number>; len: number }>;
+  termos: Map<string, number>;
+  docs: Int32Array[];
+  freq: Uint16Array[];
+  len: Float32Array;
   media: number;
 }
 
 export function indexar(temas: TemaStj[]): IndiceTemas {
-  const df = new Map<string, number>();
-  const docs = temas.map((t) => {
+  const termosIx = new Map<string, number>();
+  const docs: number[][] = [];
+  const freq: number[][] = [];
+  const len = new Float32Array(temas.length);
+  temas.forEach((t, i) => {
     // a questão pesa mais que a tese; assuntos e legislação ajudam a desempatar
-    const q = termosComPares(t.questao);
-    const ts = [...q, ...q, ...termosComPares(t.tese), ...termos(t.assuntos), ...termos(t.legislacao)];
     const tf = new Map<string, number>();
-    for (const w of ts) tf.set(w, (tf.get(w) ?? 0) + 1);
-    for (const w of tf.keys()) df.set(w, (df.get(w) ?? 0) + 1);
-    return { tf, len: ts.length };
+    const somar = (ws: string[], peso: number) => {
+      for (const w of ws) tf.set(w, (tf.get(w) ?? 0) + peso);
+      len[i] += ws.length * peso;
+    };
+    somar(termosComPares(t.questao), 2);
+    somar(termosComPares(t.tese), 1);
+    somar(termos(`${t.assuntos} ${t.legislacao}`), 1);
+    for (const [w, f] of tf) {
+      let k = termosIx.get(w);
+      if (k === undefined) {
+        k = docs.length;
+        termosIx.set(w, k);
+        docs.push([]);
+        freq.push([]);
+      }
+      docs[k].push(i);
+      freq[k].push(Math.min(f, 65535));
+    }
   });
-  const media = docs.reduce((n, d) => n + d.len, 0) / Math.max(1, docs.length);
-  return { temas, df, docs, media };
+  const media = len.reduce((n, x) => n + x, 0) / Math.max(1, temas.length);
+  return { temas, termos: termosIx, docs: docs.map((d) => Int32Array.from(d)), freq: freq.map((f) => Uint16Array.from(f)), len, media };
 }
 
 export interface TemaEncontrado extends TemaStj {
@@ -190,28 +213,45 @@ export interface TemaEncontrado extends TemaStj {
  * Temas cuja questão mais se parece com o texto (BM25). O texto pode ser longo (as razões do recurso): cada termo
  * conta pelo log da frequência, para que palavras repetidas à exaustão não dominem.
  */
-export function buscarTemas(indice: IndiceTemas, texto: string, o: { limite?: number; fases?: FaseTemaStj[]; minimo?: number } = {}): TemaEncontrado[] {
+/** Termos do texto que existem no índice, com a frequência (preparar uma vez e buscar várias). */
+export function prepararConsulta(indice: IndiceTemas, texto: string): Map<number, number> {
+  const consulta = new Map<number, number>();
+  for (const w of termosComPares(texto.slice(0, 300_000))) {
+    const k = indice.termos.get(w);
+    if (k !== undefined) consulta.set(k, (consulta.get(k) ?? 0) + 1);
+  }
+  return consulta;
+}
+
+export function buscarTemas(
+  indice: IndiceTemas,
+  texto: string | Map<number, number>,
+  o: { limite?: number; fases?: FaseTemaStj[]; minimo?: number } = {},
+): TemaEncontrado[] {
   const { limite = 10, fases, minimo = 0 } = o;
-  const consulta = new Map<string, number>();
-  for (const w of termosComPares(texto)) consulta.set(w, (consulta.get(w) ?? 0) + 1);
-  const N = indice.docs.length;
+  const consulta = typeof texto === 'string' ? prepararConsulta(indice, texto) : texto;
+  const N = indice.temas.length;
   const k1 = 1.2;
   const b = 0.75;
-  const pont = indice.docs.map((d, i) => {
-    if (fases && !fases.includes(indice.temas[i].fase)) return 0;
-    let s = 0;
-    for (const [w, qtf] of consulta) {
-      const f = d.tf.get(w);
-      if (!f) continue;
-      const n = indice.df.get(w) ?? 0;
-      const idf = Math.log(1 + (N - n + 0.5) / (n + 0.5));
-      s += idf * ((f * (k1 + 1)) / (f + k1 * (1 - b + (b * d.len) / indice.media))) * (1 + Math.log(qtf));
+  const pont = new Float64Array(N);
+  for (const [k, qtf] of consulta) {
+    const ds = indice.docs[k];
+    const fs = indice.freq[k];
+    const idf = Math.log(1 + (N - ds.length + 0.5) / (ds.length + 0.5));
+    const pesoConsulta = 1 + Math.log(qtf);
+    for (let j = 0; j < ds.length; j++) {
+      const i = ds[j];
+      const f = fs[j];
+      pont[i] += idf * ((f * (k1 + 1)) / (f + k1 * (1 - b + (b * indice.len[i]) / indice.media))) * pesoConsulta;
     }
-    return s;
-  });
-  return pont
-    .map((p, i) => ({ p, i }))
-    .filter((x) => x.p > minimo)
+  }
+  const out: Array<{ p: number; i: number }> = [];
+  for (let i = 0; i < N; i++) {
+    if (pont[i] <= minimo) continue;
+    if (fases && !fases.includes(indice.temas[i].fase)) continue;
+    out.push({ p: pont[i], i });
+  }
+  return out
     .sort((a, b) => b.p - a.p)
     .slice(0, limite)
     .map(({ p, i }) => ({ ...indice.temas[i], pontuacao: Math.round(p * 10) / 10 }));

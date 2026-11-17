@@ -136,6 +136,6 @@ export async function analisar(p: ParametrosAnalise): Promise<{ data: Admissibil
     }
   }
   processar(buffer);
-  if (!final) throw new Error('A conexão foi encerrada antes do resultado. Tente novamente.');
+  if (!final) throw new Error('A conexão com o servidor caiu antes do resultado (o servidor pode ter reiniciado). Tente novamente em instantes.');
   return final;
 }

@@ -15,7 +15,8 @@ steps:
     name: gcr.io/cloud-builders/docker
     args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$COMMIT_SHA']
 
-  # Só troca a imagem: variáveis, segredos e demais ajustes do serviço são mantidos.
+  # Troca a imagem e garante 1 GiB de memória (com 512 MiB, uma análise com PDFs grandes mais a base de temas do STJ
+  # estourava o limite e a instância caía no meio da resposta). Variáveis, segredos e demais ajustes são mantidos.
   - id: Deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: gcloud
@@ -25,6 +26,7 @@ steps:
       - ${_SERVICE}
       - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$COMMIT_SHA
       - --region=${_REGION}
+      - --memory=1Gi
       - --quiet
 
 images:

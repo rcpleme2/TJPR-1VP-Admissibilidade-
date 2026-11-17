@@ -133,7 +133,7 @@ PROJECT_ID=meu-projeto ADMIN_EMAIL=voce@exemplo.gov.br ./scripts/deploy-cloudrun
 
 O script habilita as APIs, cria o banco Firestore (modo nativo) e desliga a indexação dos campos de dados extraídos, gera `SESSION_SECRET` e a senha do
 primeiro administrador no Secret Manager, concede à conta de serviço o papel `roles/datastore.user` e publica com `gcloud run deploy --source .`
-(Dockerfile incluso): região `us-central1`, `--min-instances 0` (escala a zero), `--max-instances 2`, 1 vCPU/512 MiB. Ao fim imprime a URL e, no
+(Dockerfile incluso): região `us-central1`, `--min-instances 0` (escala a zero), `--max-instances 2`, 1 vCPU/1 GiB (com 512 MiB, análises com PDFs grandes somadas à base de temas do STJ estouravam a memória). Ao fim imprime a URL e, no
 primeiro deploy, o e-mail e a senha inicial do administrador (troque-a na tela).
 Pontos de atenção:
 

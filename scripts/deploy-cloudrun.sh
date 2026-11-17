@@ -42,7 +42,7 @@ gcloud run deploy "$SERVICE" \
   --allow-unauthenticated \
   --min-instances 0 \
   --max-instances 2 \
-  --cpu 1 --memory 512Mi \
+  --cpu 1 --memory 1Gi \
   --concurrency 10 \
   --timeout 300 \
   --set-secrets SESSION_SECRET=session-secret:latest,ADMIN_PASSWORD=admin-password:latest \
