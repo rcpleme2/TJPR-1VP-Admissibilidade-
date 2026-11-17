@@ -90,7 +90,8 @@ export function Abas<T extends string>({
     <div
       role="tablist"
       aria-label={rotulo}
-      className={`flex gap-6 overflow-x-auto ${className}`}
+      // rolagem só na horizontal e sem barra visível (em telas estreitas as abas deslizam)
+      className={`flex min-w-0 gap-6 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}
       onKeyDown={(e) => {
         const passo = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
         if (!passo) return;
@@ -110,7 +111,7 @@ export function Abas<T extends string>({
           tabIndex={ativa === a.id ? 0 : -1}
           aria-selected={ativa === a.id}
           onClick={() => onChange(a.id)}
-          className={`-mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 py-3 text-sm transition-colors ${
+          className={`inline-flex shrink-0 items-center gap-1.5 border-b-2 py-3 text-sm transition-colors ${
             ativa === a.id ? 'border-toga font-medium text-tinta' : 'border-transparent text-tinta-3 hover:text-tinta'
           }`}
         >

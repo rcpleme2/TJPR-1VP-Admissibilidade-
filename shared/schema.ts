@@ -109,6 +109,17 @@ export const PreparoIASchema = z.object({
   valorRecolhido: z.string().optional().describe('Valor recolhido, se constar do comprovante'),
 });
 
+/** Cada fundamento do recurso (permissivo constitucional invocado) e se ele autoriza o processamento. */
+export const FundamentoRecursoSchema = z.object({
+  recurso: z.enum(['REsp', 'RE']),
+  permissivo: z.string().describe('Inciso e alínea invocados, ex.: art. 105, III, "a", da CF; art. 105, III, "c", da CF; art. 102, III, "a", da CF'),
+  alegacao: z.string().describe('O que se alega por esse fundamento, em uma frase: dispositivos tidos por violados, tese ou divergência apontada'),
+  conclusao: z
+    .enum(['acolhido', 'rejeitado'])
+    .describe('acolhido: o fundamento supera a admissibilidade e autoriza o processamento; rejeitado: não autoriza (óbice sumular, tese firmada, falta de requisito)'),
+  fundamentacao: z.string().describe('Por que se acolhe ou rejeita, em 1 a 3 frases, com súmula, tema ou requisito e, se útil, referência ao trecho do acórdão'),
+});
+
 /** O que o modelo de IA deve devolver. */
 export const ModelOutputSchema = z.object({
   processo: ProcessoInfoSchema,
@@ -121,6 +132,14 @@ export const ModelOutputSchema = z.object({
     .optional()
     .describe('Temas repetitivos, de repercussão geral ou de relevância que versem sobre a mesma questão de direito do recurso. Lista vazia se nenhum.'),
   preparoRecursos: z.array(PreparoIASchema).optional().describe('Preparo de cada recurso interposto (um item por recurso)'),
+  resultadoAdmissibilidade: z
+    .enum(['negar_seguimento', 'admitir_parcial', 'admitir_total'])
+    .optional()
+    .describe('Resultado do exame: negar_seguimento (nenhum fundamento autoriza o processamento), admitir_parcial (só parte) ou admitir_total'),
+  fundamentosRecurso: z
+    .array(FundamentoRecursoSchema)
+    .optional()
+    .describe('Um item por permissivo invocado em cada recurso (ex.: REsp pela alínea "a" e pela alínea "c" = dois itens), com a conclusão e a fundamentação'),
   notaTecnica: z
     .object({
       recursoEspecial: z.string().optional().describe('Exame do recurso especial em 2 a 4 frases: requisitos específicos e óbices, com os fundamentos (art. 1.030). Vazio se não houver REsp.'),
@@ -253,6 +272,29 @@ export const TemaSobrestamentoSchema = z.object({
   decisaoAfetacao: z.string().max(300).optional(),
   abrangencia: z.string().max(300).optional(),
   observacao: z.string().max(2000).optional(),
+  /** Dados da base oficial do STJ (dados abertos), quando o número foi encontrado nela. */
+  oficial: z
+    .object({
+      situacao: z.string().max(120),
+      suspensao: z.enum(['determinada', 'nao_determinada', 'nao_informada']),
+      textoSuspensao: z.string().max(600).optional(),
+      tese: z.string().max(3000).optional(),
+      consultadoEm: z.string(),
+    })
+    .optional(),
+  /** O número indicado não consta da base do STJ (possível erro da IA). */
+  foraDaBase: z.boolean().optional(),
+});
+
+/** Tema da base do STJ parecido com a matéria do recurso (busca textual), ainda não examinado. */
+export const SugestaoTemaStjSchema = z.object({
+  especie: z.enum(['repetitivo', 'relevancia']),
+  numero: z.string().max(10),
+  situacao: z.string().max(120),
+  fase: z.enum(['pendente', 'julgado', 'cancelado', 'outro']),
+  suspensao: z.enum(['determinada', 'nao_determinada', 'nao_informada']),
+  questao: z.string().max(2000),
+  tese: z.string().max(3000).optional(),
 });
 
 export const SituacaoPreparoSchema = z.enum(['recolhido', 'gratuidade', 'isencao', 'nao_comprovado', 'insuficiente', 'a_verificar']);
@@ -277,6 +319,10 @@ export const SobrestamentoSchema = z.object({
   fundamentacao: z.string().max(4000).optional(),
   verificadoPor: z.string().max(120).optional(),
   verificadoEm: z.string().optional(),
+  /** Conclusão preenchida pelo sistema (nenhum tema indicou motivo para sobrestar); o assessor pode rever. */
+  automatica: z.boolean().optional(),
+  sugestoesStj: z.array(SugestaoTemaStjSchema).max(20).optional(),
+  baseStjEm: z.string().optional(),
 });
 
 /** Resultado completo trafegado entre servidor, UI, armazenamento local e PDF. */
@@ -298,12 +344,14 @@ export type DiagnosticoGeral = z.infer<typeof DiagnosticoGeralSchema>;
 export type CapituloFundamentacao = z.infer<typeof CapituloFundamentacaoSchema>;
 export type MinutaDecisao1VP = z.infer<typeof MinutaDecisao1VPSchema>;
 export type ModelOutput = z.infer<typeof ModelOutputSchema>;
+export type FundamentoRecurso = z.infer<typeof FundamentoRecursoSchema>;
 export type VerificacaoPrazo = z.infer<typeof VerificacaoPrazoSchema>;
 export type EntradasPrazo = z.infer<typeof EntradasPrazoSchema>;
 export type Verificacoes = z.infer<typeof VerificacoesSchema>;
 export type CitacaoPrecedente = z.infer<typeof CitacaoPrecedenteSchema>;
 export type TemaCandidato = z.infer<typeof TemaCandidatoSchema>;
 export type TemaSobrestamento = z.infer<typeof TemaSobrestamentoSchema>;
+export type SugestaoTemaStj = z.infer<typeof SugestaoTemaStjSchema>;
 export type ConclusaoSobrestamento = z.infer<typeof ConclusaoSobrestamentoSchema>;
 export type Sobrestamento = z.infer<typeof SobrestamentoSchema>;
 export type PreparoItem = z.infer<typeof PreparoItemSchema>;

@@ -34,6 +34,20 @@ Cada análise gera um **registro por processo** (chave: número CNJ, com dígito
 - **Armazenamento:** `STORE=firestore` (Cloud Run; camada gratuita do Firestore), `STORE=file` (desenvolvimento, `DATA_DIR`) ou `memory` (testes).
   Em desenvolvimento, se não houver usuários, cria-se `admin@local.test` com senha impressa no console.
 
+## Base de temas do STJ (dados abertos)
+
+O servidor baixa o `temas.csv` dos dados abertos do STJ (repetitivos e de relevância: questão submetida, situação, ordem de
+suspensão e tese firmada), guarda em memória por 12 horas e segue com a última cópia se o STJ não responder
+(`STJ_TEMAS_URL` troca o endereço; `STJ_TEMAS_ARQUIVO` lê de um arquivo local).
+
+- **Na análise:** busca na base (BM25 sobre questão, tese, assuntos e legislação) os temas parecidos com o texto do recurso e
+  do acórdão, mais os citados nas peças, e envia a lista à IA como referência oficial.
+- **No sobrestamento:** cada tema do STJ indicado pela IA é conferido na base (número, situação, suspensão, questão e tese;
+  número inexistente é apontado). Se nenhum tema tem mérito pendente com suspensão possível, a conclusão já vem marcada como
+  "Matéria não afetada a tema" (o assessor pode rever). A tela mostra os temas parecidos e permite pesquisar por número ou por
+  palavras (`GET /api/temas-stj`).
+- PDFs enviados no original (escaneados) não entram na busca por texto; nesse caso valem as observações e a pesquisa manual.
+
 ## Instruções à IA nos autos (prompt injection)
 
 - **Varredura** (`shared/injecao.ts`): ao anexar, o navegador procura no texto de cada PDF comandos dirigidos à IA (ordens para ignorar

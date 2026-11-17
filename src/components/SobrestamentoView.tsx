@@ -11,7 +11,10 @@ import {
   ROTULO_SITUACAO_TEMA,
   ROTULO_SUSPENSAO,
   rotuloTema,
+  temaDaBase,
 } from '../../shared/sobrestamento';
+import { BaseTemasStj } from './BaseTemasStj';
+import { nuvem } from '../lib/nuvem';
 import { Botao, campo, campoArea, dataHora, Folha, Marca, type Tom } from './ui';
 
 interface Props {
@@ -52,15 +55,27 @@ export const SobrestamentoView: React.FC<Props> = ({ valor, avisos, usuarioNome,
   const set = (p: Partial<Sobrestamento>) => onChange({ ...valor, ...p });
   const setTema = (id: string, p: Partial<TemaSobrestamento>) => set({ temas: valor.temas.map((t) => (t.id === id ? { ...t, ...p } : t)) });
   const concluir = (c: ConclusaoSobrestamento) =>
-    set({ conclusao: c, verificadoPor: c === 'nao_verificado' ? undefined : usuarioNome, verificadoEm: c === 'nao_verificado' ? undefined : new Date().toISOString() });
+    set({ conclusao: c, automatica: false, verificadoPor: c === 'nao_verificado' ? undefined : usuarioNome, verificadoEm: c === 'nao_verificado' ? undefined : new Date().toISOString() });
 
-  const adicionar = (e: React.FormEvent) => {
+  const adicionar = async (e: React.FormEvent) => {
     e.preventDefault();
-    const t = novoTemaManual(novo.tribunal, novo.especie, novo.numero, valor.temas);
+    let t = novoTemaManual(novo.tribunal, novo.especie, novo.numero, valor.temas);
+    // tema do STJ com número: completa com a base oficial, se ela responder
+    if (novo.tribunal === 'STJ' && novo.numero.replace(/\D/g, '')) {
+      try {
+        const r = await nuvem.temasStj({ numero: novo.numero });
+        const of = r.temas.find((x) => x.especie === novo.especie) ?? r.temas[0];
+        if (of) t = { ...temaDaBase(of, valor.temas, r.atualizadaEm), id: t.id };
+        else t = { ...t, foraDaBase: true };
+      } catch {
+        /* base indisponível: segue com o tema em branco */
+      }
+    }
     set({ temas: [...valor.temas, t] });
     setAbertos({ ...abertos, [t.id]: true });
     setNovo({ ...novo, numero: '' });
   };
+  const incluidos = new Set(valor.temas.filter((t) => t.tribunal === 'STJ').map((t) => t.numero.replace(/\D/g, '')));
 
   return (
     <Folha aria-labelledby="sob-titulo">
@@ -94,7 +109,13 @@ export const SobrestamentoView: React.FC<Props> = ({ valor, avisos, usuarioNome,
               );
             })}
           </div>
-          {valor.verificadoPor && valor.verificadoEm && valor.conclusao !== 'nao_verificado' && (
+          {valor.automatica && valor.conclusao !== 'nao_verificado' && (
+            <p className="mt-3 text-[13px] text-tinta-2">
+              Marcada pelo sistema: {valor.temas.length === 0 ? 'nenhum tema foi indicado para a matéria' : 'nenhum tema indicado tem mérito pendente com ordem de suspensão'}
+              {valor.baseStjEm ? ', conferido na base do STJ' : ''}. Confira e mantenha ou altere.
+            </p>
+          )}
+          {!valor.automatica && valor.verificadoPor && valor.verificadoEm && valor.conclusao !== 'nao_verificado' && (
             <p className="num mt-3 text-[13px] text-tinta-3">
               Registrado por {valor.verificadoPor} em {dataHora(valor.verificadoEm)}.
             </p>
@@ -184,8 +205,9 @@ export const SobrestamentoView: React.FC<Props> = ({ valor, avisos, usuarioNome,
                         <span className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
                           <Marca tom={TOM_ENQUADRAMENTO[t.enquadramento]}>{ROTULO_ENQUADRAMENTO[t.enquadramento]}</Marca>
                           <Marca tom={TOM_SUSPENSAO[t.suspensao]}>{ROTULO_SUSPENSAO[t.suspensao]}</Marca>
-                          <span className="text-[13px] text-tinta-3">{ROTULO_SITUACAO_TEMA[t.situacao]}</span>
+                          <span className="text-[13px] text-tinta-3">{t.oficial ? `STJ: ${t.oficial.situacao}` : ROTULO_SITUACAO_TEMA[t.situacao]}</span>
                         </span>
+                        {t.foraDaBase && <span className="mt-1 block text-[13px] text-obice">Este número não consta da base de temas do STJ: confira se a IA errou o número.</span>}
                       </button>
                       <div className="flex shrink-0 items-center">
                         <a href={linkTema(t)} target="_blank" rel="noopener noreferrer" aria-label={`Abrir ${rotuloTema(t)} no portal oficial`} title="Portal oficial" className="rounded-md p-2 text-tinta-3 hover:bg-tinta/[0.05] hover:text-toga">
@@ -199,6 +221,20 @@ export const SobrestamentoView: React.FC<Props> = ({ valor, avisos, usuarioNome,
 
                     {aberto && (
                       <div className="mt-4 space-y-4 border-l-2 border-linha pl-4">
+                        {t.oficial && (
+                          <div className="space-y-1.5 text-[13px] leading-relaxed text-tinta-2">
+                            <p>
+                              <span className="text-tinta-3">Base do STJ: </span>
+                              {t.oficial.situacao}. {t.oficial.textoSuspensao}
+                            </p>
+                            {t.oficial.tese && (
+                              <p className="font-serif text-[14px]">
+                                <span className="font-sans text-[13px] text-tinta-3">Tese firmada: </span>
+                                {t.oficial.tese}
+                              </p>
+                            )}
+                          </div>
+                        )}
                         {t.pertinencia && (
                           <p className="text-[13px] leading-relaxed text-tinta-2">
                             <span className="text-tinta-3">Pertinência apontada: </span>
@@ -255,6 +291,17 @@ export const SobrestamentoView: React.FC<Props> = ({ valor, avisos, usuarioNome,
             </ul>
           )}
         </section>
+
+        <BaseTemasStj
+          sugestoes={(valor.sugestoesStj ?? []).filter((x) => !incluidos.has(x.numero))}
+          baseEm={valor.baseStjEm}
+          incluidos={incluidos}
+          onIncluir={(x, em) => {
+            const t = temaDaBase(x, valor.temas, em);
+            set({ temas: [...valor.temas, t] });
+            setAbertos({ ...abertos, [t.id]: true });
+          }}
+        />
 
         <p className="text-[13px] leading-relaxed text-tinta-3">
           Os temas indicados pela IA são ponto de partida: confira número, questão e situação no portal oficial. Tema já julgado não sobresta; aplica-se a tese (art. 1.030, I ou II).

@@ -25,6 +25,8 @@ import { ProviderError } from './providers/types';
 import { listarModelos } from './providers/modelos';
 import { NOME_ZIP_EXTENSAO, ziparPasta } from './zip';
 import { baixarLink, ErroLink } from './baixarLink';
+import { baseStj, statusBaseStj } from './temasStj';
+import { buscarTemas, temaPorNumero } from '../shared/temasStj';
 import { INSTRUCOES_PADRAO } from './prompt';
 import { redigirSegredos } from './sanitize';
 
@@ -91,9 +93,13 @@ export function createApp(store: Store) {
   app.use('/api/casos', autenticar, rotas.casos);
   app.use('/api/base-precedentes', autenticar, rotas.base);
 
-  app.get('/api/sample-case', autenticar, (_req, res) => {
+  app.get('/api/sample-case', autenticar, async (_req, res) => {
     const fixture = JSON.parse(readFileSync(path.resolve(__dirname, IS_PROD ? '../server/fixtures/sample-case.json' : 'fixtures/sample-case.json'), 'utf8')) as ModelOutput;
-    res.json({ success: true, data: enriquecer(fixture, { provedor: 'exemplo', modelo: 'caso-simulado', geradoEm: new Date().toISOString() }) });
+    const base = await baseStj(3000);
+    res.json({
+      success: true,
+      data: enriquecer(fixture, { provedor: 'exemplo', modelo: 'caso-simulado', geradoEm: new Date().toISOString() }, undefined, base ? { base: base.indice, consultadoEm: base.atualizadaEm } : undefined),
+    });
   });
 
   const limiteModelos = rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Muitas consultas seguidas. Aguarde um minuto.' } });
@@ -112,6 +118,21 @@ export function createApp(store: Store) {
       const status = err instanceof ProviderError ? (err.status === 401 || err.status === 403 ? 400 : 502) : 500;
       res.status(status).json({ error: err instanceof ProviderError ? err.message : 'Erro ao consultar os modelos.' });
     }
+  });
+
+  // Base de temas do STJ (dados abertos): pesquisa por número ou por texto, para a tela de sobrestamento.
+  app.get('/api/temas-stj', autenticar, async (req: Request, res: Response) => {
+    const base = await baseStj();
+    if (!base) return res.status(503).json({ error: 'A base de temas do STJ não está disponível agora. Tente de novo em alguns minutos.', ...statusBaseStj() });
+    const numero = String(req.query.numero ?? '').replace(/\D/g, '').slice(0, 6);
+    const q = String(req.query.q ?? '').slice(0, 2000);
+    const pendentes = req.query.pendentes === '1';
+    const temas = numero
+      ? [temaPorNumero(base.indice, numero)].filter(Boolean).map((t) => ({ ...t!, pontuacao: 0 }))
+      : q.trim().length >= 3
+        ? buscarTemas(base.indice, q, { limite: 12, fases: pendentes ? ['pendente'] : ['pendente', 'julgado'] })
+        : [];
+    res.json({ atualizadaEm: base.atualizadaEm, temas });
   });
 
   // Links de PDF arrastados de outro site, com o sistema aberto fora da extensão do Chrome: o servidor baixa (só links públicos).

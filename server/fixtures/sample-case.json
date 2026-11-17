@@ -423,5 +423,43 @@
     "recursoEspecial": "O tópico de relevância da questão federal está presente e fundamentado. Quanto à responsabilidade do banco por fraude eletrônica, o acórdão está conforme a tese do Tema 466/STJ (art. 1.030, I, \"b\"). Nos demais pontos, a pretensão exige reexame de provas e de cláusulas contratuais (Súmulas 5 e 7/STJ), e a divergência esbarra na Súmula 83/STJ (art. 1.030, V).",
     "recursoExtraordinario": "A preliminar de repercussão geral está presente. A alegada ofensa ao contraditório, à ampla defesa e ao devido processo legal é reflexa e depende do exame de normas infraconstitucionais, nos termos do Tema 660/STF (art. 1.030, I, \"a\").",
     "proposta": "Negar seguimento ao recurso extraordinário (art. 1.030, I, \"a\") e ao recurso especial quanto ao Tema 466/STJ (art. 1.030, I, \"b\"); inadmitir o recurso especial quanto aos demais capítulos (art. 1.030, V)."
-  }
+  },
+  "resultadoAdmissibilidade": "negar_seguimento",
+  "fundamentosRecurso": [
+    {
+      "recurso": "REsp",
+      "permissivo": "Art. 105, III, \"a\", da CF",
+      "alegacao": "Violação dos arts. 421 e 422 do Código Civil: o banco não responderia por fraude eletrônica praticada por terceiros.",
+      "conclusao": "rejeitado",
+      "fundamentacao": "O acórdão decidiu conforme a tese do Tema 466/STJ (Súmula 479/STJ): a instituição financeira responde objetivamente por fraudes de terceiros (fortuito interno). Negativa de seguimento (art. 1.030, I, \"b\")."
+    },
+    {
+      "recurso": "REsp",
+      "permissivo": "Art. 105, III, \"a\", da CF",
+      "alegacao": "Violação do art. 373, I, do CPC e revisão dos encargos pactuados, sem abusividade contratual.",
+      "conclusao": "rejeitado",
+      "fundamentacao": "Rever a conclusão sobre a falha de segurança e os encargos exige reexame de provas e de cláusulas contratuais (Súmulas 5 e 7/STJ); fundamento autônomo não impugnado (Súmula 283/STF). Art. 1.030, V."
+    },
+    {
+      "recurso": "REsp",
+      "permissivo": "Art. 105, III, \"a\", da CF",
+      "alegacao": "Violação do art. 1.022 do CPC: omissão no julgamento dos embargos de declaração.",
+      "conclusao": "rejeitado",
+      "fundamentacao": "O acórdão dos embargos enfrentou as questões apontadas; o inconformismo com o resultado não configura omissão. Art. 1.030, V."
+    },
+    {
+      "recurso": "REsp",
+      "permissivo": "Art. 105, III, \"c\", da CF",
+      "alegacao": "Divergência com acórdão do TJSP sobre o ônus da prova em perícia contábil.",
+      "conclusao": "rejeitado",
+      "fundamentacao": "O acórdão recorrido está alinhado à orientação dominante do STJ (Súmula 83/STJ), o que também afasta a divergência. Art. 1.030, V."
+    },
+    {
+      "recurso": "RE",
+      "permissivo": "Art. 102, III, \"a\", da CF",
+      "alegacao": "Ofensa ao art. 5º, II, XXXV, LIV e LV, da CF pelo indeferimento de nova perícia.",
+      "conclusao": "rejeitado",
+      "fundamentacao": "A alegação depende do exame de normas infraconstitucionais (ofensa reflexa): Tema 660/STF, sem repercussão geral. Negativa de seguimento (art. 1.030, I, \"a\")."
+    }
+  ]
 }

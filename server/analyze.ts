@@ -1,6 +1,8 @@
 import { verificarPrazos } from '../shared/prazos';
 import { verificarResultado } from '../shared/precedentes';
-import { sobrestamentoInicial } from '../shared/sobrestamento';
+import { sobrestamentoInicial, type OpcoesBaseStj } from '../shared/sobrestamento';
+import { buscarTemas, temaPorNumero, temasCitados, type IndiceTemas, type TemaEncontrado, type TemaStj } from '../shared/temasStj';
+import { baseStj } from './temasStj';
 import { preparoInicial } from '../shared/preparo';
 import {
   LIMITES,
@@ -123,9 +125,53 @@ export function interpretarSaida(texto: string): { ok: true; data: ModelOutput }
 }
 
 /** Acrescenta cálculos determinísticos e a verificação automática de precedentes. */
-export function enriquecer(out: ModelOutput, meta: AdmissibilityAnalysisResult['meta'], entradas?: Partial<EntradasPrazo>): AdmissibilityAnalysisResult {
+export function enriquecer(out: ModelOutput, meta: AdmissibilityAnalysisResult['meta'], entradas?: Partial<EntradasPrazo>, stj?: OpcoesBaseStj): AdmissibilityAnalysisResult {
   const entradasPrazo = EntradasPrazoSchema.parse(entradas ?? {});
-  return { ...out, entradasPrazo, verificacoes: verificarPrazos(out, entradasPrazo), precedentes: verificarResultado(out), sobrestamento: sobrestamentoInicial(out), preparo: preparoInicial(out), meta };
+  return {
+    ...out,
+    entradasPrazo,
+    verificacoes: verificarPrazos(out, entradasPrazo),
+    precedentes: verificarResultado(out),
+    sobrestamento: sobrestamentoInicial(out, stj),
+    preparo: preparoInicial(out),
+    meta,
+  };
+}
+
+/**
+ * Temas do STJ parecidos com a matéria: busca na base oficial pelo texto do recurso e do acórdão (e pelos temas citados
+ * nas peças). Devolve a lista para o prompt e para as sugestões da tela de sobrestamento.
+ */
+export function candidatosStj(req: AnalyzeRequest, indice: IndiceTemas): TemaEncontrado[] {
+  const textos = req.files.filter((f) => f.role !== 'guia_preparo' && f.textPreview).map((f) => f.textPreview!);
+  const consulta = [req.notes ?? '', ...textos].join('\n').slice(0, 400_000);
+  if (consulta.trim().length < 40) return [];
+  const out = new Map<string, TemaEncontrado>();
+  const add = (t: TemaEncontrado) => out.has(`${t.especie}${t.numero}`) || out.set(`${t.especie}${t.numero}`, t);
+  for (const n of temasCitados(consulta)) {
+    const t = temaPorNumero(indice, n);
+    if (t) add({ ...t, pontuacao: 0 });
+  }
+  buscarTemas(indice, consulta, { limite: 10, fases: ['pendente', 'julgado'] }).forEach(add);
+  buscarTemas(indice, consulta, { limite: 5, fases: ['pendente'] }).forEach(add);
+  return [...out.values()].slice(0, 18);
+}
+
+const ROTULO_SUSP: Record<TemaStj['suspensao'], string> = { determinada: 'há ordem de suspensão', nao_determinada: 'sem ordem de suspensão', nao_informada: 'suspensão não informada' };
+
+export function textoCandidatosStj(c: TemaEncontrado[], atualizadaEm: string): string {
+  if (!c.length) return '';
+  const linhas = c.map(
+    (t) =>
+      `- ${t.especie === 'relevancia' ? 'Tema de relevância' : 'Tema repetitivo'} ${t.numero}/STJ (${t.situacao}; ${ROTULO_SUSP[t.suspensao]}). Questão: ${t.questao.slice(0, 420)}${
+        t.tese ? ` Tese: ${t.tese.slice(0, 260)}` : ''
+      }`,
+  );
+  return [
+    `\nTEMAS DO STJ NA BASE OFICIAL (dados abertos do STJ, consultados em ${atualizadaEm.slice(0, 10)}): selecionados por semelhança de texto com as peças; podem não ter relação com o caso.`,
+    'Use esta lista como referência confiável de número, situação, questão e ordem de suspensão. Em "temasRepetitivos", inclua apenas os temas cuja questão de direito coincida com a do recurso (explique a pertinência) e copie número, situação e suspensão desta lista. Para temas do STJ fora da lista, só cite o número se tiver certeza.',
+    ...linhas,
+  ].join('\n');
 }
 
 export interface ResultadoAnalise {
@@ -143,6 +189,12 @@ export async function executarAnalise(
   validarArquivos(req.files);
   const { partes, avisos } = montarPartes(req);
 
+  etapa('Consultando a base de temas do STJ…');
+  const base = await baseStj(8000);
+  const candidatos = base ? candidatosStj(req, base.indice) : [];
+  if (base && candidatos.length) partes.push({ kind: 'text', text: textoCandidatosStj(candidatos, base.atualizadaEm) });
+  const stj: OpcoesBaseStj = base ? { base: base.indice, consultadoEm: base.atualizadaEm, sugestoes: candidatos } : {};
+
   const model = req.model || MODELOS_PADRAO[req.provider];
   const impl = PROVEDORES_IMPL[req.provider];
   const jsonSchema = modelOutputJsonSchema();
@@ -156,7 +208,7 @@ export async function executarAnalise(
     const r = interpretarSaida(texto);
     if (r.ok) {
       etapa('Recalculando prazos e verificando precedentes…');
-      const data = enriquecer(r.data, { provedor: req.provider, modelo: model, geradoEm: new Date().toISOString() }, req.prazo);
+      const data = enriquecer(r.data, { provedor: req.provider, modelo: model, geradoEm: new Date().toISOString() }, req.prazo, stj);
       return { data, avisosSeguranca: avisos };
     }
     ultimoErro = r.erro;

@@ -1,3 +1,4 @@
+import type { TemaEncontrado } from '../../shared/temasStj';
 import type { EntradaBase } from '../../shared/precedentesBase';
 import type { Caso, CasoResumo, EntradaHistorico, RegistroDados, StatusCaso } from '../../shared/registro';
 
@@ -41,6 +42,11 @@ async function req<T>(metodo: string, url: string, corpo?: unknown): Promise<T> 
 }
 
 export const nuvem = {
+  temasStj: (p: { q?: string; numero?: string; pendentes?: boolean }) =>
+    req<{ atualizadaEm: string; temas: TemaEncontrado[] }>(
+      'GET',
+      `/api/temas-stj?${new URLSearchParams({ ...(p.q ? { q: p.q } : {}), ...(p.numero ? { numero: p.numero } : {}), ...(p.pendentes ? { pendentes: '1' } : {}) })}`,
+    ),
   me: () => req<{ usuario: UsuarioNuvem }>('GET', '/api/auth/me').then((r) => r.usuario),
   login: (email: string, senha: string) => req<{ usuario: UsuarioNuvem }>('POST', '/api/auth/login', { email, senha }).then((r) => r.usuario),
   logout: () => req<{ ok: true }>('POST', '/api/auth/logout'),

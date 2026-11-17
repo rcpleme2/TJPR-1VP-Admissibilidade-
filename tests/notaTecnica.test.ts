@@ -14,7 +14,9 @@ describe('nota técnica', () => {
     expect(n.secoes[1].texto).toMatch(/tempestivos/);
     expect(n.secoes[1].texto).toMatch(/R\$ 270,12/);
     expect(n.secoes[2].texto).toMatch(/Tema 466\/STJ/);
-    expect(n.pendencias.join(' ')).toMatch(/sobrestamento/);
+    // os dois temas do exemplo já foram julgados: a conclusão vem marcada pelo sistema, sem pendência de sobrestamento
+    expect(n.pendencias.join(' ')).not.toMatch(/sobrestamento/);
+    expect(n.secoes[0].texto).toMatch(/não (está|se insere|foi afetada)|não afetada/i);
     expect(n.pendencias.join(' ')).toMatch(/preparo do Recurso Extraordinário/);
   });
 

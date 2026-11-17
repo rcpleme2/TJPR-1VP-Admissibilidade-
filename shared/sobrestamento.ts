@@ -3,8 +3,10 @@ import type {
   ConclusaoSobrestamento,
   ModelOutput,
   Sobrestamento,
+  SugestaoTemaStj,
   TemaSobrestamento,
 } from './schema';
+import { temaPorNumero, type IndiceTemas, type TemaEncontrado, type TemaStj } from './temasStj';
 
 /**
  * Verificação de sobrestamento: a matéria do recurso se insere em tema repetitivo, de repercussão
@@ -60,10 +62,47 @@ export function linkTema(t: Pick<TemaSobrestamento, 'numero' | 'tribunal'>): str
 
 const idTema = (tribunal: string, numero: string, i: number) => `${tribunal}-${numero.replace(/\D/g, '') || `s${i}`}`;
 
-/** Registro inicial a partir das indicações da IA: tudo fica "a verificar" até o assessor decidir. */
-export function sobrestamentoInicial(out: Pick<ModelOutput, 'temasRepetitivos'>): Sobrestamento {
+export interface OpcoesBaseStj {
+  /** Base oficial do STJ (dados abertos), se disponível. */
+  base?: IndiceTemas | null;
+  consultadoEm?: string;
+  /** Temas parecidos achados na base pela busca textual. */
+  sugestoes?: TemaEncontrado[];
+}
+
+const FASE_PARA_SITUACAO: Record<TemaStj['fase'], TemaSobrestamento['situacao']> = { pendente: 'afetado_pendente', julgado: 'julgado', cancelado: 'desconhecida', outro: 'desconhecida' };
+
+/** Completa o tema com os dados oficiais do STJ: questão, situação, ordem de suspensão e tese. */
+export function conferirNaBase(t: TemaSobrestamento, base: IndiceTemas, consultadoEm: string): TemaSobrestamento {
+  if (t.tribunal !== 'STJ' || !t.numero.replace(/\D/g, '')) return t;
+  const especie = t.especie === 'relevancia' ? 'relevancia' : 'repetitivo';
+  const of = temaPorNumero(base, t.numero, especie);
+  if (!of) return { ...t, foraDaBase: true, oficial: undefined };
+  return {
+    ...t,
+    especie: of.especie,
+    foraDaBase: false,
+    questao: of.questao.slice(0, 2000) || t.questao,
+    situacao: FASE_PARA_SITUACAO[of.fase],
+    suspensao: of.suspensao === 'determinada' ? 'determinada' : of.suspensao === 'nao_determinada' ? 'nao_determinada' : t.suspensao,
+    oficial: { situacao: of.situacao.slice(0, 120), suspensao: of.suspensao, textoSuspensao: of.textoSuspensao || undefined, tese: of.tese.slice(0, 3000) || undefined, consultadoEm },
+  };
+}
+
+const cancelado = (t: TemaSobrestamento) => /cancel/i.test(t.oficial?.situacao ?? '');
+
+/** O tema pode levar ao sobrestamento? (mérito não julgado e suspensão não descartada) */
+export const podeSobrestar = (t: TemaSobrestamento) => !cancelado(t) && t.situacao !== 'julgado' && t.suspensao !== 'nao_determinada';
+
+/**
+ * Registro inicial a partir das indicações da IA, conferidas na base do STJ quando houver. Se nenhum tema dá motivo
+ * para sobrestar (nenhum com mérito pendente e suspensão possível), a conclusão já vem marcada como "matéria não
+ * afetada a tema", e o assessor pode rever.
+ */
+export function sobrestamentoInicial(out: Pick<ModelOutput, 'temasRepetitivos'>, o: OpcoesBaseStj = {}): Sobrestamento {
   const vistos = new Set<string>();
-  const temas: TemaSobrestamento[] = [];
+  const consultadoEm = o.consultadoEm ?? new Date().toISOString();
+  let temas: TemaSobrestamento[] = [];
   (out.temasRepetitivos ?? []).forEach((t, i) => {
     const id = idTema(t.tribunal, t.numero, i);
     if (vistos.has(id)) return;
@@ -81,7 +120,41 @@ export function sobrestamentoInicial(out: Pick<ModelOutput, 'temasRepetitivos'>)
       enquadramento: 'a_verificar',
     });
   });
-  return { conclusao: 'nao_verificado', temas };
+  if (o.base) temas = temas.map((t) => conferirNaBase(t, o.base!, consultadoEm));
+
+  const examinados = new Set(temas.filter((t) => t.tribunal === 'STJ').map((t) => t.numero.replace(/\D/g, '')));
+  const sugestoesStj: SugestaoTemaStj[] = (o.sugestoes ?? [])
+    .filter((x) => !examinados.has(x.numero) && x.fase !== 'cancelado')
+    .slice(0, 8)
+    .map((x) => ({ especie: x.especie, numero: x.numero, situacao: x.situacao.slice(0, 120), fase: x.fase, suspensao: x.suspensao, questao: x.questao.slice(0, 2000), tese: x.tese.slice(0, 3000) || undefined }));
+
+  const motivo = temas.some(podeSobrestar);
+  const conclusao: ConclusaoSobrestamento = motivo ? 'nao_verificado' : 'nao_ha_tema';
+  return {
+    conclusao,
+    temas,
+    ...(conclusao !== 'nao_verificado' ? { automatica: true } : {}),
+    ...(sugestoesStj.length ? { sugestoesStj } : {}),
+    ...(o.base ? { baseStjEm: consultadoEm } : {}),
+  };
+}
+
+/** Tema da base do STJ incluído pelo assessor a partir de uma sugestão ou da pesquisa. */
+export function temaDaBase(x: SugestaoTemaStj, existentes: TemaSobrestamento[], consultadoEm: string): TemaSobrestamento {
+  let id = idTema('STJ', x.numero, existentes.length);
+  while (existentes.some((t) => t.id === id)) id += '+';
+  return {
+    id,
+    origem: 'assessor',
+    tribunal: 'STJ',
+    especie: x.especie,
+    numero: x.numero,
+    questao: x.questao,
+    situacao: FASE_PARA_SITUACAO[x.fase],
+    suspensao: x.suspensao === 'determinada' ? 'determinada' : x.suspensao === 'nao_determinada' ? 'nao_determinada' : 'a_conferir',
+    enquadramento: 'a_verificar',
+    oficial: { situacao: x.situacao, suspensao: x.suspensao, tese: x.tese, consultadoEm },
+  };
 }
 
 /** O registro gravado, ou o inicial para análises anteriores a esta verificação. */

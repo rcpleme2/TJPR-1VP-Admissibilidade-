@@ -3,7 +3,6 @@ import { Header } from './components/Header';
 import { DocumentUploadSection } from './components/DocumentUploadSection';
 import { DashboardOverview } from './components/DashboardOverview';
 import { ChecklistView } from './components/ChecklistView';
-import { DecisionDraftView } from './components/DecisionDraftView';
 import { PrecedentsView } from './components/PrecedentsView';
 import { SobrestamentoView } from './components/SobrestamentoView';
 import { avisosSobrestamento, obterSobrestamento } from '../shared/sobrestamento';
@@ -40,7 +39,7 @@ import { HistoricoModal } from './components/HistoricoModal';
 import { ContaModal } from './components/ContaModal';
 import { Download, Plus, X } from 'lucide-react';
 
-type Aba = 'dashboard' | 'checklist' | 'minuta' | 'precedentes';
+type Aba = 'dashboard' | 'checklist' | 'precedentes';
 const TIMEOUT_CLIENTE_MS = 6 * 60_000;
 
 export default function App() {
@@ -451,7 +450,6 @@ export default function App() {
   const abas: Array<{ id: Aba; rotulo: string; contagem?: number; alerta?: boolean }> = [
     { id: 'dashboard', rotulo: 'Diagnóstico' },
     { id: 'checklist', rotulo: 'Requisitos', contagem: avisosSob.length || undefined, alerta: avisosSob.length > 0 },
-    { id: 'minuta', rotulo: 'Minuta' },
     { id: 'precedentes', rotulo: 'Precedentes', contagem: alertasPrecedentes || undefined, alerta: alertasPrecedentes > 0 },
   ];
 
@@ -554,9 +552,11 @@ export default function App() {
                   data={analysisResult}
                   onChangePrazo={atualizarPrazo}
                   onNavigateToChecklist={() => setActiveTab('checklist')}
-                  onNavigateToMinuta={() => setActiveTab('minuta')}
                   onNavigateToSobrestamento={() => setActiveTab('checklist')}
                   onChangePreparo={(preparo) => updateResult((r) => ({ ...r, preparo }))}
+                  onChangeMinuta={(m: MinutaDecisao1VP) => updateResult((r) => ({ ...r, minutaDecisao1VP: m }))}
+                  onDownloadPDF={() => setIsPdfModalOpen(true)}
+                  onDownloadWord={() => baixarMinutaWord(analysisResult.minutaDecisao1VP, analysisResult.processo.numero)}
                 />
               )}
 
@@ -574,15 +574,6 @@ export default function App() {
                   sections={analysisResult.checklistSecoes}
                   onUpdateItemStatus={(sec, id, status) => mapItem(sec, id, { status })}
                   onUpdateItemNote={(sec, id, note) => mapItem(sec, id, { observacaoAssessor: note })}
-                />
-              )}
-
-              {activeTab === 'minuta' && (
-                <DecisionDraftView
-                  minuta={analysisResult.minutaDecisao1VP}
-                  onChange={(m: MinutaDecisao1VP) => updateResult((r) => ({ ...r, minutaDecisao1VP: m }))}
-                  onDownloadPDF={() => setIsPdfModalOpen(true)}
-                  onDownloadWord={() => baixarMinutaWord(analysisResult.minutaDecisao1VP, analysisResult.processo.numero)}
                 />
               )}
 

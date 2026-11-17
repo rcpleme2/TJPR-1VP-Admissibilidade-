@@ -9,6 +9,8 @@ interface DecisionDraftViewProps {
   onChange: (m: MinutaDecisao1VP) => void;
   onDownloadPDF: () => void;
   onDownloadWord: () => void;
+  /** Só o texto (relatório, fundamentação e dispositivo), sem timbre, cabeçalho nem assinatura. */
+  somenteTexto?: boolean;
 }
 
 const Texto: React.FC<{
@@ -35,7 +37,7 @@ const Titulo: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <h3 className="mb-3 text-center text-[13px] font-semibold uppercase tracking-[0.12em] text-tinta">{children}</h3>
 );
 
-export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({ minuta, onChange, onDownloadPDF, onDownloadWord }) => {
+export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({ minuta, onChange, onDownloadPDF, onDownloadWord, somenteTexto }) => {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const set = (parcial: Partial<MinutaDecisao1VP>) => onChange({ ...minuta, ...parcial });
@@ -43,7 +45,7 @@ export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({ minuta, on
     set({ capitulosFundamentacao: minuta.capitulosFundamentacao.map((c, k) => (k === i ? { ...c, ...parcial } : c)) });
 
   const getFullDecisionText = () => {
-    let full = `${minuta.cabecalho}\n\n`;
+    let full = somenteTexto ? '' : `${minuta.cabecalho}\n\n`;
     full += `I. RELATÓRIO\n${minuta.relatorio}\n\n`;
     full += `II. FUNDAMENTAÇÃO\n`;
     minuta.capitulosFundamentacao.forEach((cap) => {
@@ -63,7 +65,7 @@ export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({ minuta, on
 
   return (
     <div className="space-y-6">
-      <div className="mx-auto flex max-w-[50rem] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${somenteTexto ? '' : 'mx-auto max-w-[50rem]'}`}>
         <p className="text-[13px] text-tinta-3">{editing ? 'Editando. As alterações são gravadas e seguem para o PDF e o Word.' : 'Texto pronto para revisão.'}</p>
         <div className="flex flex-wrap gap-1.5">
           <Botao tamanho="sm" variante={editing ? 'primario' : 'secundario'} onClick={() => setEditing((v) => !v)} aria-pressed={editing}>
@@ -83,17 +85,27 @@ export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({ minuta, on
         </div>
       </div>
 
-      <article className="mx-auto max-w-[50rem] rounded-sm bg-folha px-6 py-12 shadow-[0_1px_2px_rgba(24,32,44,0.06),0_12px_32px_-16px_rgba(24,32,44,0.18)] sm:px-16 sm:py-16">
-        <header className="text-center">
-          <p className="font-serif text-[13px] uppercase tracking-[0.14em] text-tinta-2">Tribunal de Justiça do Estado do Paraná</p>
-          <p className="mt-1 font-serif text-[17px] font-semibold text-tinta">1ª Vice-Presidência</p>
-        </header>
+      <article
+        className={
+          somenteTexto
+            ? 'max-w-[46rem]'
+            : 'mx-auto max-w-[50rem] rounded-sm bg-folha px-6 py-12 shadow-[0_1px_2px_rgba(24,32,44,0.06),0_12px_32px_-16px_rgba(24,32,44,0.18)] sm:px-16 sm:py-16'
+        }
+      >
+        {!somenteTexto && (
+          <>
+            <header className="text-center">
+              <p className="font-serif text-[13px] uppercase tracking-[0.14em] text-tinta-2">Tribunal de Justiça do Estado do Paraná</p>
+              <p className="mt-1 font-serif text-[17px] font-semibold text-tinta">1ª Vice-Presidência</p>
+            </header>
 
-        <div className="mt-10 border-y border-linha py-4">
-          <Texto editing={editing} label="Cabeçalho" rows={4} value={editing ? minuta.cabecalho : cabecalhoSemTimbre(minuta.cabecalho)} onChange={(v) => set({ cabecalho: v })} className="whitespace-pre-line font-serif text-[14px] leading-relaxed text-tinta-2" />
-        </div>
+            <div className="mt-10 border-y border-linha py-4">
+              <Texto editing={editing} label="Cabeçalho" rows={4} value={editing ? minuta.cabecalho : cabecalhoSemTimbre(minuta.cabecalho)} onChange={(v) => set({ cabecalho: v })} className="whitespace-pre-line font-serif text-[14px] leading-relaxed text-tinta-2" />
+            </div>
+          </>
+        )}
 
-        <section className="mt-10">
+        <section className={somenteTexto ? 'mt-2' : 'mt-10'}>
           <Titulo>I. Relatório</Titulo>
           <Texto editing={editing} label="Relatório" rows={10} value={minuta.relatorio} onChange={(v) => set({ relatorio: v })} className={corpo} />
         </section>
@@ -119,11 +131,13 @@ export const DecisionDraftView: React.FC<DecisionDraftViewProps> = ({ minuta, on
         </section>
 
 
-        <footer className="mt-20 text-center">
-          <div className="mx-auto h-px w-64 bg-tinta-3/50" />
-          <p className="mt-2 font-serif text-[14px] text-tinta">Desembargador 1º Vice-Presidente</p>
-          <p className="mt-0.5 text-[12px] text-tinta-3">Competência delegada pela Presidência (RITJPR, art. 15, § 3º)</p>
-        </footer>
+        {!somenteTexto && (
+          <footer className="mt-20 text-center">
+            <div className="mx-auto h-px w-64 bg-tinta-3/50" />
+            <p className="mt-2 font-serif text-[14px] text-tinta">Desembargador 1º Vice-Presidente</p>
+            <p className="mt-0.5 text-[12px] text-tinta-3">Competência delegada pela Presidência (RITJPR, art. 15, § 3º)</p>
+          </footer>
+        )}
       </article>
     </div>
   );
