@@ -18,7 +18,7 @@ export function normalizar(texto) {
   return `${u.origin}/`;
 }
 
-const padrao = (origem) => (origem.startsWith('http://localhost') || origem.startsWith('http://127.0.0.1') ? 'http://localhost/*' : `${origem}/*`);
+export const padrao = (origem) => (origem.startsWith('http://localhost') || origem.startsWith('http://127.0.0.1') ? 'http://localhost/*' : `${origem}/*`);
 
 /** Grava o endereço e pede acesso a ele (necessário para a sessão funcionar dentro do painel). */
 export async function salvarEndereco(endereco) {

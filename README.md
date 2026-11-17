@@ -90,6 +90,9 @@ No modo texto a varredura de prompt injection alcança o conteúdo dos autos.
 `extensao-chrome/` abre o sistema no painel lateral do Chrome e recebe PDFs arrastados de outros sites (ex.: Projudi):
 a extensão baixa o documento com a sessão do usuário e o entrega ao sistema. O build gera
 `dist/extensao-admissibilidade.zip`, baixado pelo link **Extensão** no cabeçalho; instruções em `extensao-chrome/README.md`.
+Links arrastados com o sistema aberto numa aba comum também são aceitos: com a extensão instalada, ela baixa o PDF
+(script `ponte.js`); sem ela, o servidor baixa o link (`POST /api/baixar-link`, só https público: endereços internos
+são recusados na resolução de DNS, inclusive em redirecionamentos; até 30 MB; precisa ser PDF).
 O servidor só aceita ser embutido pela extensão listada em `EXTENSAO_CHROME_IDS` (padrão: o ID fixado pela chave do manifest).
 
 ## Hospedagem no Google Cloud Run (camada gratuita)

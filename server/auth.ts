@@ -56,12 +56,13 @@ export function criarSessao(uid: string, senhaHash: string, agora = Date.now()):
   return `${corpo}.${assinar(corpo)}`;
 }
 
+/** Sessão lida do cookie; `selo` vazio = token do formato anterior (sem selo da senha), aceito até vencer e trocado pelo novo. */
 export function lerSessao(token: string | undefined, agora = Date.now()): { uid: string; exp: number; selo: string } | null {
   if (!token) return null;
   const partes = token.split('.');
-  if (partes.length !== 4) return null;
-  const [uid, exp, selo, sig] = partes;
-  const esperado = assinar(`${uid}.${exp}.${selo}`);
+  if (partes.length !== 3 && partes.length !== 4) return null;
+  const [uid, exp, selo, sig] = partes.length === 4 ? partes : [partes[0], partes[1], '', partes[2]];
+  const esperado = assinar(selo ? `${uid}.${exp}.${selo}` : `${uid}.${exp}`);
   const a = Buffer.from(sig);
   const b = Buffer.from(esperado);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
@@ -70,16 +71,23 @@ export function lerSessao(token: string | undefined, agora = Date.now()): { uid:
 }
 
 /** A sessão vale para este usuário se a senha não mudou desde o login. */
-export const sessaoConfere = (s: { selo: string }, u: Pick<Usuario, 'senhaHash'>) => s.selo === seloSenha(u.senhaHash);
+export const sessaoConfere = (s: { selo: string }, u: Pick<Usuario, 'senhaHash'>) => s.selo === '' || s.selo === seloSenha(u.senhaHash);
 
 /** Precisa renovar o cookie? (emitido há mais de um dia) */
-export const sessaoParaRenovar = (s: { exp: number }, agora = Date.now()) => s.exp - Math.floor(agora / 1000) < SESSAO_SEG - RENOVAR_APOS_SEG;
+export const sessaoParaRenovar = (s: { exp: number; selo: string }, agora = Date.now()) =>
+  s.selo === '' || s.exp - Math.floor(agora / 1000) < SESSAO_SEG - RENOVAR_APOS_SEG;
 
-const lerCookie = (req: Request, nome: string) =>
-  req.headers.cookie
-    ?.split(';')
-    .map((c) => c.trim().split('='))
-    .find(([k]) => k === nome)?.[1];
+/**
+ * Todos os valores do cookie: o navegador pode mandar mais de um `sid` (ex.: um antigo, de outro contexto, ao lado
+ * do novo, como no painel da extensão). Ler só o primeiro fazia o login voltar para a tela de entrada sem parar.
+ */
+export const lerCookies = (cabecalho: string | undefined, nome: string): string[] =>
+  (cabecalho ?? '')
+    .split(';')
+    .map((c) => c.trim())
+    .filter((c) => c.startsWith(`${nome}=`))
+    .map((c) => c.slice(nome.length + 1))
+    .filter(Boolean);
 
 const opcoesCookie = () => `Path=/; HttpOnly; SameSite=Strict${IS_PROD ? '; Secure' : ''}`;
 const definirCookie = (res: Response, token: string) => res.append('Set-Cookie', `${COOKIE}=${token}; Max-Age=${SESSAO_SEG}; ${opcoesCookie()}`);
@@ -140,9 +148,21 @@ export function criarAuth(store: Store) {
   /** Exige sessão válida de usuário ativo. */
   const autenticar = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const s = lerSessao(lerCookie(req, COOKIE));
-      const u = s ? await carregar(s.uid) : null;
-      if (!s || !u || !u.ativo || !sessaoConfere(s, u)) return res.status(401).json({ error: 'Sessão expirada ou inválida. Entre novamente.', codigo: 'nao_autenticado' });
+      const tokens = lerCookies(req.headers.cookie, COOKIE);
+      let achou: { s: NonNullable<ReturnType<typeof lerSessao>>; u: Usuario } | null = null;
+      for (const t of tokens) {
+        const s = lerSessao(t);
+        const u = s ? await carregar(s.uid) : null;
+        if (s && u && u.ativo && sessaoConfere(s, u)) {
+          achou = { s, u };
+          break;
+        }
+      }
+      if (!achou) {
+        if (tokens.length) limparCookie(res); // apaga o cookie inválido, para não atrapalhar o próximo login
+        return res.status(401).json({ error: 'Sessão expirada ou inválida. Entre novamente.', codigo: 'nao_autenticado' });
+      }
+      const { s, u } = achou;
       req.usuario = u;
       if (sessaoParaRenovar(s)) definirCookie(res, criarSessao(u.id, u.senhaHash));
       next();

@@ -20,7 +20,7 @@ describe('extensão do Chrome', () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.side_panel.default_path).toBe('painel.html');
     expect(manifest.host_permissions).toEqual(['https://*.jus.br/*']);
-    expect(manifest.permissions).toEqual(['sidePanel', 'storage', 'contextMenus']);
+    expect(manifest.permissions).toEqual(['sidePanel', 'storage', 'contextMenus', 'scripting']);
   });
 
   it('o .zip traz os arquivos da extensão íntegros', () => {

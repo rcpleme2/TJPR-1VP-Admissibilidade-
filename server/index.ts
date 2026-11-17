@@ -24,6 +24,7 @@ import { criarStore, type Store } from './store';
 import { ProviderError } from './providers/types';
 import { listarModelos } from './providers/modelos';
 import { NOME_ZIP_EXTENSAO, ziparPasta } from './zip';
+import { baixarLink, ErroLink } from './baixarLink';
 import { INSTRUCOES_PADRAO } from './prompt';
 import { redigirSegredos } from './sanitize';
 
@@ -110,6 +111,20 @@ export function createApp(store: Store) {
     } catch (err) {
       const status = err instanceof ProviderError ? (err.status === 401 || err.status === 403 ? 400 : 502) : 500;
       res.status(status).json({ error: err instanceof ProviderError ? err.message : 'Erro ao consultar os modelos.' });
+    }
+  });
+
+  // Links de PDF arrastados de outro site, com o sistema aberto fora da extensão do Chrome: o servidor baixa (só links públicos).
+  const limiteLinks = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Muitos downloads seguidos. Aguarde um minuto.' } });
+  app.post('/api/baixar-link', autenticar, limiteLinks, async (req: Request, res: Response) => {
+    const url = typeof req.body?.url === 'string' ? req.body.url.slice(0, 4000) : '';
+    const nome = typeof req.body?.nome === 'string' ? req.body.nome.slice(0, 300) : undefined;
+    if (!url) return res.status(400).json({ error: 'Informe o endereço.' });
+    try {
+      const r = await baixarLink(url, nome);
+      res.set('x-nome-arquivo', encodeURIComponent(r.nome)).type('application/pdf').send(r.dados);
+    } catch (e) {
+      res.status(e instanceof ErroLink ? 422 : 502).json({ error: e instanceof ErroLink ? e.message : 'Não foi possível baixar o arquivo.' });
     }
   });
 

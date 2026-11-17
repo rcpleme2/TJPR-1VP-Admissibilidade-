@@ -6,7 +6,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import sample from '../server/fixtures/sample-case.json';
 import { resumirAlteracoes, validarCNJ, type RegistroDados } from '../shared/registro';
 import { enriquecer } from '../server/analyze';
-import { criarSessao, hashSenha, lerSessao, sessaoConfere, sessaoParaRenovar, verificarSenha } from '../server/auth';
+import crypto from 'node:crypto';
+import { criarSessao, hashSenha, lerCookies, lerSessao, sessaoConfere, sessaoParaRenovar, verificarSenha } from '../server/auth';
 import { criarStoreMemoria } from '../server/store/memory';
 import type { ModelOutput } from '../shared/schema';
 
@@ -37,6 +38,17 @@ describe('senhas e sessões', () => {
     expect(lerSessao(t.slice(0, -2) + 'xx')).toBeNull();
     expect(lerSessao(t, Date.now() + 401 * 86_400_000)).toBeNull();
     expect(lerSessao(undefined)).toBeNull();
+  });
+  it('lê todos os cookies de sessão (um antigo não bloqueia o novo) e aceita o formato anterior', () => {
+    const novo = criarSessao('u1', 'hash-1');
+    expect(lerCookies(`tema=x; sid=velho.123.abc; sid=${novo}`, 'sid')).toEqual(['velho.123.abc', novo]);
+    expect(lerCookies(undefined, 'sid')).toEqual([]);
+    const corpo = `u1.${Math.floor(Date.now() / 1000) + 3600}`;
+    const antigo = `${corpo}.${crypto.createHmac('sha256', process.env.SESSION_SECRET!).update(corpo).digest('base64url')}`;
+    const s = lerSessao(antigo)!;
+    expect(s.uid).toBe('u1');
+    expect(sessaoConfere(s, { senhaHash: 'qualquer' })).toBe(true);
+    expect(sessaoParaRenovar(s)).toBe(true);
   });
   it('sessão persistente: vale meses, renova com o uso e cai com a troca de senha', () => {
     const agora = Date.now();
@@ -99,6 +111,15 @@ describe('API de registros (multiusuário)', () => {
     expect(sc).toMatch(/SameSite=Strict/);
     expect((await (await api('ana', 'GET', '/api/auth/me')).json()).usuario.email).toBe('ana@tjpr.test');
     expect((await api('', 'GET', '/api/auth/me')).status).toBe(401);
+  });
+
+  it('cookie de sessão antigo ao lado do novo não derruba o login; cookie inválido é apagado', async () => {
+    const me = (cookie: string) => fetch(`${base}/api/auth/me`, { headers: { cookie } });
+    expect((await me(`sid=velho.123.abc; ${cookies.ana}`)).status).toBe(200);
+    expect((await me(`${cookies.ana}; sid=velho.123.abc`)).status).toBe(200);
+    const ruim = await me('sid=velho.123.abc');
+    expect(ruim.status).toBe(401);
+    expect(ruim.headers.get('set-cookie')).toMatch(/sid=; Max-Age=0/);
   });
 
   it('exige o cabeçalho anti-CSRF nas escritas', async () => {

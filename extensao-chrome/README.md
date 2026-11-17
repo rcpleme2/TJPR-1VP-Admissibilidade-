@@ -20,6 +20,13 @@ No painel, o botão de janela no cabeçalho do sistema (ou o item **Abrir em jan
 monitor. A janela guarda tamanho e posição; para voltar ao painel, feche-a e clique no ícone da extensão.
 Ao trocar de painel para janela o sistema é recarregado: salve o registro antes.
 
+## Arrastar links numa aba comum
+
+Com a extensão instalada, arrastar links de PDFs funciona também com o sistema aberto numa aba comum
+(a extensão injeta `ponte.js` nas páginas do endereço configurado; abas já abertas precisam ser recarregadas).
+Sem a extensão, quem baixa o link é o servidor: só funciona para links públicos, que não exigem login no
+site de origem (os do Projudi exigem).
+
 ## Como funciona
 
 - `painel.html` abre o sistema num iframe. O servidor só aceita ser embutido pela extensão cujo ID está em

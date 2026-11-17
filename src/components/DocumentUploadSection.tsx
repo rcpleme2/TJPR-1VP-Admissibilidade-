@@ -5,7 +5,7 @@ import { LIMITES } from '../../shared/schema';
 import type { CasoResumo } from '../../shared/registro';
 import { ArquivoCard } from './ArquivoCard';
 import { extrairPdf } from '../lib/pdfText';
-import { baixarPelaExtensao, linksArrastados, origemDaExtensao, temArquivos, temLinks } from '../lib/extensao';
+import { linksArrastados, temArquivos, temLinks, trazerLinks } from '../lib/extensao';
 import { ROTULO_STATUS } from './CasoCabecalho';
 import { Botao, campo, campoArea, campoSelect, dataHora, Folha, Rotulo, TituloSecao } from './ui';
 
@@ -158,18 +158,14 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
 
   const [trazendo, setTrazendo] = useState(0);
 
-  /** Arquivos soltos em qualquer ponto da tela; links (de outro site) são baixados pela extensão do Chrome. */
+  /** Arquivos soltos em qualquer ponto da tela; links (de outro site) são baixados pela extensão do Chrome ou, sem ela, pelo servidor. */
   const receber = async (dt: DataTransfer) => {
     if (dt.files && dt.files.length > 0) return handleFileSelection(dt.files);
     const links = linksArrastados(dt);
     if (links.length === 0) return;
-    if (!origemDaExtensao()) {
-      onError('Para trazer documentos arrastados de outro site, abra o sistema pela extensão do Chrome. Fora dela, baixe o PDF e arraste o arquivo.');
-      return;
-    }
     setTrazendo((n) => n + links.length);
     await Promise.all(
-      baixarPelaExtensao(links).map(async ({ link, arquivo }) => {
+      trazerLinks(links).map(async ({ link, arquivo }) => {
         try {
           await handleFileSelection([await arquivo]);
         } catch (e) {
@@ -272,7 +268,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
               <Upload className="size-5 text-tinta-3" />
               <p className="mt-2.5 text-sm text-tinta">{trazendo > 0 ? `Trazendo ${trazendo === 1 ? '1 documento' : `${trazendo} documentos`}…` : 'Arraste os PDFs para cá'}</p>
               <p className="mt-0.5 text-[13px] text-tinta-3">
-                {origemDaExtensao() ? 'Arquivos do computador ou links de documentos de outro site. ' : ''}O tipo de cada peça é reconhecido pelo nome. Ou escolha:
+                Arquivos do computador ou links de documentos de outro site. O tipo de cada peça é reconhecido pelo nome. Ou escolha:
               </p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 {seletor('Acórdão', 'acordao')}
