@@ -25,7 +25,7 @@ import { ProviderError } from './providers/types';
 import { listarModelos } from './providers/modelos';
 import { NOME_ZIP_EXTENSAO, ziparPasta } from './zip';
 import { baixarLink, ErroLink } from './baixarLink';
-import { baseStj, statusBaseStj } from './temasStj';
+import { baseStj, configurarBaseStj, statusBaseStj } from './temasStj';
 import { buscarTemas, temaPorNumero } from '../shared/temasStj';
 import { INSTRUCOES_PADRAO } from './prompt';
 import { redigirSegredos } from './sanitize';
@@ -42,6 +42,7 @@ export function auditar(evento: Record<string, unknown>) {
 const hashIp = (ip: string | undefined) => crypto.createHash('sha256').update(ip ?? '').digest('hex').slice(0, 12);
 
 export function createApp(store: Store) {
+  configurarBaseStj(store);
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // Cloud Run encaminha o IP real via X-Forwarded-For

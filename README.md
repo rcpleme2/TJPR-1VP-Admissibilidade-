@@ -37,8 +37,11 @@ Cada análise gera um **registro por processo** (chave: número CNJ, com dígito
 ## Base de temas do STJ (dados abertos)
 
 O servidor baixa o `temas.csv` dos dados abertos do STJ (repetitivos e de relevância: questão submetida, situação, ordem de
-suspensão e tese firmada), guarda em memória por 12 horas e segue com a última cópia se o STJ não responder
-(`STJ_TEMAS_URL` troca o endereço; `STJ_TEMAS_ARQUIVO` lê de um arquivo local).
+suspensão e tese firmada) **uma vez por semana, às sextas-feiras** (horário de Brasília, no primeiro uso do dia), **exceto no
+recesso de 20/12 a 06/01**. A cópia fica guardada no armazenamento (Firestore: `arquivos/temas-stj.csv.gz`, compactada e em
+partes), e as instâncias que sobem nos outros dias a leem dali sem baixar de novo; só se não houver cópia nenhuma o download é
+feito na hora. Se o download de sexta falhar, segue a cópia anterior e há nova tentativa em 10 minutos.
+`STJ_TEMAS_URL` troca o endereço; `STJ_TEMAS_ARQUIVO` lê de um arquivo local.
 
 - **Na análise:** busca na base (BM25 sobre questão, tese, assuntos e legislação) os temas parecidos com o texto do recurso e
   do acórdão, mais os citados nas peças, e envia a lista à IA como referência oficial.

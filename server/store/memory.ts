@@ -23,6 +23,10 @@ export function criarStoreMemoria(arquivo?: string): Store {
   const casos = new Map<string, Caso>();
   const historicos = new Map<string, Array<EntradaHistorico & { dados: RegistroDados }>>();
   const base = new Map<string, EntradaBaseNuvem>();
+  const arquivos = new Map<string, { dados: Buffer; em: string }>();
+  // com persistência em arquivo, os arquivos do sistema ficam numa pasta ao lado do JSON
+  const pastaArquivos = arquivo ? path.join(path.dirname(arquivo), 'arquivos') : null;
+  const nomeSeguro = (nome: string) => nome.replace(/[^a-z0-9_.-]/gi, '_');
 
   if (arquivo && fs.existsSync(arquivo)) {
     const d = JSON.parse(fs.readFileSync(arquivo, 'utf8')) as Dump;
@@ -122,6 +126,28 @@ export function criarStoreMemoria(arquivo?: string): Store {
       async versao(id, versao) {
         const h = (historicos.get(id) ?? []).find((x) => x.versao === versao);
         return h ? clone(h.dados) : null;
+      },
+    },
+    arquivos: {
+      async ler(nome) {
+        const m = arquivos.get(nome);
+        if (m) return { dados: Buffer.from(m.dados), em: m.em };
+        if (!pastaArquivos) return null;
+        try {
+          const em = await fs.promises.readFile(path.join(pastaArquivos, `${nomeSeguro(nome)}.em`), 'utf8');
+          const dados = await fs.promises.readFile(path.join(pastaArquivos, nomeSeguro(nome)));
+          arquivos.set(nome, { dados, em });
+          return { dados: Buffer.from(dados), em };
+        } catch {
+          return null;
+        }
+      },
+      async gravar(nome, dados, em) {
+        arquivos.set(nome, { dados: Buffer.from(dados), em });
+        if (!pastaArquivos) return;
+        await fs.promises.mkdir(pastaArquivos, { recursive: true });
+        await fs.promises.writeFile(path.join(pastaArquivos, nomeSeguro(nome)), dados, { mode: 0o600 });
+        await fs.promises.writeFile(path.join(pastaArquivos, `${nomeSeguro(nome)}.em`), em, { mode: 0o600 });
       },
     },
     base: {

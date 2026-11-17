@@ -57,6 +57,11 @@ export interface Store {
     historico(id: string): Promise<EntradaHistorico[]>;
     versao(id: string, versao: number): Promise<RegistroDados | null>;
   };
+  /** Arquivos grandes do sistema (ex.: cópia da base de temas do STJ), guardados entre reinícios. */
+  arquivos: {
+    ler(nome: string): Promise<{ dados: Buffer; em: string } | null>;
+    gravar(nome: string, dados: Buffer, em: string): Promise<void>;
+  };
   base: {
     listar(): Promise<EntradaBaseNuvem[]>;
     salvar(e: EntradaBaseNuvem): Promise<void>;

@@ -125,7 +125,7 @@ export const BaseTemasStj: React.FC<Props> = ({ sugestoes, baseEm, incluidos, on
       </form>
       {estado.erro && <p className="mt-2 text-[13px] text-obice">{estado.erro}</p>}
       {estado.resultado && (estado.resultado.length === 0 ? <p className="mt-3 text-[13px] text-tinta-3">Nenhum tema encontrado.</p> : <div className="mt-2">{lista(estado.resultado, estado.em!)}</div>)}
-      {(estado.em || baseEm) && <p className="num mt-3 text-[12px] text-tinta-3">Base consultada em {new Date(estado.em || baseEm!).toLocaleDateString('pt-BR')}.</p>}
+      {(estado.em || baseEm) && <p className="num mt-3 text-[12px] text-tinta-3">Base do STJ atualizada em {new Date(estado.em || baseEm!).toLocaleDateString('pt-BR')} (atualiza às sextas-feiras, exceto no recesso de 20/12 a 06/01).</p>}
     </section>
   );
 };

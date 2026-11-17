@@ -14,6 +14,7 @@ const pad = (n: number) => String(n).padStart(6, '0');
  *  usuarios/{id}            emails/{email}      (trava de unicidade)
  *  casos/{id}               numeros/{digitos}   (trava: um registro por processo)
  *  casos/{id}/historico/{versão com 6 dígitos}  base/{hash da chave}
+ *  arquivos/{nome} e arquivos/{nome}/partes/{6 dígitos}  (cópia da base de temas do STJ)
  */
 export async function criarStoreFirestore(projectId?: string): Promise<Store> {
   const { Firestore } = await import('@google-cloud/firestore');
@@ -138,6 +139,36 @@ export async function criarStoreFirestore(projectId?: string): Promise<Store> {
       async versao(id, versao) {
         const d = await db.collection('casos').doc(id).collection('historico').doc(pad(versao)).get();
         return d.exists ? (JSON.parse(d.data()!.dadosJson) as RegistroDados) : null;
+      },
+    },
+    // arquivos/{nome} guarda os metadados; arquivos/{nome}/partes/{i} os bytes, em partes de até 900 KB
+    // (limite de 1 MiB por documento). Tudo é gravado num único lote, para nunca misturar versões.
+    arquivos: {
+      async ler(nome) {
+        const ref = db.collection('arquivos').doc(nome);
+        const meta = await ref.get();
+        if (!meta.exists) return null;
+        const { em, partes } = meta.data() as { em: string; partes: number };
+        const docs = await ref.collection('partes').get();
+        const porId = new Map(docs.docs.map((d) => [d.id, d.data().dados as Buffer]));
+        const pedacos: Buffer[] = [];
+        for (let i = 0; i < partes; i++) {
+          const p = porId.get(pad(i));
+          if (!p) return null;
+          pedacos.push(Buffer.from(p));
+        }
+        return { dados: Buffer.concat(pedacos), em };
+      },
+      async gravar(nome, dados, em) {
+        const ref = db.collection('arquivos').doc(nome);
+        const PARTE = 900 * 1024;
+        const n = Math.max(1, Math.ceil(dados.length / PARTE));
+        const existentes = await ref.collection('partes').get();
+        const lote = db.batch();
+        for (let i = 0; i < n; i++) lote.set(ref.collection('partes').doc(pad(i)), { dados: dados.subarray(i * PARTE, (i + 1) * PARTE) });
+        existentes.docs.filter((d) => Number(d.id) >= n).forEach((d) => lote.delete(d.ref));
+        lote.set(ref, { em, partes: n, tamanho: dados.length });
+        await lote.commit();
       },
     },
     base: {
